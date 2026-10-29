@@ -1,0 +1,8 @@
+RewriteEngine On
+
+# Upgrade WebSocket connections to Socket.IO backend on port 3001
+RewriteCond %{HTTP:Upgrade} =websocket [NC]
+RewriteRule ^socket\.io/(.*) ws://127.0.0.1:3001/socket.io/$1 [P,L]
+
+# Proxy Socket.IO HTTP long-polling to backend on port 3001
+RewriteRule ^socket\.io/(.*) http://127.0.0.1:3001/socket.io/$1 [P,L]

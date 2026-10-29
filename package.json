@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build:server": "esbuild server/index.ts --bundle --platform=node --target=node18 --outfile=dist-server/index.cjs",
+    "build": "tsc && vite build && npm run build:server",
     "preview": "vite preview",
     "server": "tsx server/index.ts",
     "dev:all": "concurrently \"npm run dev\" \"npm run server\"",

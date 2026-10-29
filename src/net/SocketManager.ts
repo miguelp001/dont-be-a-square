@@ -15,27 +15,36 @@ export interface GameAction {
 export default class SocketManager {
   private socket: Socket;
   private static instance: SocketManager;
-  public isConnected: boolean = false;
+
+  public get isConnected(): boolean {
+    return Boolean(this.socket && this.socket.connected);
+  }
 
   private constructor() {
-    this.socket = io('http://localhost:3001', {
+    const isLocal =
+      typeof window !== 'undefined' &&
+      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+    const options = {
       autoConnect: true,
-      reconnectionAttempts: 4,
-      timeout: 3000
-    });
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1000,
+      timeout: 5000,
+      transports: ['websocket', 'polling']
+    };
+
+    this.socket = isLocal ? io('http://localhost:3001', options) : io(options);
 
     this.socket.on('connect', () => {
-      this.isConnected = true;
       console.log('Connected to multiplayer server:', this.socket.id);
     });
 
-    this.socket.on('disconnect', () => {
-      this.isConnected = false;
-      console.log('Disconnected from multiplayer server');
+    this.socket.on('disconnect', (reason) => {
+      console.log('Disconnected from multiplayer server:', reason);
     });
 
-    this.socket.on('connect_error', () => {
-      this.isConnected = false;
+    this.socket.on('connect_error', (err) => {
+      console.warn('Multiplayer connection error:', err.message);
     });
   }
 

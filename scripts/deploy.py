@@ -27,8 +27,8 @@ def upload_file_if_changed(sftp, local_file, remote_file, prefix=""):
     fname = os.path.basename(local_file)
     local_size = os.path.getsize(local_file)
 
-    # Always upload entry points, service worker, and web app manifests
-    always_upload = fname.endswith('.html') or fname.endswith('.js') or fname.endswith('.webmanifest') or fname == 'sw.js'
+    # Always upload entry points, service worker, web app manifests, and server configs
+    always_upload = fname.endswith('.html') or fname.endswith('.js') or fname.endswith('.webmanifest') or fname == 'sw.js' or fname == '.htaccess'
 
     if not always_upload:
         try:
@@ -112,6 +112,20 @@ def deploy():
                 remote_file = f"{remote_root}/{file}"
                 if upload_file_if_changed(sftp, local_file, remote_file, prefix="asset: "):
                     upload_count += 1
+
+    # Deploy backend server bundle if present
+    server_bundle = Path(__file__).resolve().parent.parent / 'dist-server' / 'index.cjs'
+    if server_bundle.exists():
+        print(f"\nDeploying backend server {server_bundle}...", flush=True)
+        try:
+            sftp.mkdir('/home/dh_8jvcwd/server')
+        except IOError:
+            pass
+        if upload_file_if_changed(sftp, str(server_bundle), '/home/dh_8jvcwd/server/index.cjs', prefix="server: "):
+            upload_count += 1
+        # Restart or keepalive server
+        stdin, stdout, stderr = ssh.exec_command('pkill -f "node /home/dh_8jvcwd/server/index.cjs"; sleep 1; /home/dh_8jvcwd/server/keepalive.sh; sleep 1')
+        stdout.read()
 
     sftp.close()
     ssh.close()
