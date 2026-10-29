@@ -10,6 +10,7 @@ export default class Cursor extends Phaser.GameObjects.Rectangle {
   public boardOffsetX: number = 64;
   public boardOffsetY: number = 64;
   public stackOffsetPixels: number = 0;
+  public scaleFactor: number = 1.0;
 
   constructor(scene: Phaser.Scene, boardOrOffsetX: Board | number = 64, offsetY: number = 64) {
     let ox = 64;
@@ -25,12 +26,14 @@ export default class Cursor extends Phaser.GameObjects.Rectangle {
       oy = offsetY;
     }
 
+    const scale = boardRef ? boardRef.scaleFactor : 1.0;
+
     super(
       scene,
-      ox + 2 * PANEL_SIZE + PANEL_SIZE,
-      oy + 7 * PANEL_SIZE + PANEL_SIZE / 2,
-      PANEL_SIZE * 2 + 6,
-      PANEL_SIZE + 6,
+      ox + (2 * PANEL_SIZE + PANEL_SIZE) * scale,
+      oy + (7 * PANEL_SIZE + PANEL_SIZE / 2) * scale,
+      (PANEL_SIZE * 2 + 6) * scale,
+      (PANEL_SIZE + 6) * scale,
       0xffffff,
       0
     );
@@ -38,9 +41,10 @@ export default class Cursor extends Phaser.GameObjects.Rectangle {
     this.board = boardRef;
     this.boardOffsetX = ox;
     this.boardOffsetY = oy;
+    this.scaleFactor = scale;
     this.stackOffsetPixels = boardRef ? boardRef.stackOffsetPixels : 0;
 
-    this.setStrokeStyle(3.5, 0xfff200, 1);
+    this.setStrokeStyle(3.5 * scale, 0xfff200, 1);
     this.setOrigin(0.5, 0.5);
     this.setDepth(25); // Always render above panels and board elements
     scene.add.existing(this);
@@ -119,8 +123,9 @@ export default class Cursor extends Phaser.GameObjects.Rectangle {
       this.boardOffsetX = this.board.boardOffsetX;
       this.boardOffsetY = this.board.boardOffsetY;
       this.stackOffsetPixels = this.board.stackOffsetPixels;
+      this.scaleFactor = this.board.scaleFactor;
     }
-    this.x = this.boardOffsetX + this.gridX * PANEL_SIZE + PANEL_SIZE;
-    this.y = this.boardOffsetY + this.gridY * PANEL_SIZE + PANEL_SIZE / 2 - this.stackOffsetPixels;
+    this.x = this.boardOffsetX + (this.gridX * PANEL_SIZE + PANEL_SIZE) * this.scaleFactor;
+    this.y = this.boardOffsetY + (this.gridY * PANEL_SIZE + PANEL_SIZE / 2 - this.stackOffsetPixels) * this.scaleFactor;
   }
 }

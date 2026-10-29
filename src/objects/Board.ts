@@ -28,6 +28,7 @@ export default class Board extends Phaser.Events.EventEmitter {
   public container: Phaser.GameObjects.Container;
   public boardOffsetX: number = 64;
   public boardOffsetY: number = 64;
+  public scaleFactor: number = 1.0;
 
   /** Stack rising sub-pixel scroll offset (0 to PANEL_SIZE) */
   public stackOffsetPixels: number = 0;
@@ -47,13 +48,15 @@ export default class Board extends Phaser.Events.EventEmitter {
   public isTopOut: boolean = false;
   private dangerBeepTimer: number = 0;
 
-  constructor(scene: Phaser.Scene, offsetX: number = 64, offsetY: number = 64) {
+  constructor(scene: Phaser.Scene, offsetX: number = 64, offsetY: number = 64, scale: number = 1.0) {
     super();
     this.scene = scene;
     this.boardOffsetX = offsetX;
     this.boardOffsetY = offsetY;
+    this.scaleFactor = scale;
 
     this.container = scene.add.container(offsetX, offsetY);
+    this.container.setScale(scale);
 
     // Geometry mask to clip the rising stack cleanly within the visible board frame
     const maskGraphics = scene.make.graphics();
@@ -61,8 +64,8 @@ export default class Board extends Phaser.Events.EventEmitter {
     maskGraphics.fillRect(
       offsetX,
       offsetY,
-      BOARD_WIDTH * PANEL_SIZE,
-      BOARD_VISIBLE_HEIGHT * PANEL_SIZE
+      BOARD_WIDTH * PANEL_SIZE * scale,
+      BOARD_VISIBLE_HEIGHT * PANEL_SIZE * scale
     );
     const mask = maskGraphics.createGeometryMask();
     this.container.setMask(mask);

@@ -66,6 +66,8 @@ export default class GameScene extends Phaser.Scene {
   private keyupHandler?: (e: KeyboardEvent) => void;
 
   // Touch & Mobile Gesture State
+  private boardScale: number = 1.0;
+  private twoFingerLifting: boolean = false;
   private touchBoardActive: boolean = false;
   private touchStartX: number = 0;
   private touchStartY: number = 0;
@@ -109,6 +111,9 @@ export default class GameScene extends Phaser.Scene {
     // Slowly drifting cute pastel pattern background
     CuteUI.createCuteBackground(this);
 
+    // Support multi-touch (e.g. 2-finger lift on mobile/tablet)
+    this.input.addPointer(2);
+
     if (this.gameMode === 'endless') {
       this.setupEndlessMode();
     } else {
@@ -132,14 +137,22 @@ export default class GameScene extends Phaser.Scene {
   private setupBattleMode(): void {
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
-    const boardW = BOARD_WIDTH * PANEL_SIZE; // 192px
-    const boardH = BOARD_VISIBLE_HEIGHT * PANEL_SIZE; // 320px
+
+    // Responsive board scaling for mobile/desktop
+    const availableW = width - 36;
+    const scaleByW = Math.min(1.2, Math.max(0.9, Math.floor((availableW / (2 * BOARD_WIDTH * PANEL_SIZE + 20)) * 100) / 100));
+    const availableH = height - 150;
+    const scaleByH = Math.min(1.2, Math.max(0.9, Math.floor((availableH / (BOARD_VISIBLE_HEIGHT * PANEL_SIZE)) * 100) / 100));
+    this.boardScale = Math.min(scaleByW, scaleByH);
+
+    const boardW = Math.round(BOARD_WIDTH * PANEL_SIZE * this.boardScale);
+    const boardH = Math.round(BOARD_VISIBLE_HEIGHT * PANEL_SIZE * this.boardScale);
 
     // Adaptive vertical positioning on mobile / tall screens
-    const boardY = height > 550 ? Math.max(88, Math.round((height - boardH - 140) * 0.35)) : 88;
+    const boardY = height > 550 ? Math.max(88, Math.round((height - boardH - 100) * 0.38)) : 88;
 
     const centerX = width / 2;
-    const boardGap = Math.min(80, Math.max(16, width - boardW * 2 - 20));
+    const boardGap = Math.min(50, Math.max(14, width - boardW * 2 - 24));
     const p1X = Math.round(centerX - boardW - boardGap / 2);
     const p2X = Math.round(centerX + boardGap / 2);
 
@@ -149,7 +162,7 @@ export default class GameScene extends Phaser.Scene {
 
     // Center divider & VS badge
     this.add
-      .text(centerX, boardY + 60, 'VS', {
+      .text(centerX, boardY + Math.round(boardH * 0.22), 'VS', {
         fontSize: '28px',
         color: '#ff69b4',
         fontStyle: 'bold',
@@ -159,7 +172,7 @@ export default class GameScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     this.timeText = this.add
-      .text(centerX, boardY + 110, `${this.gameTime}`, {
+      .text(centerX, boardY + Math.round(boardH * 0.42), `${this.gameTime}`, {
         fontSize: '20px',
         color: '#feca57',
         fontStyle: 'bold',
@@ -171,29 +184,30 @@ export default class GameScene extends Phaser.Scene {
     // Setup Player 1 (Left)
     this.playerBorder = this.add.graphics();
     this.drawBoardFrame(this.playerBorder, p1X, boardY, boardW, boardH, 0xff69b4);
-    this.playerBoard = new Board(this, p1X, boardY);
+    this.playerBoard = new Board(this, p1X, boardY, this.boardScale);
     this.playerBoard.addInitialPanels(5);
     this.playerCursor = new Cursor(this, this.playerBoard);
 
+    const headerY = boardY - 42;
     const p1Char = CHARACTERS.find((c) => c.id === this.characterId) || CHARACTERS[0];
-    this.playerAvatar = this.add.image(p1X + 24, 46, p1Char.id);
+    this.playerAvatar = this.add.image(p1X + 24, headerY, p1Char.id);
     this.playerAvatar.setDisplaySize(42, 42);
 
-    this.add.text(p1X + 52, 28, p1Char.name, {
+    this.add.text(p1X + 52, headerY - 18, p1Char.name, {
       fontSize: '13px',
       color: '#ff69b4',
       fontStyle: 'bold',
       stroke: '#000000',
       strokeThickness: 2
     });
-    this.add.text(p1X + 52, 43, p1Char.species, {
+    this.add.text(p1X + 52, headerY - 3, p1Char.species, {
       fontSize: '9px',
       color: '#ff9ff3',
       fontStyle: 'italic bold',
       stroke: '#000000',
       strokeThickness: 2
     });
-    this.playerScoreText = this.add.text(p1X + 52, 56, 'SCORE: 0', {
+    this.playerScoreText = this.add.text(p1X + 52, headerY + 10, 'SCORE: 0', {
       fontSize: '11px',
       color: '#ffffff',
       fontStyle: 'bold',
@@ -226,10 +240,10 @@ export default class GameScene extends Phaser.Scene {
     const p2Color = 0x54a0ff;
     this.cpuBorder = this.add.graphics();
     this.drawBoardFrame(this.cpuBorder, p2X, boardY, boardW, boardH, p2Color);
-    this.cpuBoard = new Board(this, p2X, boardY);
+    this.cpuBoard = new Board(this, p2X, boardY, this.boardScale);
     this.cpuBoard.addInitialPanels(5);
     this.cpuCursor = new Cursor(this, this.cpuBoard);
-    this.cpuCursor.setStrokeStyle(3, p2Color);
+    this.cpuCursor.setStrokeStyle(3 * this.boardScale, p2Color);
 
     this.cpuDangerText = this.add
       .text(p2X + boardW / 2, boardY - 14, '', {
@@ -252,11 +266,11 @@ export default class GameScene extends Phaser.Scene {
     }
 
     const p2Char = CHARACTERS.find((c) => c.id === this.opponentCharacterId) || CHARACTERS[1];
-    this.cpuAvatar = this.add.image(p2X + boardW - 24, 46, p2Char.id);
+    this.cpuAvatar = this.add.image(p2X + boardW - 24, headerY, p2Char.id);
     this.cpuAvatar.setDisplaySize(42, 42);
 
     this.add
-      .text(p2X + boardW - 52, 28, `${p2Label}: ${p2Char.name}`, {
+      .text(p2X + boardW - 52, headerY - 18, `${p2Label}: ${p2Char.name}`, {
         fontSize: '13px',
         color: '#54a0ff',
         fontStyle: 'bold',
@@ -267,7 +281,7 @@ export default class GameScene extends Phaser.Scene {
 
     const subTitle = this.cpuBot ? this.cpuBot.personality.title : p2Char.species;
     this.add
-      .text(p2X + boardW - 52, 43, subTitle, {
+      .text(p2X + boardW - 52, headerY - 3, subTitle, {
         fontSize: '9px',
         color: '#feca57',
         fontStyle: 'italic bold',
@@ -277,7 +291,7 @@ export default class GameScene extends Phaser.Scene {
       .setOrigin(1, 0);
 
     this.cpuScoreText = this.add
-      .text(p2X + boardW - 52, 56, 'SCORE: 0', {
+      .text(p2X + boardW - 52, headerY + 10, 'SCORE: 0', {
         fontSize: '11px',
         color: '#ffffff',
         fontStyle: 'bold',
@@ -301,7 +315,7 @@ export default class GameScene extends Phaser.Scene {
     this.playerBoard.on('rowShift', (e: { offset: number }) => this.playerCursor.shiftWithStack(e?.offset));
     this.playerBoard.on('match', (e: MatchEvent) => this.handlePlayerMatch(e));
     this.playerBoard.on('panelPop', (e: { x: number; y: number; color: number }) => {
-      this.spawnPopParticles(p1X + e.x * PANEL_SIZE + PANEL_SIZE / 2, boardY + e.y * PANEL_SIZE - this.playerBoard.stackOffsetPixels + PANEL_SIZE / 2, e.color);
+      this.spawnPopParticles(p1X + (e.x * PANEL_SIZE + PANEL_SIZE / 2) * this.boardScale, boardY + (e.y * PANEL_SIZE - this.playerBoard.stackOffsetPixels + PANEL_SIZE / 2) * this.boardScale, e.color);
     });
     this.playerBoard.on('chainEnd', () => this.playerChainText.setText(''));
     this.playerBoard.on('dangerStart', () => {
@@ -327,7 +341,7 @@ export default class GameScene extends Phaser.Scene {
       this.cpuBoard.on('rowShift', (e: { offset: number }) => this.cpuCursor?.shiftWithStack(e?.offset));
       this.cpuBoard.on('match', (e: MatchEvent) => this.handleCpuMatch(e));
       this.cpuBoard.on('panelPop', (e: { x: number; y: number; color: number }) => {
-        this.spawnPopParticles(p2X + e.x * PANEL_SIZE + PANEL_SIZE / 2, boardY + e.y * PANEL_SIZE - this.cpuBoard!.stackOffsetPixels + PANEL_SIZE / 2, e.color);
+        this.spawnPopParticles(p2X + (e.x * PANEL_SIZE + PANEL_SIZE / 2) * this.boardScale, boardY + (e.y * PANEL_SIZE - this.cpuBoard!.stackOffsetPixels + PANEL_SIZE / 2) * this.boardScale, e.color);
       });
       this.cpuBoard.on('chainEnd', () => this.cpuChainText?.setText(''));
       this.cpuBoard.on('dangerStart', () => {
@@ -367,32 +381,41 @@ export default class GameScene extends Phaser.Scene {
   private setupEndlessMode(): void {
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
-    const boardW = BOARD_WIDTH * PANEL_SIZE;
-    const boardH = BOARD_VISIBLE_HEIGHT * PANEL_SIZE;
-    const boardX = Math.floor((width - boardW) / 2);
-    const boardY = height > 550 ? Math.max(80, Math.round((height - boardH - 140) * 0.35)) : 75;
+
+    // Single-board scaling: can expand significantly on mobile portrait & desktop
+    const availableW = width - 40;
+    const scaleByW = Math.min(1.45, Math.max(1.0, Math.floor((availableW / (BOARD_WIDTH * PANEL_SIZE)) * 100) / 100));
+    const availableH = height - 160;
+    const scaleByH = Math.min(1.45, Math.max(1.0, Math.floor((availableH / (BOARD_VISIBLE_HEIGHT * PANEL_SIZE)) * 100) / 100));
+    this.boardScale = Math.min(scaleByW, scaleByH);
+
+    const boardW = Math.round(BOARD_WIDTH * PANEL_SIZE * this.boardScale);
+    const boardH = Math.round(BOARD_VISIBLE_HEIGHT * PANEL_SIZE * this.boardScale);
+    const boardX = Math.round((width - boardW) / 2);
+    const boardY = height > 550 ? Math.max(88, Math.round((height - boardH - 100) * 0.38)) : 88;
     this.boardP1X = boardX;
     this.boardY = boardY;
 
     this.playerBorder = this.add.graphics();
     this.drawBoardFrame(this.playerBorder, boardX, boardY, boardW, boardH, 0xff69b4);
 
-    this.playerBoard = new Board(this, boardX, boardY);
+    this.playerBoard = new Board(this, boardX, boardY, this.boardScale);
     this.playerBoard.addInitialPanels(6);
     this.playerCursor = new Cursor(this, this.playerBoard);
 
+    const headerY = boardY - 42;
     const charData = CHARACTERS.find((c) => c.id === this.characterId) || CHARACTERS[0];
-    this.playerAvatar = this.add.image(42, 42, charData.id);
+    this.playerAvatar = this.add.image(boardX + 24, headerY, charData.id);
     this.playerAvatar.setDisplaySize(44, 44);
 
-    this.add.text(72, 22, charData.name, {
+    this.add.text(boardX + 52, headerY - 18, charData.name, {
       fontSize: '14px',
       color: '#ff69b4',
       fontStyle: 'bold',
       stroke: '#000000',
       strokeThickness: 2
     });
-    this.add.text(72, 38, charData.species, {
+    this.add.text(boardX + 52, headerY - 3, charData.species, {
       fontSize: '10px',
       color: '#ff9ff3',
       fontStyle: 'italic bold',
@@ -400,7 +423,7 @@ export default class GameScene extends Phaser.Scene {
       strokeThickness: 2
     });
 
-    this.playerScoreText = this.add.text(72, 52, 'SCORE: 0', {
+    this.playerScoreText = this.add.text(boardX + 52, headerY + 10, 'SCORE: 0', {
       fontSize: '12px',
       color: '#ffffff',
       fontStyle: 'bold',
@@ -409,7 +432,7 @@ export default class GameScene extends Phaser.Scene {
     });
 
     this.timeText = this.add
-      .text(width - 50, 22, `TIME: ${this.gameTime}`, {
+      .text(boardX + boardW, headerY, `TIME: ${this.gameTime}`, {
         fontSize: '15px',
         color: '#feca57',
         fontStyle: 'bold',
@@ -419,7 +442,7 @@ export default class GameScene extends Phaser.Scene {
       .setOrigin(1, 0.5);
 
     this.playerChainText = this.add
-      .text(width / 2, boardY + boardH + 18, '', {
+      .text(boardX + boardW / 2, boardY + boardH + 18, '', {
         fontSize: '20px',
         color: '#ff9f43',
         fontStyle: 'bold',
@@ -442,7 +465,7 @@ export default class GameScene extends Phaser.Scene {
     this.playerBoard.on('rowShift', (e: { offset: number }) => this.playerCursor.shiftWithStack(e?.offset));
     this.playerBoard.on('match', (e: MatchEvent) => this.handlePlayerMatch(e));
     this.playerBoard.on('panelPop', (e: { x: number; y: number; color: number }) => {
-      this.spawnPopParticles(boardX + e.x * PANEL_SIZE + PANEL_SIZE / 2, boardY + e.y * PANEL_SIZE - this.playerBoard.stackOffsetPixels + PANEL_SIZE / 2, e.color);
+      this.spawnPopParticles(boardX + (e.x * PANEL_SIZE + PANEL_SIZE / 2) * this.boardScale, boardY + (e.y * PANEL_SIZE - this.playerBoard.stackOffsetPixels + PANEL_SIZE / 2) * this.boardScale, e.color);
     });
     this.playerBoard.on('chainEnd', () => this.playerChainText.setText(''));
     this.playerBoard.on('dangerStart', () => {
@@ -488,8 +511,9 @@ export default class GameScene extends Phaser.Scene {
     g.strokeRoundedRect(x - 4, y - 4, w + 8, h + 8, 6);
 
     g.lineStyle(1, 0xffffff, 0.08);
+    const colW = w / BOARD_WIDTH;
     for (let c = 1; c < BOARD_WIDTH; c++) {
-      g.lineBetween(x + c * PANEL_SIZE, y, x + c * PANEL_SIZE, y + h);
+      g.lineBetween(x + c * colW, y, x + c * colW, y + h);
     }
   }
 
@@ -498,8 +522,8 @@ export default class GameScene extends Phaser.Scene {
     const textObj = isPlayer ? this.playerDangerText : this.cpuDangerText;
     const borderObj = isPlayer ? this.playerBorder : this.cpuBorder;
     const defaultColor = isPlayer ? 0xff69b4 : 0x54a0ff;
-    const boardW = BOARD_WIDTH * PANEL_SIZE;
-    const boardH = BOARD_VISIBLE_HEIGHT * PANEL_SIZE;
+    const boardW = Math.round(BOARD_WIDTH * PANEL_SIZE * this.boardScale);
+    const boardH = Math.round(BOARD_VISIBLE_HEIGHT * PANEL_SIZE * this.boardScale);
     const boardX = isPlayer ? this.boardP1X : this.boardP2X;
     const boardY = this.boardY;
 
@@ -619,7 +643,7 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
-  /** Setup direct board gestures and mobile on-screen virtual touch controls */
+  /** Setup direct board gestures and mobile on-screen controls */
   private setupTouchControls(): void {
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
@@ -643,14 +667,14 @@ export default class GameScene extends Phaser.Scene {
     pauseHit.on('pointerdown', () => this.togglePause());
     pauseBtn.add([pauseBg, pauseIcon, pauseHit]);
 
-    // 2. Direct Board Tap & Swipe Handling
+    // 2. Direct Board Touch Gestures (Tap slime to swap, flick left/right to swap, flick up to pulse lift)
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       if (this.isMatchOver || this.isPaused) return;
 
       const bX = this.playerBoard.boardOffsetX;
       const bY = this.playerBoard.boardOffsetY;
-      const bW = BOARD_WIDTH * PANEL_SIZE;
-      const bH = BOARD_VISIBLE_HEIGHT * PANEL_SIZE;
+      const bW = BOARD_WIDTH * PANEL_SIZE * this.boardScale;
+      const bH = BOARD_VISIBLE_HEIGHT * PANEL_SIZE * this.boardScale;
 
       if (
         pointer.x >= bX &&
@@ -658,8 +682,8 @@ export default class GameScene extends Phaser.Scene {
         pointer.y >= bY &&
         pointer.y <= bY + bH
       ) {
-        const localX = pointer.x - bX;
-        const localY = pointer.y - (bY - this.playerBoard.stackOffsetPixels);
+        const localX = (pointer.x - bX) / this.boardScale;
+        const localY = (pointer.y - (bY - this.playerBoard.stackOffsetPixels * this.boardScale)) / this.boardScale;
         const gx = Math.floor(localX / PANEL_SIZE);
         const gy = Math.floor(localY / PANEL_SIZE);
 
@@ -669,7 +693,9 @@ export default class GameScene extends Phaser.Scene {
           this.touchStartY = pointer.y;
           this.touchStartGridX = gx;
           this.touchStartGridY = gy;
-          this.playerCursor.setGridPosition(Math.min(gx, BOARD_WIDTH - 2), gy);
+          // Position cursor directly at the touched pair
+          const curX = Math.min(gx, BOARD_WIDTH - 2);
+          this.playerCursor.setGridPosition(curX, gy);
         }
       }
     });
@@ -679,22 +705,24 @@ export default class GameScene extends Phaser.Scene {
 
       const dx = pointer.x - this.touchStartX;
       const dy = pointer.y - this.touchStartY;
+      const threshold = 12 * this.boardScale;
 
-      if (Math.abs(dx) > 14 && Math.abs(dx) > Math.abs(dy)) {
-        if (dx > 14) {
-          // Swipe Right: execute swap at current cursor position
-          this.playerBoard.swap(this.playerCursor.gridX, this.playerCursor.gridY);
-          this.touchBoardActive = false;
-        } else if (dx < -14) {
-          // Swipe Left: move cursor left and execute swap
-          if (this.playerCursor.gridX > 0) {
-            this.playerCursor.gridX--;
-            this.playerBoard.swap(this.playerCursor.gridX, this.playerCursor.gridY);
-          }
-          this.touchBoardActive = false;
+      // Horizontal flick to swap
+      if (Math.abs(dx) > threshold && Math.abs(dx) > Math.abs(dy)) {
+        if (dx > 0) {
+          // Flick Right: swap column with right neighbor
+          const swapCol = Math.min(this.touchStartGridX, BOARD_WIDTH - 2);
+          this.playerCursor.setGridPosition(swapCol, this.touchStartGridY);
+          this.playerBoard.swap(swapCol, this.touchStartGridY);
+        } else {
+          // Flick Left: swap column with left neighbor
+          const swapCol = Math.max(0, this.touchStartGridX - 1);
+          this.playerCursor.setGridPosition(swapCol, this.touchStartGridY);
+          this.playerBoard.swap(swapCol, this.touchStartGridY);
         }
-      } else if (dy < -20 && Math.abs(dy) > Math.abs(dx)) {
-        // Swipe Up: quick fast-lift impulse
+        this.touchBoardActive = false;
+      } else if (dy < -22 * this.boardScale && Math.abs(dy) > Math.abs(dx)) {
+        // Upward flick: quick fast-lift impulse
         this.playerBoard.setLifting(true);
         this.time.delayedCall(220, () => this.playerBoard.setLifting(false));
         this.touchBoardActive = false;
@@ -705,117 +733,52 @@ export default class GameScene extends Phaser.Scene {
       if (this.touchBoardActive && !this.isMatchOver && !this.isPaused) {
         const dist = Phaser.Math.Distance.Between(this.touchStartX, this.touchStartY, pointer.x, pointer.y);
         if (dist < 10) {
-          // Quick tap in place: execute swap
-          this.playerBoard.swap(this.playerCursor.gridX, this.playerCursor.gridY);
+          // Direct slime tap: swap with neighbor
+          const swapCol = Math.min(this.touchStartGridX, BOARD_WIDTH - 2);
+          this.playerCursor.setGridPosition(swapCol, this.touchStartGridY);
+          this.playerBoard.swap(swapCol, this.touchStartGridY);
         }
       }
       this.touchBoardActive = false;
     });
 
-    // 3. Virtual On-Screen Gamepad Controls positioned below the board and safely on-screen
-    const bottomControls = this.add.container(0, 0);
-    bottomControls.setDepth(35);
+    // 3. Sleek Mobile Fast-Lift Bar anchored directly below player board
+    const bW = Math.round(BOARD_WIDTH * PANEL_SIZE * this.boardScale);
+    const bH = Math.round(BOARD_VISIBLE_HEIGHT * PANEL_SIZE * this.boardScale);
+    const liftBarW = Math.min(bW, 260);
+    const liftBarX = this.boardP1X + bW / 2;
+    const liftBarY = Math.min(height - 48, this.boardY + bH + 42);
 
-    const boardBottom = this.boardY + BOARD_VISIBLE_HEIGHT * PANEL_SIZE;
-    const safeBottomMax = height - 58;
-    const desiredControlsY = boardBottom + 62;
-    const controlsY = Math.min(safeBottomMax, Math.max(desiredControlsY, boardBottom + (safeBottomMax - boardBottom) * 0.45));
+    this.createMobileLiftBar(liftBarX, liftBarY, liftBarW, 34);
 
-    // D-Pad Arrows (Left Side)
-    const dpadX = Math.max(54, Math.round(width * 0.12));
-    const btnLeft = this.createTouchArrowButton(dpadX - 28, controlsY, '◀', () => this.playerCursor.moveLeft());
-    const btnRight = this.createTouchArrowButton(dpadX + 28, controlsY, '▶', () => this.playerCursor.moveRight());
-    const btnUp = this.createTouchArrowButton(dpadX, controlsY - 24, '▲', () => this.playerCursor.moveUp());
-    const btnDown = this.createTouchArrowButton(dpadX, controlsY + 24, '▼', () => this.playerCursor.moveDown());
-
-    // Center Lift Button
-    const liftX = this.gameMode === 'endless' ? Math.round(width / 2) : (this.boardP1X + 130);
-    const liftBtn = this.createTouchLiftButton(liftX, controlsY);
-
-    // Right Swap Button (Pill Button on Right Thumb Side)
-    const swapX = Math.min(width - 64, Math.round(width * 0.86));
-    const swapBtn = this.createTouchSwapButton(swapX, controlsY);
-
-    // Help Text anchored safely right below controls
-    const helpY = Math.min(height - 12, controlsY + 38);
-    const helpText = this.add.text(width / 2, helpY, 'TOUCH / ARROWS: Move | TAP / SWAP: Switch | LIFT: Raise | ⏸: Menu', {
+    // Subtle touch control hint
+    const hintY = Math.min(height - 14, liftBarY + 28);
+    this.add.text(width / 2, hintY, 'TAP / FLICK SLIME: Swap • 2 FINGERS / BAR: Lift', {
       fontSize: '10px',
-      color: '#c8d6e5',
+      color: '#a4b0be',
       stroke: '#000000',
       strokeThickness: 1
-    }).setOrigin(0.5);
-
-    bottomControls.add([btnLeft, btnRight, btnUp, btnDown, liftBtn, swapBtn, helpText]);
+    }).setOrigin(0.5).setDepth(35);
   }
 
-  private createTouchArrowButton(x: number, y: number, label: string, onMove: () => void): Phaser.GameObjects.Container {
+  private createMobileLiftBar(x: number, y: number, w: number, h: number = 34): Phaser.GameObjects.Container {
     const container = this.add.container(x, y);
+    container.setDepth(35);
+
     const bg = this.add.graphics();
-    const draw = (fillAlpha: number, scale: number = 1.0) => {
+    const draw = (active: boolean) => {
       bg.clear();
-      bg.fillStyle(0x1e272e, fillAlpha);
-      bg.fillCircle(0, 0, 15);
-      bg.lineStyle(1.8, 0x54a0ff, 0.95);
-      bg.strokeCircle(0, 0, 15);
-      container.setScale(scale);
+      bg.fillStyle(active ? 0x10ac84 : 0x1e272e, 0.88);
+      bg.fillRoundedRect(-w / 2, -h / 2, w, h, 8);
+      bg.lineStyle(1.8, active ? 0x2ed573 : 0x54a0ff, 0.85);
+      bg.strokeRoundedRect(-w / 2, -h / 2, w, h, 8);
+      // Subtle top highlight
+      bg.fillStyle(0xffffff, active ? 0.25 : 0.12);
+      bg.fillRoundedRect(-w / 2 + 4, -h / 2 + 3, w - 8, Math.round(h / 2) - 3, 4);
     };
-    draw(0.75);
+    draw(false);
 
-    const text = this.add.text(0, -1, label, {
-      fontSize: '13px',
-      color: '#ffffff',
-      fontStyle: 'bold'
-    }).setOrigin(0.5);
-
-    const hit = this.add.circle(0, 0, 22, 0x000000, 0);
-    hit.setInteractive({ useHandCursor: true });
-
-    let repeatTimer: Phaser.Time.TimerEvent | null = null;
-
-    hit.on('pointerdown', () => {
-      draw(0.95, 0.92);
-      onMove();
-      repeatTimer = this.time.addEvent({
-        delay: 140,
-        callback: onMove,
-        loop: true,
-        startAt: -80
-      });
-    });
-
-    const stopAction = () => {
-      draw(0.75, 1.0);
-      if (repeatTimer) {
-        repeatTimer.remove();
-        repeatTimer = null;
-      }
-    };
-
-    hit.on('pointerup', stopAction);
-    hit.on('pointerout', stopAction);
-
-    container.add([bg, text, hit]);
-    return container;
-  }
-
-  private createTouchLiftButton(x: number, y: number): Phaser.GameObjects.Container {
-    const container = this.add.container(x, y);
-    const w = 74;
-    const h = 36;
-    const bg = this.add.graphics();
-    const draw = (color: number, scale: number = 1.0) => {
-      bg.clear();
-      bg.fillStyle(color, 0.92);
-      bg.fillRoundedRect(-w / 2, -h / 2, w, h, h / 2);
-      bg.lineStyle(2, 0xffffff, 0.95);
-      bg.strokeRoundedRect(-w / 2, -h / 2, w, h, h / 2);
-      bg.fillStyle(0xffffff, 0.35);
-      bg.fillRoundedRect(-w / 2 + 5, -h / 2 + 3, w - 10, h / 2 - 3, h / 4);
-      container.setScale(scale);
-    };
-    draw(0x2ed573);
-
-    const text = this.add.text(0, -1, '⬆ LIFT', {
+    const text = this.add.text(0, -1, '▲  HOLD TO FAST LIFT  ▲', {
       fontSize: '11px',
       color: '#ffffff',
       fontStyle: 'bold',
@@ -823,63 +786,21 @@ export default class GameScene extends Phaser.Scene {
       strokeThickness: 2
     }).setOrigin(0.5);
 
-    const hit = this.add.rectangle(0, 0, w, h, 0x000000, 0);
+    const hit = this.add.rectangle(0, 0, w + 16, h + 10, 0x000000, 0);
     hit.setInteractive({ useHandCursor: true });
 
     hit.on('pointerdown', () => {
-      draw(0x10ac84, 0.93);
+      draw(true);
       this.playerBoard.setLifting(true);
     });
 
     const stopLift = () => {
-      draw(0x2ed573, 1.0);
+      draw(false);
       this.playerBoard.setLifting(false);
     };
 
     hit.on('pointerup', stopLift);
     hit.on('pointerout', stopLift);
-
-    container.add([bg, text, hit]);
-    return container;
-  }
-
-  private createTouchSwapButton(x: number, y: number): Phaser.GameObjects.Container {
-    const container = this.add.container(x, y);
-    const w = 92;
-    const h = 38;
-    const bg = this.add.graphics();
-    const draw = (color: number, scale: number = 1.0) => {
-      bg.clear();
-      bg.fillStyle(color, 0.95);
-      bg.fillRoundedRect(-w / 2, -h / 2, w, h, h / 2);
-      bg.lineStyle(2, 0xffffff, 0.95);
-      bg.strokeRoundedRect(-w / 2, -h / 2, w, h, h / 2);
-      bg.fillStyle(0xffffff, 0.38);
-      bg.fillRoundedRect(-w / 2 + 6, -h / 2 + 3, w - 12, h / 2 - 3, h / 4);
-      container.setScale(scale);
-    };
-    draw(0xff69b4);
-
-    const text = this.add.text(0, -1, 'SWAP 🔄', {
-      fontSize: '12px',
-      color: '#ffffff',
-      fontStyle: 'bold',
-      stroke: '#000000',
-      strokeThickness: 2
-    }).setOrigin(0.5);
-
-    const hit = this.add.rectangle(0, 0, w, h, 0x000000, 0);
-    hit.setInteractive({ useHandCursor: true });
-
-    hit.on('pointerdown', () => {
-      draw(0xff477e, 0.92);
-      if (!this.isMatchOver && !this.isPaused) {
-        this.playerBoard.swap(this.playerCursor.gridX, this.playerCursor.gridY);
-      }
-    });
-
-    hit.on('pointerup', () => draw(0xff69b4, 1.0));
-    hit.on('pointerout', () => draw(0xff69b4, 1.0));
 
     container.add([bg, text, hit]);
     return container;
@@ -1214,6 +1135,18 @@ export default class GameScene extends Phaser.Scene {
     }
 
     if (this.isMatchOver) return;
+
+    // Multi-touch two-finger lift (tablets / mobile devices)
+    const p1 = this.input.pointer1;
+    const p2 = this.input.pointer2;
+    const isTwoFinger = Boolean(p1?.isDown && p2?.isDown);
+    if (isTwoFinger && !this.twoFingerLifting) {
+      this.twoFingerLifting = true;
+      this.playerBoard.setLifting(true);
+    } else if (!isTwoFinger && this.twoFingerLifting) {
+      this.twoFingerLifting = false;
+      this.playerBoard.setLifting(false);
+    }
 
     this.playerBoard.update(time, delta);
     this.playerCursor.updatePosition();
