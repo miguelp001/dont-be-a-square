@@ -110,8 +110,7 @@ export default class Board extends Phaser.Events.EventEmitter {
       const color = this.getValidColor(x, bufferY);
       const panel = new Panel(this.scene, x * PANEL_SIZE, bufferY * PANEL_SIZE, color);
       panel.setGridPosition(x, bufferY);
-      panel.setAlpha(0.65);
-      panel.setTint(0x999999);
+      panel.setAlpha(0.75);
       this.panels[bufferY][x] = panel;
       this.container.add(panel);
     }
@@ -415,7 +414,6 @@ export default class Board extends Phaser.Events.EventEmitter {
           nextPanel.setGridPosition(x, y);
           nextPanel.y = y * PANEL_SIZE;
           nextPanel.setAlpha(1.0);
-          nextPanel.clearTint();
         }
       }
     }

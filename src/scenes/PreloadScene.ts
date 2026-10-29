@@ -52,19 +52,16 @@ export default class PreloadScene extends Phaser.Scene {
     });
     
     // Storybook Environment and UI Assets
-    this.load.image('forest_meadow_bg', 'assets/ui/forest_meadow_bg.png');
-    this.load.image('forest_autumn_bg', 'assets/ui/forest_autumn_bg.png');
-    this.load.image('board_wood_frame', 'assets/ui/board_wood_frame_6x10.png');
-    this.load.image('board_wood_backdrop', 'assets/ui/board_wood_backdrop.png');
+    this.load.image('forest_meadow_bg', 'assets/ui/forest_meadow_bg.png?v=meadow_v2');
+    this.load.image('forest_autumn_bg', 'assets/ui/forest_autumn_bg.png?v=autumn_v2');
+    this.load.image('board_wood_frame', 'assets/ui/board_wood_frame_v2.png?v=snug_v2');
+    this.load.image('board_wood_backdrop', 'assets/ui/board_wood_backdrop.png?v=wood_v2');
     this.load.image('wood_plaque_sign', 'assets/ui/wood_plaque_sign.png');
     this.load.image('wood_clock_icon', 'assets/ui/wood_clock_icon.png');
 
     // Load custom kawaii slime sprites for puzzle panels (panel_0 .. panel_5)
     for (let i = 0; i < 6; i++) {
-      if (this.textures.exists(`panel_${i}`)) {
-        this.textures.remove(`panel_${i}`);
-      }
-      this.load.image(`panel_${i}`, `assets/sprites/slimes/panel_${i}.png?v=32px_v4`);
+      this.load.image(`panel_${i}`, `assets/sprites/slimes/panel_${i}.png?v=32px_v5`);
     }
 
     // Load character portrait assets

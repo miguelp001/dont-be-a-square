@@ -627,16 +627,28 @@ export default class GameScene extends Phaser.Scene {
     const frameKey = isPlayer ? 'p1_wood_frame' : 'cpu_wood_frame';
     let frameImg = this.children.getByName(frameKey) as Phaser.GameObjects.Image;
     if (!frameImg && this.textures.exists('board_wood_frame')) {
-      // board_wood_frame_6x10 is 720x1130 with snug inner opening 600x1000 at (60, 70)
-      const frameScale = w / 600;
-      const frameX = x - 60 * frameScale;
-      const frameY = y - 70 * frameScale;
+      const tex = this.textures.get('board_wood_frame');
+      const srcImg = tex?.getSourceImage() as (HTMLImageElement | undefined);
+      const srcW = srcImg ? srcImg.width : 720;
+
+      // Dynamically detect border offsets: snug 720x1130 frame vs legacy 1069x1464 frame
+      let borderLeft = 60;
+      let borderTop = 70;
+      let innerW = 600;
+      if (srcW > 800) {
+        borderLeft = 233;
+        borderTop = 231;
+      }
+
+      const frameScale = w / innerW;
+      const frameX = x - borderLeft * frameScale;
+      const frameY = y - borderTop * frameScale;
 
       frameImg = this.add.image(frameX, frameY, 'board_wood_frame');
       frameImg.setName(frameKey);
       frameImg.setOrigin(0, 0);
       frameImg.setScale(frameScale);
-      frameImg.setDepth(22); // Above panels, below cursor (cursor is 25)
+      frameImg.setDepth(5); // Render behind slimes (depth 10) so the slimes are ALWAYS 100% visible!
 
       if (isPlayer) this.playerWoodFrame = frameImg;
       else this.cpuWoodFrame = frameImg;
