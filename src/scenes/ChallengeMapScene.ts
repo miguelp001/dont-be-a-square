@@ -136,11 +136,15 @@ export default class ChallengeMapScene extends Phaser.Scene {
     });
 
     // Bottom Navigation Buttons
-    this.createFooterButton(width / 2 - 110, height - 32, 'CHANGE FIGHTER', () => {
+    const cardsBottom = 345 + 65; // 410
+    const safeBottom = height - 42;
+    const footerY = Math.min(safeBottom, Math.max(cardsBottom + 45, 465));
+
+    this.createFooterButton(width / 2 - 110, footerY, 'CHANGE FIGHTER', () => {
       this.scene.start('CharacterSelectScene', { mode: 'challenge' });
     });
 
-    this.createFooterButton(width / 2 + 110, height - 32, 'MAIN MENU', () => {
+    this.createFooterButton(width / 2 + 110, footerY, 'MAIN MENU', () => {
       this.scene.start('MenuScene');
     });
 

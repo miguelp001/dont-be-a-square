@@ -65,12 +65,13 @@ export default class MenuScene extends Phaser.Scene {
     });
 
     // Dynamically adapt button and showcase layout to available viewport height
-    const showcaseY = Math.max(438, height - 70);
-    const charHeadingY = showcaseY - 56;
-    const availableSpace = charHeadingY - 110;
-    const btnSpacing = 52;
+    const safeBottom = height - 55;
+    const showcaseY = Math.min(safeBottom, Math.max(438, height * 0.88));
+    const charHeadingY = showcaseY - 50;
+    const availableSpace = charHeadingY - 105;
+    const btnSpacing = 50;
     const totalBtnSpan = btnSpacing * 3;
-    const startY = height > 530 ? Math.round(100 + (availableSpace - totalBtnSpan) / 2) : 138;
+    const startY = height > 530 ? Math.round(100 + (availableSpace - totalBtnSpan) / 2) : 134;
 
     const btn1 = CuteUI.createPillButton(
       this,

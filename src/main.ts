@@ -44,7 +44,27 @@ const config: Phaser.Types.Core.GameConfig = {
   }
 };
 
-new Phaser.Game(config);
+const game = new Phaser.Game(config);
+
+// Keep container strictly within visible viewport bounds on mobile
+function handleViewportResize(): void {
+  const container = document.getElementById('game-container');
+  if (container) {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    container.style.width = `${w}px`;
+    container.style.height = `${h}px`;
+  }
+  if (game?.scale) {
+    game.scale.refresh();
+  }
+}
+
+window.addEventListener('resize', handleViewportResize);
+window.addEventListener('orientationchange', () => {
+  setTimeout(handleViewportResize, 150);
+});
+handleViewportResize();
 
 // -------------------------------------------------------------
 // PWA Service Worker Registration & Install Prompt Management

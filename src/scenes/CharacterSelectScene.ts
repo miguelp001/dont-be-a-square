@@ -73,9 +73,10 @@ export default class CharacterSelectScene extends Phaser.Scene {
     });
     
     // Responsive button and info positioning
-    const backBtnY = Math.max(468, height - 44);
-    const startBtnY = backBtnY - 53;
-    const charTextY = Math.max(335, startBtnY - 72);
+    const safeBottom = height - 52;
+    const backBtnY = Math.min(safeBottom, Math.max(464, Math.min(520, height * 0.82)));
+    const startBtnY = backBtnY - 50;
+    const charTextY = Math.max(315, startBtnY - 58);
 
     // Character info
     this.charText = this.add.text(width / 2, charTextY, '', {

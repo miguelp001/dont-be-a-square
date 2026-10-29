@@ -64,11 +64,14 @@ export default class OptionsMenuScene extends Phaser.Scene {
     this.createAITab(width / 2, 240);
 
     // Back Button (Bottom)
+    const cardBottom = 240 + 135; // 375
+    const safeBottom = height - 48;
+    const backBtnY = Math.min(safeBottom, Math.max(cardBottom + 45, 465));
     const backBtnText = this.returnScene === 'GameScene' ? 'RESUME GAME' : 'BACK TO MENU';
     CuteUI.createPillButton(
       this,
       width / 2,
-      Math.max(468, height - 44),
+      backBtnY,
       backBtnText,
       () => {
         this.goBack();

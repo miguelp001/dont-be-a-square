@@ -126,27 +126,20 @@ export default class GameScene extends Phaser.Scene {
     // Setup player keyboard & touch controls
     this.setupControls();
     this.setupTouchControls();
-
-    // Bottom Help Text
-    this.add
-      .text(width / 2, height - 10, 'TOUCH / ARROWS: Move | TAP / SWAP: Switch | LIFT: Raise | ⏸: Menu', {
-        fontSize: '10px',
-        color: '#c8d6e5',
-        stroke: '#000000',
-        strokeThickness: 1
-      })
-      .setOrigin(0.5);
   }
 
   /** Setup 2-Board Layout for VS CPU and VS Online */
   private setupBattleMode(): void {
     const width = this.cameras.main.width;
+    const height = this.cameras.main.height;
     const boardW = BOARD_WIDTH * PANEL_SIZE; // 192px
     const boardH = BOARD_VISIBLE_HEIGHT * PANEL_SIZE; // 320px
-    const boardY = 88;
+
+    // Adaptive vertical positioning on mobile / tall screens
+    const boardY = height > 550 ? Math.max(88, Math.round((height - boardH - 140) * 0.35)) : 88;
 
     const centerX = width / 2;
-    const boardGap = 80;
+    const boardGap = Math.min(80, Math.max(16, width - boardW * 2 - 20));
     const p1X = Math.round(centerX - boardW - boardGap / 2);
     const p2X = Math.round(centerX + boardGap / 2);
 
@@ -373,10 +366,11 @@ export default class GameScene extends Phaser.Scene {
   /** Setup Single Centered Board for Endless / Solo */
   private setupEndlessMode(): void {
     const width = this.cameras.main.width;
+    const height = this.cameras.main.height;
     const boardW = BOARD_WIDTH * PANEL_SIZE;
     const boardH = BOARD_VISIBLE_HEIGHT * PANEL_SIZE;
     const boardX = Math.floor((width - boardW) / 2);
-    const boardY = 75;
+    const boardY = height > 550 ? Math.max(80, Math.round((height - boardH - 140) * 0.35)) : 75;
     this.boardP1X = boardX;
     this.boardY = boardY;
 
@@ -718,28 +712,40 @@ export default class GameScene extends Phaser.Scene {
       this.touchBoardActive = false;
     });
 
-    // 3. Virtual On-Screen Gamepad Controls at the bottom
+    // 3. Virtual On-Screen Gamepad Controls positioned below the board and safely on-screen
     const bottomControls = this.add.container(0, 0);
     bottomControls.setDepth(35);
 
-    const controlsY = height - 52;
+    const boardBottom = this.boardY + BOARD_VISIBLE_HEIGHT * PANEL_SIZE;
+    const safeBottomMax = height - 58;
+    const desiredControlsY = boardBottom + 62;
+    const controlsY = Math.min(safeBottomMax, Math.max(desiredControlsY, boardBottom + (safeBottomMax - boardBottom) * 0.45));
 
     // D-Pad Arrows (Left Side)
-    const dpadX = 54;
-    const btnLeft = this.createTouchArrowButton(dpadX - 26, controlsY, '◀', () => this.playerCursor.moveLeft());
-    const btnRight = this.createTouchArrowButton(dpadX + 26, controlsY, '▶', () => this.playerCursor.moveRight());
-    const btnUp = this.createTouchArrowButton(dpadX, controlsY - 22, '▲', () => this.playerCursor.moveUp());
-    const btnDown = this.createTouchArrowButton(dpadX, controlsY + 22, '▼', () => this.playerCursor.moveDown());
+    const dpadX = Math.max(54, Math.round(width * 0.12));
+    const btnLeft = this.createTouchArrowButton(dpadX - 28, controlsY, '◀', () => this.playerCursor.moveLeft());
+    const btnRight = this.createTouchArrowButton(dpadX + 28, controlsY, '▶', () => this.playerCursor.moveRight());
+    const btnUp = this.createTouchArrowButton(dpadX, controlsY - 24, '▲', () => this.playerCursor.moveUp());
+    const btnDown = this.createTouchArrowButton(dpadX, controlsY + 24, '▼', () => this.playerCursor.moveDown());
 
     // Center Lift Button
-    const liftX = this.gameMode === 'endless' ? 126 : (this.boardP1X + 130);
+    const liftX = this.gameMode === 'endless' ? Math.round(width / 2) : (this.boardP1X + 130);
     const liftBtn = this.createTouchLiftButton(liftX, controlsY);
 
     // Right Swap Button (Pill Button on Right Thumb Side)
-    const swapX = width - 64;
+    const swapX = Math.min(width - 64, Math.round(width * 0.86));
     const swapBtn = this.createTouchSwapButton(swapX, controlsY);
 
-    bottomControls.add([btnLeft, btnRight, btnUp, btnDown, liftBtn, swapBtn]);
+    // Help Text anchored safely right below controls
+    const helpY = Math.min(height - 12, controlsY + 38);
+    const helpText = this.add.text(width / 2, helpY, 'TOUCH / ARROWS: Move | TAP / SWAP: Switch | LIFT: Raise | ⏸: Menu', {
+      fontSize: '10px',
+      color: '#c8d6e5',
+      stroke: '#000000',
+      strokeThickness: 1
+    }).setOrigin(0.5);
+
+    bottomControls.add([btnLeft, btnRight, btnUp, btnDown, liftBtn, swapBtn, helpText]);
   }
 
   private createTouchArrowButton(x: number, y: number, label: string, onMove: () => void): Phaser.GameObjects.Container {
