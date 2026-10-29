@@ -56,9 +56,13 @@ export default class MenuScene extends Phaser.Scene {
       ease: 'Sine.easeInOut'
     });
 
-    // Large pill-shaped menu buttons
+    // Dynamically adapt button and showcase layout to available viewport height
+    const showcaseY = Math.max(438, height - 70);
+    const charHeadingY = showcaseY - 56;
+    const availableSpace = charHeadingY - 110;
     const btnSpacing = 52;
-    const startY = 138;
+    const totalBtnSpan = btnSpacing * 3;
+    const startY = height > 530 ? Math.round(100 + (availableSpace - totalBtnSpan) / 2) : 138;
 
     CuteUI.createPillButton(
       this,
@@ -105,7 +109,7 @@ export default class MenuScene extends Phaser.Scene {
     );
 
     // Character showcase section: "Meet the Slime catchers!"
-    const charHeading = this.add.text(width / 2, 382, 'Meet the Slime catchers!', {
+    const charHeading = this.add.text(width / 2, charHeadingY, 'Meet the Slime catchers!', {
       fontSize: '15px',
       color: '#ff9ff3',
       fontStyle: 'bold',
@@ -118,7 +122,7 @@ export default class MenuScene extends Phaser.Scene {
     const showStartX = Math.floor((width - (CHARACTERS.length - 1) * 58) / 2);
     CHARACTERS.forEach((char, i) => {
       const x = showStartX + i * 58;
-      const baseY = 438;
+      const baseY = showcaseY;
 
       const charContainer = this.add.container(x, baseY);
 

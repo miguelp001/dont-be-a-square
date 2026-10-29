@@ -42,6 +42,10 @@ export default class GameScene extends Phaser.Scene {
   private cpuSpeechBubble?: Phaser.GameObjects.Text;
   private cpuDangerText?: Phaser.GameObjects.Text;
 
+  private boardP1X: number = 24;
+  private boardP2X: number = 296;
+  private boardY: number = 88;
+
   private socketMgr?: SocketManager;
   private gameTime: number = 180;
   private timeText!: Phaser.GameObjects.Text;
@@ -125,13 +129,19 @@ export default class GameScene extends Phaser.Scene {
 
   /** Setup 2-Board Layout for VS CPU and VS Online */
   private setupBattleMode(): void {
+    const width = this.cameras.main.width;
     const boardW = BOARD_WIDTH * PANEL_SIZE; // 192px
     const boardH = BOARD_VISIBLE_HEIGHT * PANEL_SIZE; // 320px
     const boardY = 88;
 
-    const p1X = 24;
-    const p2X = 296;
-    const centerX = 256;
+    const centerX = width / 2;
+    const boardGap = 80;
+    const p1X = Math.round(centerX - boardW - boardGap / 2);
+    const p2X = Math.round(centerX + boardGap / 2);
+
+    this.boardP1X = p1X;
+    this.boardP2X = p2X;
+    this.boardY = boardY;
 
     // Center divider & VS badge
     this.add
@@ -356,6 +366,8 @@ export default class GameScene extends Phaser.Scene {
     const boardH = BOARD_VISIBLE_HEIGHT * PANEL_SIZE;
     const boardX = Math.floor((width - boardW) / 2);
     const boardY = 75;
+    this.boardP1X = boardX;
+    this.boardY = boardY;
 
     this.playerBorder = this.add.graphics();
     this.drawBoardFrame(this.playerBorder, boardX, boardY, boardW, boardH, 0xff69b4);
@@ -483,10 +495,8 @@ export default class GameScene extends Phaser.Scene {
     const defaultColor = isPlayer ? 0xff69b4 : 0x54a0ff;
     const boardW = BOARD_WIDTH * PANEL_SIZE;
     const boardH = BOARD_VISIBLE_HEIGHT * PANEL_SIZE;
-    const boardX = isPlayer
-      ? (this.gameMode === 'endless' ? Math.floor((this.cameras.main.width - boardW) / 2) : 24)
-      : 296;
-    const boardY = this.gameMode === 'endless' ? 75 : 88;
+    const boardX = isPlayer ? this.boardP1X : this.boardP2X;
+    const boardY = this.boardY;
 
     if (!borderObj) return;
 
@@ -579,6 +589,7 @@ export default class GameScene extends Phaser.Scene {
   /** Setup direct board gestures and mobile on-screen virtual touch controls */
   private setupTouchControls(): void {
     const width = this.cameras.main.width;
+    const height = this.cameras.main.height;
 
     // 1. Mobile Pause Button (Top-Right)
     const pauseBtn = this.add.container(width - 24, 22);
@@ -672,21 +683,22 @@ export default class GameScene extends Phaser.Scene {
     const bottomControls = this.add.container(0, 0);
     bottomControls.setDepth(35);
 
+    const controlsY = height - 52;
+
     // D-Pad Arrows (Left Side)
-    const dpadX = 52;
-    const dpadY = 464;
-    const btnLeft = this.createTouchArrowButton(dpadX - 26, dpadY, '◀', () => this.playerCursor.moveLeft());
-    const btnRight = this.createTouchArrowButton(dpadX + 26, dpadY, '▶', () => this.playerCursor.moveRight());
-    const btnUp = this.createTouchArrowButton(dpadX, dpadY - 22, '▲', () => this.playerCursor.moveUp());
-    const btnDown = this.createTouchArrowButton(dpadX, dpadY + 22, '▼', () => this.playerCursor.moveDown());
+    const dpadX = 54;
+    const btnLeft = this.createTouchArrowButton(dpadX - 26, controlsY, '◀', () => this.playerCursor.moveLeft());
+    const btnRight = this.createTouchArrowButton(dpadX + 26, controlsY, '▶', () => this.playerCursor.moveRight());
+    const btnUp = this.createTouchArrowButton(dpadX, controlsY - 22, '▲', () => this.playerCursor.moveUp());
+    const btnDown = this.createTouchArrowButton(dpadX, controlsY + 22, '▼', () => this.playerCursor.moveDown());
 
     // Center Lift Button
-    const liftX = this.gameMode === 'endless' ? 122 : 158;
-    const liftBtn = this.createTouchLiftButton(liftX, 464);
+    const liftX = this.gameMode === 'endless' ? 126 : (this.boardP1X + 130);
+    const liftBtn = this.createTouchLiftButton(liftX, controlsY);
 
     // Right Swap Button (Pill Button on Right Thumb Side)
     const swapX = width - 64;
-    const swapBtn = this.createTouchSwapButton(swapX, 464);
+    const swapBtn = this.createTouchSwapButton(swapX, controlsY);
 
     bottomControls.add([btnLeft, btnRight, btnUp, btnDown, liftBtn, swapBtn]);
   }

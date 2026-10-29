@@ -34,9 +34,16 @@ export class CuteUI {
       bg.tilePositionY += delta * 0.011;
     };
 
+    const resizeListener = (gameSize: Phaser.Structs.Size) => {
+      if (!bg || !bg.active) return;
+      bg.setSize(gameSize.width, gameSize.height);
+    };
+
     scene.events.on('update', updateListener);
+    scene.scale.on('resize', resizeListener);
     scene.events.once('shutdown', () => {
       scene.events.off('update', updateListener);
+      scene.scale.off('resize', resizeListener);
     });
 
     return bg;
@@ -68,27 +75,27 @@ export class CuteUI {
     const btnWidth = options.width ?? (options.height ? Math.round(nativeWidth * (options.height / nativeHeight)) : nativeWidth);
     const btnHeight = options.height ?? (options.width ? Math.round(nativeHeight * (options.width / nativeWidth)) : nativeHeight);
 
-    // Cast a slight diffused shadow on the background behind the pill button
+    // Cast a distinct, soft diffused shadow on the background behind the pill button
     const hasShadow = options.shadow !== false;
-    const baseShadowOffset = options.shadowOffset ?? 5;
+    const baseShadowOffset = options.shadowOffset ?? 7;
     let shadow: Phaser.GameObjects.Graphics | null = null;
 
     if (hasShadow) {
       shadow = scene.add.graphics();
-      const shadowColor = options.shadowColor ?? 0x05020c;
+      const shadowColor = options.shadowColor ?? 0x000000;
       const r = btnHeight / 2;
 
-      // Layer 1: Soft outer feathered bloom
-      shadow.fillStyle(shadowColor, 0.12);
-      shadow.fillRoundedRect(-btnWidth / 2 - 3, -btnHeight / 2 - 1, btnWidth + 6, btnHeight + 4, r + 2);
+      // Layer 1: Soft outer feathered bloom (visible around sides and below)
+      shadow.fillStyle(shadowColor, 0.28);
+      shadow.fillRoundedRect(-btnWidth / 2 - 5, -btnHeight / 2 - 2, btnWidth + 10, btnHeight + 8, r + 3);
 
       // Layer 2: Intermediate penumbra
-      shadow.fillStyle(shadowColor, 0.20);
-      shadow.fillRoundedRect(-btnWidth / 2 - 1.5, -btnHeight / 2, btnWidth + 3, btnHeight + 2, r + 1);
+      shadow.fillStyle(shadowColor, 0.45);
+      shadow.fillRoundedRect(-btnWidth / 2 - 2.5, -btnHeight / 2 - 1, btnWidth + 5, btnHeight + 6, r + 1.5);
 
-      // Layer 3: Direct contact shadow
-      shadow.fillStyle(shadowColor, 0.32);
-      shadow.fillRoundedRect(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight, r);
+      // Layer 3: Deep rich direct contact shadow
+      shadow.fillStyle(shadowColor, 0.70);
+      shadow.fillRoundedRect(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight + 2, r);
 
       shadow.setPosition(0, baseShadowOffset);
       container.add(shadow);
@@ -123,7 +130,7 @@ export class CuteUI {
       if (shadow) {
         scene.tweens.add({
           targets: shadow,
-          y: baseShadowOffset + 2.5,
+          y: baseShadowOffset + 4,
           alpha: 0.85,
           duration: 140,
           ease: 'Back.easeOut'
@@ -168,7 +175,7 @@ export class CuteUI {
       if (shadow) {
         scene.tweens.add({
           targets: shadow,
-          y: baseShadowOffset - 3,
+          y: 2,
           duration: 65,
           yoyo: true,
           ease: 'Quad.easeInOut'

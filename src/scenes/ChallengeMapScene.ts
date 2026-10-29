@@ -117,12 +117,14 @@ export default class ChallengeMapScene extends Phaser.Scene {
       { x: 377, y: 345 }
     ];
 
+    const xOffset = Math.round(width / 2 - 256);
+
     opponents.forEach((opp, i) => {
       const pos = cardPositions[i];
       const isDefeated = this.defeatedOpponents.includes(opp.id);
       const personality = AI_PERSONALITIES[opp.id];
 
-      this.createOpponentCard(pos.x, pos.y, cardW, cardH, opp, personality, isDefeated);
+      this.createOpponentCard(pos.x + xOffset, pos.y, cardW, cardH, opp, personality, isDefeated);
     });
 
     // Bottom Navigation Buttons

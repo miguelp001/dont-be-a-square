@@ -60,7 +60,7 @@ export default class OptionsMenuScene extends Phaser.Scene {
     CuteUI.createPillButton(
       this,
       width / 2,
-      468,
+      Math.max(468, height - 44),
       backBtnText,
       () => {
         SoundFx.playCursor();

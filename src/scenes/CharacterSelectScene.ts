@@ -28,6 +28,7 @@ export default class CharacterSelectScene extends Phaser.Scene {
     CuteUI.createCuteBackground(this);
 
     const width = this.cameras.main.width;
+    const height = this.cameras.main.height;
     
     const titleText = this.mode === 'challenge' ? 'CHALLENGE: PICK YOUR SLIME CATCHER' : 'SELECT YOUR SLIME CATCHER';
     const title = this.add.text(width / 2, 45, titleText, {
@@ -68,8 +69,13 @@ export default class CharacterSelectScene extends Phaser.Scene {
       this.charSprites.push(sprite);
     });
     
+    // Responsive button and info positioning
+    const backBtnY = Math.max(468, height - 44);
+    const startBtnY = backBtnY - 53;
+    const charTextY = Math.max(335, startBtnY - 72);
+
     // Character info
-    this.charText = this.add.text(width / 2, 335, '', {
+    this.charText = this.add.text(width / 2, charTextY, '', {
       fontSize: '12px',
       color: '#ffffff',
       align: 'center',
@@ -82,11 +88,11 @@ export default class CharacterSelectScene extends Phaser.Scene {
     this.selectCharacter(0);
     
     // Action buttons
-    CuteUI.createPillButton(this, width / 2, 415, 'START GAME', () => {
+    CuteUI.createPillButton(this, width / 2, startBtnY, 'START GAME', () => {
       this.startGame();
     }, { textureKey: 'pill_pink' });
 
-    CuteUI.createPillButton(this, width / 2, 468, 'BACK TO MENU', () => {
+    CuteUI.createPillButton(this, width / 2, backBtnY, 'BACK TO MENU', () => {
       this.scene.start('MenuScene');
     }, { textureKey: 'pill_grey' });
     

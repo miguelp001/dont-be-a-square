@@ -33,8 +33,11 @@ const config: Phaser.Types.Core.GameConfig = {
     OptionsMenuScene
   ],
   scale: {
-    mode: Phaser.Scale.FIT,
-    autoCenter: Phaser.Scale.CENTER_BOTH
+    mode: Phaser.Scale.EXPAND,
+    autoCenter: Phaser.Scale.CENTER_BOTH,
+    width: GAME_WIDTH,
+    height: GAME_HEIGHT,
+    expandParent: true
   }
 };
 
