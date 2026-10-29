@@ -352,6 +352,31 @@ export default class Board extends Phaser.Events.EventEmitter {
     }
   }
 
+  /** Returns true if any panels or garbage blocks are in mid-air or mid-animation */
+  public hasBusyPanels(): boolean {
+    for (let y = 0; y <= BOARD_VISIBLE_HEIGHT; y++) {
+      for (let x = 0; x < BOARD_WIDTH; x++) {
+        const p = this.panels[y][x];
+        if (
+          p &&
+          (p.state === PanelState.FALLING ||
+            p.state === PanelState.HOVER ||
+            p.state === PanelState.SWAPPING ||
+            p.state === PanelState.FLASHING ||
+            p.state === PanelState.POPPING)
+        ) {
+          return true;
+        }
+      }
+    }
+    for (const b of this.garbageBlocks) {
+      if (b.state === GarbageState.FALLING || b.state === GarbageState.TRANSFORMING) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   /** Main board update loop */
   public update(time: number, delta: number): void {
     if (this.isTopOut) return;
@@ -367,12 +392,29 @@ export default class Board extends Phaser.Events.EventEmitter {
     this.updateChainState();
     this.updateDangerAndTopOut(delta);
     this.updateStackRising(delta);
+
+    // Continuous safety synchronization: snap any resting IDLE panels to their authoritative grid coordinates
+    for (let y = 0; y <= BOARD_VISIBLE_HEIGHT; y++) {
+      for (let x = 0; x < BOARD_WIDTH; x++) {
+        const panel = this.panels[y][x];
+        if (panel && panel.state === PanelState.IDLE) {
+          const expectedX = x * PANEL_SIZE;
+          const expectedY = y * PANEL_SIZE;
+          if (panel.x !== expectedX) panel.x = expectedX;
+          if (panel.y !== expectedY) panel.y = expectedY;
+        }
+      }
+    }
   }
 
   /** Update stack rising and handle row shift transitions */
   private updateStackRising(delta: number): void {
-    if (this.stopTime > 0 && !this.isLifting) return;
+    // In classic Panel de Pon, stopTime completely halts the stack rise
+    if (this.stopTime > 0) return;
     if (this.isDanger && !this.isLifting) return;
+
+    // Do NOT auto-rise while active cascades or clears are resolving
+    if (this.isChainActive) return;
 
     const currentSpeed = this.isLifting ? FAST_LIFT_SPEED : this.riseSpeed;
     const deltaPixels = (currentSpeed * delta) / 1000;
@@ -382,6 +424,13 @@ export default class Board extends Phaser.Events.EventEmitter {
     this.emit('stackRise', { offset: this.stackOffsetPixels });
 
     if (this.stackOffsetPixels >= PANEL_SIZE) {
+      // If panels are currently in motion (swapping, falling, hovering, popping),
+      // pause the stack at the top of the rise until all panels settle!
+      // This prevents row shifts from desynchronizing in-flight slimes.
+      if (this.hasBusyPanels()) {
+        this.stackOffsetPixels = PANEL_SIZE;
+        return;
+      }
       this.shiftStackUp();
     }
   }
@@ -412,6 +461,7 @@ export default class Board extends Phaser.Events.EventEmitter {
         this.panels[y][x] = nextPanel;
         if (nextPanel) {
           nextPanel.setGridPosition(x, y);
+          nextPanel.x = x * PANEL_SIZE;
           nextPanel.y = y * PANEL_SIZE;
           nextPanel.setAlpha(1.0);
         }
@@ -783,6 +833,10 @@ export default class Board extends Phaser.Events.EventEmitter {
       block.transformBottomRow().then((positions) => {
         positions.forEach((pos) => {
           if (pos.gridY < 0 || pos.gridY >= BOARD_HEIGHT || pos.gridX < 0 || pos.gridX >= BOARD_WIDTH) return;
+          const existing = this.panels[pos.gridY][pos.gridX];
+          if (existing) {
+            existing.destroy();
+          }
           const color = randomInt(0, COLORS.COUNT - 1);
           const panel = new Panel(this.scene, pos.gridX * PANEL_SIZE, pos.gridY * PANEL_SIZE, color);
           panel.setGridPosition(pos.gridX, pos.gridY);
@@ -825,6 +879,7 @@ export default class Board extends Phaser.Events.EventEmitter {
         if (
           p.state === PanelState.FALLING ||
           p.state === PanelState.HOVER ||
+          p.state === PanelState.SWAPPING ||
           p.state === PanelState.FLASHING ||
           p.state === PanelState.POPPING
         ) {

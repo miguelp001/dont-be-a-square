@@ -70,6 +70,9 @@ export default class Panel extends Phaser.GameObjects.Sprite {
           if (this.state === PanelState.SWAPPING) {
             this.state = PanelState.IDLE;
           }
+          // Authoritative grid snapping prevents drift or desync
+          this.x = this.gridX * PANEL_SIZE;
+          this.y = this.gridY * PANEL_SIZE;
           resolve();
         }
       });
@@ -95,7 +98,9 @@ export default class Panel extends Phaser.GameObjects.Sprite {
           if (this.state === PanelState.FALLING) {
             this.state = PanelState.IDLE;
           }
-          this.y = targetY;
+          // Authoritative grid snapping prevents drift or desync
+          this.x = this.gridX * PANEL_SIZE;
+          this.y = this.gridY * PANEL_SIZE;
           resolve();
         }
       });
@@ -115,7 +120,9 @@ export default class Panel extends Phaser.GameObjects.Sprite {
       yoyo: true,
       ease: 'Quad.easeOut',
       onComplete: () => {
-        this.y = baseY;
+        // Authoritative grid snapping prevents drift or desync
+        this.x = this.gridX * PANEL_SIZE;
+        this.y = this.gridY * PANEL_SIZE;
         this.setDisplaySize(PANEL_SIZE, PANEL_SIZE);
       }
     });
