@@ -23,6 +23,25 @@ PORT = int(os.environ.get('SSH_PORT', 22))
 REMOTE_DIR = os.environ.get('SSH_TARGET', '/home/dh_8jvcwd/dbas.aredpanic.com')
 LOCAL_DIR = Path(__file__).resolve().parent.parent / 'dist'
 
+def upload_file_if_changed(sftp, local_file, remote_file, prefix=""):
+    local_size = os.path.getsize(local_file)
+    try:
+        r_stat = sftp.stat(remote_file)
+        if r_stat.st_size == local_size:
+            return False
+    except IOError:
+        pass
+
+    fname = os.path.basename(local_file)
+    print(f"  Uploading {prefix}{fname} ({local_size} bytes)...", flush=True)
+    try:
+        sftp.put(local_file, remote_file)
+    except Exception as e:
+        import time
+        time.sleep(1.5)
+        sftp.put(local_file, remote_file)
+    return True
+
 def deploy():
     if not HOST or not USER or not PASS:
         print("Error: Missing deployment credentials. Set SSH_HOST, SSH_USER, and SSH_PASSWORD via environment variables or .env.deploy.")
@@ -63,11 +82,10 @@ def deploy():
         for file in files:
             local_file = os.path.join(root, file)
             remote_file = f"{remote_root}/{file}"
-            print(f"  Uploading: {file}", flush=True)
-            sftp.put(local_file, remote_file)
-            upload_count += 1
+            if upload_file_if_changed(sftp, local_file, remote_file):
+                upload_count += 1
 
-    # Upload assets/ directory (audio, character sprites) to remote assets/
+    # Upload assets/ directory (audio, character sprites, slime sprites) to remote assets/
     assets_dir = Path(__file__).resolve().parent.parent / 'assets'
     if assets_dir.exists():
         print(f"\nDeploying assets {assets_dir} -> {REMOTE_DIR}/assets...", flush=True)
@@ -87,13 +105,12 @@ def deploy():
             for file in files:
                 local_file = os.path.join(root, file)
                 remote_file = f"{remote_root}/{file}"
-                print(f"  Uploading asset: {file}", flush=True)
-                sftp.put(local_file, remote_file)
-                upload_count += 1
+                if upload_file_if_changed(sftp, local_file, remote_file, prefix="asset: "):
+                    upload_count += 1
 
     sftp.close()
     ssh.close()
-    print(f"\nDeployment complete! Successfully uploaded {upload_count} files to {REMOTE_DIR}.", flush=True)
+    print(f"\nDeployment complete! Uploaded/updated {upload_count} files in {REMOTE_DIR}.", flush=True)
     print(f"Site is live at: https://dbas.aredpanic.com")
 
 if __name__ == '__main__':
