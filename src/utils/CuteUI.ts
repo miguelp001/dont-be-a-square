@@ -10,6 +10,9 @@ export interface PillButtonOptions {
   strokeThickness?: number;
   width?: number;
   height?: number;
+  shadow?: boolean;
+  shadowColor?: number;
+  shadowOffset?: number;
 }
 
 export class CuteUI {
@@ -58,12 +61,45 @@ export class CuteUI {
 
     const container = scene.add.container(x, y);
 
+    const frame = scene.textures.getFrame(textureKey);
+    const nativeWidth = frame ? frame.width : 230;
+    const nativeHeight = frame ? frame.height : 46;
+
+    const btnWidth = options.width ?? (options.height ? Math.round(nativeWidth * (options.height / nativeHeight)) : nativeWidth);
+    const btnHeight = options.height ?? (options.width ? Math.round(nativeHeight * (options.width / nativeWidth)) : nativeHeight);
+
+    // Cast a slight diffused shadow on the background behind the pill button
+    const hasShadow = options.shadow !== false;
+    const baseShadowOffset = options.shadowOffset ?? 5;
+    let shadow: Phaser.GameObjects.Graphics | null = null;
+
+    if (hasShadow) {
+      shadow = scene.add.graphics();
+      const shadowColor = options.shadowColor ?? 0x05020c;
+      const r = btnHeight / 2;
+
+      // Layer 1: Soft outer feathered bloom
+      shadow.fillStyle(shadowColor, 0.12);
+      shadow.fillRoundedRect(-btnWidth / 2 - 3, -btnHeight / 2 - 1, btnWidth + 6, btnHeight + 4, r + 2);
+
+      // Layer 2: Intermediate penumbra
+      shadow.fillStyle(shadowColor, 0.20);
+      shadow.fillRoundedRect(-btnWidth / 2 - 1.5, -btnHeight / 2, btnWidth + 3, btnHeight + 2, r + 1);
+
+      // Layer 3: Direct contact shadow
+      shadow.fillStyle(shadowColor, 0.32);
+      shadow.fillRoundedRect(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight, r);
+
+      shadow.setPosition(0, baseShadowOffset);
+      container.add(shadow);
+    }
+
     const sprite = scene.add.sprite(0, 0, textureKey);
     sprite.setOrigin(0.5, 0.5);
     sprite.setInteractive({ useHandCursor: true });
 
-    if (options.width && options.height) {
-      sprite.setDisplaySize(options.width, options.height);
+    if (options.width || options.height) {
+      sprite.setDisplaySize(btnWidth, btnHeight);
     }
 
     const label = scene.add.text(0, -1, text, {
@@ -74,7 +110,7 @@ export class CuteUI {
       strokeThickness
     }).setOrigin(0.5, 0.5);
 
-    // Bouncy squishy hover and click feel
+    // Bouncy squishy hover and click feel with reactive shadow elevation
     sprite.on('pointerover', () => {
       SoundFx.playCursor();
       scene.tweens.add({
@@ -84,6 +120,15 @@ export class CuteUI {
         duration: 140,
         ease: 'Back.easeOut'
       });
+      if (shadow) {
+        scene.tweens.add({
+          targets: shadow,
+          y: baseShadowOffset + 2.5,
+          alpha: 0.85,
+          duration: 140,
+          ease: 'Back.easeOut'
+        });
+      }
       sprite.setTint(0xfff0f5);
     });
 
@@ -95,6 +140,15 @@ export class CuteUI {
         duration: 120,
         ease: 'Sine.easeOut'
       });
+      if (shadow) {
+        scene.tweens.add({
+          targets: shadow,
+          y: baseShadowOffset,
+          alpha: 1.0,
+          duration: 120,
+          ease: 'Sine.easeOut'
+        });
+      }
       sprite.clearTint();
     });
 
@@ -111,6 +165,15 @@ export class CuteUI {
           callback();
         }
       });
+      if (shadow) {
+        scene.tweens.add({
+          targets: shadow,
+          y: baseShadowOffset - 3,
+          duration: 65,
+          yoyo: true,
+          ease: 'Quad.easeInOut'
+        });
+      }
     });
 
     container.add([sprite, label]);
