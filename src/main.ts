@@ -39,3 +39,43 @@ const config: Phaser.Types.Core.GameConfig = {
 };
 
 new Phaser.Game(config);
+
+// -------------------------------------------------------------
+// PWA Service Worker Registration & Install Prompt Management
+// -------------------------------------------------------------
+if ('serviceWorker' in navigator && (window.location.protocol.startsWith('http') || window.location.protocol.startsWith('https'))) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register('/sw.js')
+      .then((registration) => {
+        console.log('PWA ServiceWorker registered with scope:', registration.scope);
+      })
+      .catch((error) => {
+        console.warn('PWA ServiceWorker registration failed:', error);
+      });
+  });
+}
+
+// Capture install prompt for custom trigger
+let deferredInstallPrompt: any = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  (window as any).deferredInstallPrompt = e;
+  console.log('PWA install prompt captured and ready');
+});
+
+(window as any).promptPwaInstall = () => {
+  if (deferredInstallPrompt) {
+    deferredInstallPrompt.prompt();
+    deferredInstallPrompt.userChoice.then((choiceResult: any) => {
+      if (choiceResult.outcome === 'accepted') {
+        console.log('User accepted the PWA install prompt');
+      }
+      deferredInstallPrompt = null;
+      (window as any).deferredInstallPrompt = null;
+    });
+  } else {
+    console.log('PWA install prompt is not available or app is already installed');
+  }
+};

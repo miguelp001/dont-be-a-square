@@ -201,12 +201,21 @@ export default class OptionsMenuScene extends Phaser.Scene {
       SoundFx.playMatch();
     });
 
-    // Subtitle notice
-    const note = this.add.text(0, 105, 'Changes are automatically saved across sessions!', {
-      fontSize: '11px',
-      color: '#a4b0be',
-      fontStyle: 'italic'
-    }).setOrigin(0.5);
+    // Install App button
+    const installBtn = CuteUI.createPillButton(
+      this,
+      0,
+      100,
+      '📲 INSTALL APP (PWA)',
+      () => {
+        if ((window as any).deferredInstallPrompt && (window as any).promptPwaInstall) {
+          (window as any).promptPwaInstall();
+        } else {
+          alert("To install as an app:\n• On Chrome/Edge/Android: Tap browser menu (⋮) -> 'Install App'\n• On iPhone/Safari: Tap Share icon (⎋) -> 'Add to Home Screen'");
+        }
+      },
+      { textureKey: 'pill_green', fontSize: '12px', width: 190, height: 32 }
+    );
 
     this.audioTabContainer.add([
       musicLabel,
@@ -219,7 +228,7 @@ export default class OptionsMenuScene extends Phaser.Scene {
       this.sfxVolumeText,
       sfxMinusBtn,
       sfxPlusBtn,
-      note
+      installBtn
     ]);
 
     this.updateAudioDisplays();
