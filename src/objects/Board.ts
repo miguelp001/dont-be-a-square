@@ -57,6 +57,7 @@ export default class Board extends Phaser.Events.EventEmitter {
 
     this.container = scene.add.container(offsetX, offsetY);
     this.container.setScale(scale);
+    this.container.setDepth(10); // Ensure panels render above backdrop (depth 1) and below frame (depth 22)
 
     // Geometry mask to clip the rising stack cleanly within the visible board frame
     const maskGraphics = scene.make.graphics();

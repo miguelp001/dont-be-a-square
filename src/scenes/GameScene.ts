@@ -187,6 +187,7 @@ export default class GameScene extends Phaser.Scene {
 
     // Setup Player 1 (Left)
     this.playerBorder = this.add.graphics();
+    this.playerBorder.setDepth(21);
     this.drawBoardFrame(this.playerBorder, p1X, boardY, boardW, boardH, 0xff69b4, true);
     this.playerBoard = new Board(this, p1X, boardY, this.boardScale);
     this.playerBoard.addInitialPanels(5);
@@ -251,6 +252,7 @@ export default class GameScene extends Phaser.Scene {
     const p2Label = this.gameMode === 'vs_online' ? 'P2' : 'CPU';
     const p2Color = 0x54a0ff;
     this.cpuBorder = this.add.graphics();
+    this.cpuBorder.setDepth(21);
     this.drawBoardFrame(this.cpuBorder, p2X, boardY, boardW, boardH, p2Color, false);
     this.cpuBoard = new Board(this, p2X, boardY, this.boardScale);
     this.cpuBoard.addInitialPanels(5);
@@ -465,6 +467,7 @@ export default class GameScene extends Phaser.Scene {
     this.boardY = boardY;
 
     this.playerBorder = this.add.graphics();
+    this.playerBorder.setDepth(21);
     this.drawBoardFrame(this.playerBorder, boardX, boardY, boardW, boardH, 0xff69b4, true);
 
     this.playerBoard = new Board(this, boardX, boardY, this.boardScale);
@@ -616,7 +619,7 @@ export default class GameScene extends Phaser.Scene {
       backdrop.setName(backdropKey);
       backdrop.setOrigin(0, 0);
       backdrop.setDisplaySize(w, h);
-      backdrop.setDepth(2);
+      backdrop.setDepth(1); // Behind board container (depth 10)
     }
 
     // 2. High-res carved timber frame with leaves and flowers on top
@@ -1234,6 +1237,7 @@ export default class GameScene extends Phaser.Scene {
       const star = this.add.image(x, y, 'sparkle_star');
       star.setDisplaySize(11, 11);
       star.setTint(particleColor);
+      star.setDepth(26);
       const angle = Math.random() * Math.PI * 2;
       const speed = 15 + Math.random() * 20;
 
