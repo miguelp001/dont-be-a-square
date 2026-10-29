@@ -8,8 +8,9 @@ export interface GameStartPayload {
 }
 
 export interface GameAction {
-  type: 'attack' | 'topOut' | 'score' | 'cursor';
+  type: 'attack' | 'topOut' | 'score' | 'cursor' | 'swap' | 'lift' | 'board_sync' | string;
   payload?: any;
+  roomId?: string;
 }
 
 export default class SocketManager {

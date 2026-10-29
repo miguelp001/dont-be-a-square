@@ -932,4 +932,52 @@ export default class Board extends Phaser.Events.EventEmitter {
   public isEmpty(x: number, y: number): boolean {
     return this.getPanelAt(x, y) === null && !this.isCellOccupiedByGarbage(x, y);
   }
+
+  /** Serialize current visible panels and buffer row into a compact array for network sync */
+  public serializeGrid(): number[] {
+    const data: number[] = [];
+    for (let y = 0; y <= BOARD_VISIBLE_HEIGHT; y++) {
+      for (let x = 0; x < BOARD_WIDTH; x++) {
+        const p = this.panels[y] ? this.panels[y][x] : null;
+        data.push(p ? p.color : -1);
+      }
+    }
+    return data;
+  }
+
+  /** Sync this board's panels and rising stack offset to match an opponent's network snapshot */
+  public applyGridSnapshot(grid: number[], stackOffset?: number): void {
+    if (!grid || grid.length < (BOARD_VISIBLE_HEIGHT + 1) * BOARD_WIDTH) return;
+
+    if (stackOffset !== undefined) {
+      this.stackOffsetPixels = stackOffset;
+      this.container.y = this.boardOffsetY - this.stackOffsetPixels * this.scaleFactor;
+      this.emit('stackRise', { offset: this.stackOffsetPixels });
+    }
+
+    let idx = 0;
+    for (let y = 0; y <= BOARD_VISIBLE_HEIGHT; y++) {
+      for (let x = 0; x < BOARD_WIDTH; x++) {
+        const targetColor = grid[idx++];
+        const cur = this.panels[y][x];
+
+        if (targetColor < 0) {
+          if (cur && (cur.state === PanelState.IDLE || cur.state === PanelState.FALLING)) {
+            cur.destroy();
+            this.panels[y][x] = null;
+          }
+        } else {
+          if (!cur) {
+            const p = new Panel(this.scene, x * PANEL_SIZE, y * PANEL_SIZE, targetColor);
+            p.setGridPosition(x, y);
+            if (y === BOARD_VISIBLE_HEIGHT) p.setAlpha(0.75);
+            this.panels[y][x] = p;
+            this.container.add(p);
+          } else if (cur.color !== targetColor && cur.state === PanelState.IDLE) {
+            cur.setColor(targetColor);
+          }
+        }
+      }
+    }
+  }
 }

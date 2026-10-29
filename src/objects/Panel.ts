@@ -45,6 +45,13 @@ export default class Panel extends Phaser.GameObjects.Sprite {
     this.gridY = gridY;
   }
 
+  public setColor(newColor: number): void {
+    this.color = newColor;
+    const baseKey = this.scene.textures.exists(`panel_${newColor}`) ? `panel_${newColor}` : 'panel';
+    this.setTexture(baseKey);
+    this.setDisplaySize(PANEL_SIZE, PANEL_SIZE);
+  }
+
   public canSwap(): boolean {
     return this.state === PanelState.IDLE;
   }

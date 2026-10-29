@@ -88,6 +88,13 @@ export default class GameScene extends Phaser.Scene {
   private lastMouseX: number = -1;
   private lastMouseY: number = -1;
 
+  // Online Multiplayer State
+  private roomId: string = '';
+  private isPlayer1: boolean = true;
+  private matchSeed: number = 0;
+  private lastSentCursorX: number = -1;
+  private lastSentCursorY: number = -1;
+
   constructor() {
     super({ key: 'GameScene' });
   }
@@ -97,11 +104,17 @@ export default class GameScene extends Phaser.Scene {
     this.characterId = data?.characterId || 'kiri';
     this.defeatedOpponents = data?.defeatedOpponents || [];
 
+    if (this.gameMode === 'vs_online') {
+      this.socketMgr = SocketManager.getInstance();
+      this.roomId = data?.roomId || '';
+      this.isPlayer1 = Boolean(data?.isPlayer1);
+      this.matchSeed = data?.seed || 12345;
+    }
+
     if (data?.opponentCharacterId) {
       this.opponentCharacterId = data.opponentCharacterId;
     } else if (this.gameMode === 'vs_online') {
       this.opponentCharacterId = 'mizu';
-      this.socketMgr = SocketManager.getInstance();
     } else {
       const otherChars = CHARACTERS.filter((c) => c.id !== this.characterId);
       this.opponentCharacterId = otherChars[Math.floor(Math.random() * otherChars.length)].id;
@@ -416,14 +429,14 @@ export default class GameScene extends Phaser.Scene {
       this.updateDangerUI(true, false);
     });
     this.playerBoard.on('topOut', () => {
-      if (this.gameMode === 'vs_online' && this.socketMgr) {
-        this.socketMgr.sendAction({ type: 'topOut' });
+      if (this.gameMode === 'vs_online') {
+        this.sendNetAction({ type: 'topOut' });
       }
       this.endMatch('DEFEAT!', false);
     });
 
-    // Wire CPU Events
-    if ((this.gameMode === 'vs_cpu' || this.gameMode === 'challenge') && this.cpuBoard) {
+    // Wire Opponent Board Events (CPU or Online Rival)
+    if (this.cpuBoard) {
       this.cpuBoard.on('stackRise', (e: { offset: number }) => this.cpuCursor?.setStackOffset(e.offset));
       this.cpuBoard.on('rowShift', (e: { offset: number }) => this.cpuCursor?.shiftWithStack(e?.offset));
       this.cpuBoard.on('match', (e: MatchEvent) => this.handleCpuMatch(e));
@@ -447,7 +460,24 @@ export default class GameScene extends Phaser.Scene {
     // Wire Online Network Events
     if (this.gameMode === 'vs_online' && this.socketMgr) {
       this.socketMgr.onOpponentAction((action: GameAction) => {
-        if (action.type === 'attack') {
+        if (action.type === 'cursor' && action.payload) {
+          if (this.cpuCursor) {
+            this.cpuCursor.setGridPosition(action.payload.x, action.payload.y);
+            this.cpuCursor.updatePosition();
+          }
+        } else if (action.type === 'swap' && action.payload) {
+          if (this.cpuBoard) {
+            this.cpuBoard.swap(action.payload.x, action.payload.y);
+          }
+        } else if (action.type === 'lift' && action.payload) {
+          if (this.cpuBoard) {
+            this.cpuBoard.setLifting(Boolean(action.payload.lifting));
+          }
+        } else if (action.type === 'board_sync' && action.payload) {
+          if (this.cpuBoard && action.payload.grid) {
+            this.cpuBoard.applyGridSnapshot(action.payload.grid, action.payload.stackOffset);
+          }
+        } else if (action.type === 'attack' && action.payload) {
           this.playerBoard.queueGarbage(action.payload.width, action.payload.height);
           this.showAttackAlert(false, action.payload.height);
           this.triggerAvatarAttack(false);
@@ -459,7 +489,26 @@ export default class GameScene extends Phaser.Scene {
       });
 
       this.socketMgr.onOpponentDisconnected(() => {
-        this.endMatch('OPPONENT LEFT - YOU WIN!', true);
+        if (!this.isMatchOver) {
+          this.endMatch('OPPONENT LEFT - YOU WIN!', true);
+        }
+      });
+
+      // Periodic board state synchronization (broadcast every 350ms)
+      this.time.addEvent({
+        delay: 350,
+        loop: true,
+        callback: () => {
+          if (this.isMatchOver || !this.playerBoard || !this.socketMgr) return;
+          this.sendNetAction({
+            type: 'board_sync',
+            payload: {
+              grid: this.playerBoard.serializeGrid(),
+              stackOffset: this.playerBoard.stackOffsetPixels,
+              isDanger: this.playerBoard.isDanger
+            }
+          });
+        }
       });
     }
   }
@@ -726,6 +775,49 @@ export default class GameScene extends Phaser.Scene {
     return false;
   }
 
+  private sendNetAction(action: GameAction): void {
+    if (this.gameMode === 'vs_online' && this.socketMgr) {
+      this.socketMgr.sendAction({
+        ...action,
+        roomId: this.roomId
+      });
+    }
+  }
+
+  private broadcastCursor(): void {
+    if (this.gameMode === 'vs_online' && this.socketMgr && this.playerCursor) {
+      if (this.playerCursor.gridX !== this.lastSentCursorX || this.playerCursor.gridY !== this.lastSentCursorY) {
+        this.lastSentCursorX = this.playerCursor.gridX;
+        this.lastSentCursorY = this.playerCursor.gridY;
+        this.sendNetAction({
+          type: 'cursor',
+          payload: { x: this.playerCursor.gridX, y: this.playerCursor.gridY }
+        });
+      }
+    }
+  }
+
+  private triggerPlayerSwap(gx: number, gy: number): boolean {
+    const success = this.playerBoard.swap(gx, gy);
+    if (success && this.gameMode === 'vs_online') {
+      this.sendNetAction({
+        type: 'swap',
+        payload: { x: gx, y: gy }
+      });
+    }
+    return success;
+  }
+
+  private setPlayerLifting(lifting: boolean): void {
+    this.playerBoard.setLifting(lifting);
+    if (this.gameMode === 'vs_online') {
+      this.sendNetAction({
+        type: 'lift',
+        payload: { lifting }
+      });
+    }
+  }
+
   private setupControls(): void {
     this.keydownHandler = (event: KeyboardEvent) => {
       // Pause handling
@@ -761,22 +853,26 @@ export default class GameScene extends Phaser.Scene {
       // Gameplay cursor moves
       if (this.matchesAction(event, 'moveLeft', ['LEFT', 'A', 'ArrowLeft'])) {
         this.playerCursor.moveLeft();
+        this.broadcastCursor();
       } else if (this.matchesAction(event, 'moveRight', ['RIGHT', 'D', 'ArrowRight'])) {
         this.playerCursor.moveRight();
+        this.broadcastCursor();
       } else if (this.matchesAction(event, 'moveUp', ['UP', 'W', 'ArrowUp'])) {
         this.playerCursor.moveUp();
+        this.broadcastCursor();
       } else if (this.matchesAction(event, 'moveDown', ['DOWN', 'S', 'ArrowDown'])) {
         this.playerCursor.moveDown();
+        this.broadcastCursor();
       }
 
       // Swap
       if (this.matchesAction(event, 'swap', ['SPACE', 'X', 'C', ' '])) {
-        this.playerBoard.swap(this.playerCursor.gridX, this.playerCursor.gridY);
+        this.triggerPlayerSwap(this.playerCursor.gridX, this.playerCursor.gridY);
       }
 
       // Lift (Keydown)
       if (this.matchesAction(event, 'lift', ['SHIFT', 'R', 'ShiftLeft', 'ShiftRight'])) {
-        this.playerBoard.setLifting(true);
+        this.setPlayerLifting(true);
       }
 
       // Garbage Test Hotkeys
@@ -804,7 +900,7 @@ export default class GameScene extends Phaser.Scene {
 
     this.keyupHandler = (event: KeyboardEvent) => {
       if (this.matchesAction(event, 'lift', ['SHIFT', 'R', 'ShiftLeft', 'ShiftRight'])) {
-        this.playerBoard.setLifting(false);
+        this.setPlayerLifting(false);
       }
     };
 
@@ -853,10 +949,10 @@ export default class GameScene extends Phaser.Scene {
     this.input.on('wheel', (pointer: Phaser.Input.Pointer, gameObjects: any, deltaX: number, deltaY: number) => {
       if (this.isMatchOver || this.isPaused) return;
       if (Math.abs(deltaY) > 0) {
-        this.playerBoard.setLifting(true);
+        this.setPlayerLifting(true);
         this.time.delayedCall(220, () => {
           if (!this.mouseRightLifting && !this.twoFingerLifting) {
-            this.playerBoard.setLifting(false);
+            this.setPlayerLifting(false);
           }
         });
       }
@@ -869,7 +965,7 @@ export default class GameScene extends Phaser.Scene {
       // Method 1 for mouse-only lift: RIGHT-CLICK or Middle Click to fast lift!
       if (pointer.rightButtonDown() || pointer.button === 2 || pointer.button === 1) {
         this.mouseRightLifting = true;
-        this.playerBoard.setLifting(true);
+        this.setPlayerLifting(true);
         return;
       }
 
@@ -904,9 +1000,10 @@ export default class GameScene extends Phaser.Scene {
 
         // Align cursor with clicked slime pair
         this.playerCursor.setGridPosition(gx, gy);
+        this.broadcastCursor();
 
         // Direct click-to-swap on desktop & immediate responsive touch
-        this.playerBoard.swap(gx, gy);
+        this.triggerPlayerSwap(gx, gy);
       }
     });
 
@@ -930,20 +1027,22 @@ export default class GameScene extends Phaser.Scene {
           // Flick Right
           const swapCol = Math.min(this.touchStartGridX, BOARD_WIDTH - 2);
           this.playerCursor.setGridPosition(swapCol, this.touchStartGridY);
-          this.playerBoard.swap(swapCol, this.touchStartGridY);
+          this.broadcastCursor();
+          this.triggerPlayerSwap(swapCol, this.touchStartGridY);
         } else {
           // Flick Left
           const swapCol = Math.max(0, this.touchStartGridX - 1);
           this.playerCursor.setGridPosition(swapCol, this.touchStartGridY);
-          this.playerBoard.swap(swapCol, this.touchStartGridY);
+          this.broadcastCursor();
+          this.triggerPlayerSwap(swapCol, this.touchStartGridY);
         }
         this.touchBoardActive = false;
       } else if (dy < -24 * this.boardScale && Math.abs(dy) > Math.abs(dx)) {
         // Upward flick: quick fast-lift impulse
-        this.playerBoard.setLifting(true);
+        this.setPlayerLifting(true);
         this.time.delayedCall(220, () => {
           if (!this.mouseRightLifting && !this.twoFingerLifting) {
-            this.playerBoard.setLifting(false);
+            this.setPlayerLifting(false);
           }
         });
         this.touchBoardActive = false;
@@ -955,7 +1054,7 @@ export default class GameScene extends Phaser.Scene {
       if (this.mouseRightLifting && (pointer.button === 2 || pointer.button === 1 || !pointer.rightButtonDown())) {
         this.mouseRightLifting = false;
         if (!this.twoFingerLifting) {
-          this.playerBoard.setLifting(false);
+          this.setPlayerLifting(false);
         }
       }
       this.touchBoardActive = false;
@@ -1010,12 +1109,12 @@ export default class GameScene extends Phaser.Scene {
 
     hit.on('pointerdown', () => {
       draw(true);
-      this.playerBoard.setLifting(true);
+      this.setPlayerLifting(true);
     });
 
     const stopLift = () => {
       draw(false);
-      this.playerBoard.setLifting(false);
+      this.setPlayerLifting(false);
     };
 
     hit.on('pointerup', stopLift);
@@ -1064,6 +1163,7 @@ export default class GameScene extends Phaser.Scene {
 
       if (this.playerCursor.gridX !== gx || this.playerCursor.gridY !== gy) {
         this.playerCursor.setGridPosition(gx, gy);
+        this.broadcastCursor();
       }
     }
   }
@@ -1122,6 +1222,9 @@ export default class GameScene extends Phaser.Scene {
       }, { textureKey: 'pill_blue', fontSize: '14px', width: 170, height: 36 });
 
       const menuBtn = CuteUI.createPillButton(this, 0, 90, 'MAIN MENU', () => {
+        if (this.gameMode === 'vs_online' && this.socketMgr && this.roomId) {
+          this.socketMgr.leaveRoom(this.roomId);
+        }
         this.resumeGame();
         this.scene.start('MenuScene');
       }, { textureKey: 'pill_grey', fontSize: '14px', width: 170, height: 36 });
@@ -1138,6 +1241,9 @@ export default class GameScene extends Phaser.Scene {
           this.scene.restart();
         },
         () => {
+          if (this.gameMode === 'vs_online' && this.socketMgr && this.roomId) {
+            this.socketMgr.leaveRoom(this.roomId);
+          }
           this.resumeGame();
           this.scene.start('MenuScene');
         }
@@ -1460,10 +1566,10 @@ export default class GameScene extends Phaser.Scene {
     const isTwoFinger = Boolean(p1?.isDown && p2?.isDown);
     if (isTwoFinger && !this.twoFingerLifting) {
       this.twoFingerLifting = true;
-      this.playerBoard.setLifting(true);
+      this.setPlayerLifting(true);
     } else if (!isTwoFinger && this.twoFingerLifting) {
       this.twoFingerLifting = false;
-      this.playerBoard.setLifting(false);
+      this.setPlayerLifting(false);
     }
 
     this.playerBoard.update(time, delta);
@@ -1474,10 +1580,12 @@ export default class GameScene extends Phaser.Scene {
 
     this.playerCursor.updatePosition();
 
-    if (this.cpuBoard && this.cpuBot) {
+    if (this.cpuBoard) {
       this.cpuBoard.update(time, delta);
       this.cpuCursor?.updatePosition();
-      this.cpuBot.update(delta);
+      if (this.cpuBot) {
+        this.cpuBot.update(delta);
+      }
     }
   }
 
@@ -1541,7 +1649,7 @@ export default class GameScene extends Phaser.Scene {
     const swapDown = pad.A || pad.X || pad.isButtonDown(0) || pad.isButtonDown(2);
     const prevSwap = this.padPrevButtons.get(0) || false;
     if (swapDown && !prevSwap) {
-      this.playerBoard.swap(this.playerCursor.gridX, this.playerCursor.gridY);
+      this.triggerPlayerSwap(this.playerCursor.gridX, this.playerCursor.gridY);
     }
     this.padPrevButtons.set(0, swapDown);
 
@@ -1554,9 +1662,9 @@ export default class GameScene extends Phaser.Scene {
     const prevLift = this.padPrevButtons.get(1) || false;
 
     if (liftDown && !prevLift) {
-      this.playerBoard.setLifting(true);
+      this.setPlayerLifting(true);
     } else if (!liftDown && prevLift) {
-      this.playerBoard.setLifting(false);
+      this.setPlayerLifting(false);
     }
     this.padPrevButtons.set(1, liftDown);
   }
@@ -1566,6 +1674,7 @@ export default class GameScene extends Phaser.Scene {
     else if (dir === 'right') this.playerCursor.moveRight();
     else if (dir === 'up') this.playerCursor.moveUp();
     else if (dir === 'down') this.playerCursor.moveDown();
+    this.broadcastCursor();
   }
 
   private handlePauseGamepad(delta: number): void {
@@ -1663,6 +1772,10 @@ export default class GameScene extends Phaser.Scene {
   private endMatch(bannerText: string, isVictory: boolean): void {
     if (this.isMatchOver) return;
     this.isMatchOver = true;
+
+    if (this.gameMode === 'vs_online' && this.socketMgr && this.roomId) {
+      this.socketMgr.leaveRoom(this.roomId);
+    }
 
     if (this.timerEvent) {
       this.timerEvent.remove();
@@ -1872,6 +1985,20 @@ export default class GameScene extends Phaser.Scene {
           () => this.scene.start('MenuScene')
         ];
       }
+    } else if (this.gameMode === 'vs_online') {
+      const lobbyBtn = CuteUI.createPillButton(this, 0, startBtnY, 'FIND NEXT MATCH ⚡', () => {
+        this.scene.start('LobbyScene', { characterId: this.characterId });
+      }, { textureKey: 'pill_green', fontSize: '13px', width: btnW, height: btnH });
+
+      const menuBtn = CuteUI.createPillButton(this, 0, startBtnY + btnSpacing, 'MAIN MENU', () => {
+        this.scene.start('MenuScene');
+      }, { textureKey: 'pill_grey', fontSize: '13px', width: btnW, height: btnH });
+
+      this.gameOverButtons = [lobbyBtn, menuBtn];
+      this.gameOverActions = [
+        () => this.scene.start('LobbyScene', { characterId: this.characterId }),
+        () => this.scene.start('MenuScene')
+      ];
     } else {
       const playAgainBtn = CuteUI.createPillButton(this, 0, startBtnY, 'PLAY AGAIN', () => {
         this.scene.restart({

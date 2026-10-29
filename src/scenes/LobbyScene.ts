@@ -102,8 +102,8 @@ export default class LobbyScene extends Phaser.Scene {
     // Character Selection Banner
     this.createCharacterBanner(width / 2, 126);
 
-    // Main 3 Buttons: CREATE ROOM, JOIN BY CODE, BACK TO MENU
-    this.createMainButtons(width / 2, 235);
+    // Main Buttons: QUICK MATCH, CREATE PRIVATE ROOM, JOIN BY CODE, BACK TO MENU
+    this.createMainButtons(width / 2, 202);
 
     // Waiting Room UI (hidden by default)
     this.createWaitingRoomUI(width / 2, 280);
@@ -189,28 +189,35 @@ export default class LobbyScene extends Phaser.Scene {
     this.bannerBg.strokeRoundedRect(this.bannerX - 170, this.bannerY - 30, 340, 60, 10);
   }
 
-  /** The 3 required buttons under Online Multiplayer */
+  /** The main navigation buttons under Online Multiplayer */
   private createMainButtons(x: number, startY: number): void {
     this.mainButtonsContainer = this.add.container(0, 0);
 
-    const btnSpacing = 62;
+    const btnSpacing = 52;
+    const btnW = 220;
+    const btnH = 38;
 
-    // 1. CREATE ROOM
-    const createBtn = CuteUI.createPillButton(this, x, startY, 'CREATE ROOM', () => {
+    // 1. QUICK MATCH
+    const quickBtn = CuteUI.createPillButton(this, x, startY, 'QUICK MATCH ⚡', () => {
+      this.handleQuickMatch();
+    }, { textureKey: 'pill_pink', fontSize: '14px', width: btnW, height: btnH });
+
+    // 2. CREATE PRIVATE ROOM
+    const createBtn = CuteUI.createPillButton(this, x, startY + btnSpacing, 'CREATE PRIVATE ROOM 🔑', () => {
       this.handleCreateRoom();
-    }, { textureKey: 'pill_green', fontSize: '15px' });
+    }, { textureKey: 'pill_green', fontSize: '13px', width: btnW, height: btnH });
 
-    // 2. JOIN BY CODE
-    const joinBtn = CuteUI.createPillButton(this, x, startY + btnSpacing, 'JOIN BY CODE', () => {
+    // 3. JOIN BY CODE
+    const joinBtn = CuteUI.createPillButton(this, x, startY + btnSpacing * 2, 'JOIN BY CODE 🚪', () => {
       this.openJoinModal();
-    }, { textureKey: 'pill_blue', fontSize: '15px' });
+    }, { textureKey: 'pill_blue', fontSize: '14px', width: btnW, height: btnH });
 
-    // 3. BACK TO MENU
-    const backBtn = CuteUI.createPillButton(this, x, startY + btnSpacing * 2, 'BACK TO MENU', () => {
+    // 4. BACK TO MENU
+    const backBtn = CuteUI.createPillButton(this, x, startY + btnSpacing * 3, 'BACK TO MENU', () => {
       this.handleBackToMenu();
-    }, { textureKey: 'pill_grey', fontSize: '15px' });
+    }, { textureKey: 'pill_grey', fontSize: '14px', width: btnW, height: btnH });
 
-    this.mainPillButtons = [createBtn, joinBtn, backBtn];
+    this.mainPillButtons = [quickBtn, createBtn, joinBtn, backBtn];
     this.mainPillButtons.forEach((btn, idx) => {
       btn.on('pointerover', () => {
         this.focusIndex = idx + 1;
@@ -218,7 +225,7 @@ export default class LobbyScene extends Phaser.Scene {
       });
     });
 
-    this.mainButtonsContainer.add([createBtn, joinBtn, backBtn]);
+    this.mainButtonsContainer.add([quickBtn, createBtn, joinBtn, backBtn]);
   }
 
   /** Waiting Room card shown after clicking CREATE ROOM */
@@ -464,6 +471,17 @@ export default class LobbyScene extends Phaser.Scene {
     this.socketMgr.joinRoom(this.inputCode, this.selectedCharacterId);
   }
 
+  private handleQuickMatch(): void {
+    SoundFx.playCursor();
+    this.mainButtonsContainer.setVisible(false);
+    this.waitingRoomContainer.setVisible(true);
+    this.roomCodeDisplay.setText('MATCHING...');
+    this.waitingStatusText.setText('Searching for an online opponent...');
+    this.copyFeedbackText.setText('');
+
+    this.socketMgr.quickMatch(this.selectedCharacterId);
+  }
+
   private handleCreateRoom(): void {
     SoundFx.playCursor();
     this.mainButtonsContainer.setVisible(false);
@@ -543,6 +561,7 @@ export default class LobbyScene extends Phaser.Scene {
         this.scene.start('GameScene', {
           mode: 'vs_online',
           roomId: data.roomId,
+          seed: data.seed,
           characterId: this.selectedCharacterId,
           opponentCharacterId: opponentChar,
           isPlayer1
@@ -644,11 +663,11 @@ export default class LobbyScene extends Phaser.Scene {
 
       if (e.key === 'ArrowUp' || e.code === 'KeyW') {
         SoundFx.playCursor();
-        this.focusIndex = (this.focusIndex - 1 + 4) % 4;
+        this.focusIndex = (this.focusIndex - 1 + 5) % 5;
         this.updateFocusVisuals();
       } else if (e.key === 'ArrowDown' || e.code === 'KeyS') {
         SoundFx.playCursor();
-        this.focusIndex = (this.focusIndex + 1) % 4;
+        this.focusIndex = (this.focusIndex + 1) % 5;
         this.updateFocusVisuals();
       } else if (this.focusIndex === 0 && (e.key === 'ArrowLeft' || e.code === 'KeyA')) {
         this.cycleCharacter(-1);
@@ -672,10 +691,12 @@ export default class LobbyScene extends Phaser.Scene {
     if (this.focusIndex === 0) {
       this.cycleCharacter(1);
     } else if (this.focusIndex === 1) {
-      this.handleCreateRoom();
+      this.handleQuickMatch();
     } else if (this.focusIndex === 2) {
-      this.openJoinModal();
+      this.handleCreateRoom();
     } else if (this.focusIndex === 3) {
+      this.openJoinModal();
+    } else if (this.focusIndex === 4) {
       this.handleBackToMenu();
     }
   }
@@ -746,11 +767,11 @@ export default class LobbyScene extends Phaser.Scene {
       if (this.padRepeatTimer <= 0) {
         if (isUp) {
           SoundFx.playCursor();
-          this.focusIndex = (this.focusIndex - 1 + 4) % 4;
+          this.focusIndex = (this.focusIndex - 1 + 5) % 5;
           this.updateFocusVisuals();
         } else if (isDown) {
           SoundFx.playCursor();
-          this.focusIndex = (this.focusIndex + 1) % 4;
+          this.focusIndex = (this.focusIndex + 1) % 5;
           this.updateFocusVisuals();
         } else if (this.focusIndex === 0 && isLeft) {
           this.cycleCharacter(-1);

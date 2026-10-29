@@ -34,7 +34,7 @@ io.on('connection', (socket) => {
     const room: Room = {
       id: roomId,
       players: [{ socketId: socket.id, characterId }],
-      isPublic: data.isPublic ?? true,
+      isPublic: data.isPublic ?? false,
       seed: Math.floor(Math.random() * 1000000)
     };
 
