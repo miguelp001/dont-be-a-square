@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dont-be-a-square-v1';
+const CACHE_NAME = 'dont-be-a-square-v3';
 
 const PRECACHE_URLS = [
   '/',
@@ -59,27 +59,20 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static Assets (scripts, audio, images, fonts): Cache-first with network fallback
+  // Static Assets (scripts, audio, images, fonts): Network-first with cache fallback
   event.respondWith(
-    caches.match(request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-
-      return fetch(request).then((networkResponse) => {
-        // Cache valid responses for game assets
+    fetch(request)
+      .then((networkResponse) => {
         if (
           networkResponse &&
           networkResponse.status === 200 &&
-          (url.origin === self.location.origin || url.pathname.endsWith('.png') || url.pathname.endsWith('.mp3'))
+          (url.origin === self.location.origin || url.pathname.endsWith('.png') || url.pathname.endsWith('.mp3') || url.pathname.endsWith('.js'))
         ) {
           const clone = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
         }
         return networkResponse;
-      }).catch((err) => {
-        console.warn('PWA fetch offline fallback:', request.url, err);
-      });
-    })
+      })
+      .catch(() => caches.match(request))
   );
 });

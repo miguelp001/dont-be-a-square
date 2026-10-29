@@ -24,15 +24,20 @@ REMOTE_DIR = os.environ.get('SSH_TARGET', '/home/dh_8jvcwd/dbas.aredpanic.com')
 LOCAL_DIR = Path(__file__).resolve().parent.parent / 'dist'
 
 def upload_file_if_changed(sftp, local_file, remote_file, prefix=""):
-    local_size = os.path.getsize(local_file)
-    try:
-        r_stat = sftp.stat(remote_file)
-        if r_stat.st_size == local_size:
-            return False
-    except IOError:
-        pass
-
     fname = os.path.basename(local_file)
+    local_size = os.path.getsize(local_file)
+
+    # Always upload entry points, service worker, and web app manifests
+    always_upload = fname.endswith('.html') or fname.endswith('.js') or fname.endswith('.webmanifest') or fname == 'sw.js'
+
+    if not always_upload:
+        try:
+            r_stat = sftp.stat(remote_file)
+            if r_stat.st_size == local_size:
+                return False
+        except IOError:
+            pass
+
     print(f"  Uploading {prefix}{fname} ({local_size} bytes)...", flush=True)
     try:
         sftp.put(local_file, remote_file)
