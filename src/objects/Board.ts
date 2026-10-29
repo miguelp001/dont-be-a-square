@@ -110,6 +110,8 @@ export default class Board extends Phaser.Events.EventEmitter {
       const color = this.getValidColor(x, bufferY);
       const panel = new Panel(this.scene, x * PANEL_SIZE, bufferY * PANEL_SIZE, color);
       panel.setGridPosition(x, bufferY);
+      panel.setAlpha(0.65);
+      panel.setTint(0x999999);
       this.panels[bufferY][x] = panel;
       this.container.add(panel);
     }
@@ -377,7 +379,7 @@ export default class Board extends Phaser.Events.EventEmitter {
     const deltaPixels = (currentSpeed * delta) / 1000;
     this.stackOffsetPixels += deltaPixels;
 
-    this.container.y = this.boardOffsetY - this.stackOffsetPixels;
+    this.container.y = this.boardOffsetY - this.stackOffsetPixels * this.scaleFactor;
     this.emit('stackRise', { offset: this.stackOffsetPixels });
 
     if (this.stackOffsetPixels >= PANEL_SIZE) {
@@ -412,6 +414,8 @@ export default class Board extends Phaser.Events.EventEmitter {
         if (nextPanel) {
           nextPanel.setGridPosition(x, y);
           nextPanel.y = y * PANEL_SIZE;
+          nextPanel.setAlpha(1.0);
+          nextPanel.clearTint();
         }
       }
     }
@@ -431,7 +435,7 @@ export default class Board extends Phaser.Events.EventEmitter {
     this.generateBufferRow();
 
     this.stackOffsetPixels -= PANEL_SIZE;
-    this.container.y = this.boardOffsetY - this.stackOffsetPixels;
+    this.container.y = this.boardOffsetY - this.stackOffsetPixels * this.scaleFactor;
 
     if (this.isLifting) {
       SoundFx.playLiftTick();

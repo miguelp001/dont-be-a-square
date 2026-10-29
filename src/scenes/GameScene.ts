@@ -143,11 +143,12 @@ export default class GameScene extends Phaser.Scene {
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
 
-    // Responsive board scaling for mobile/desktop
-    const availableW = width - 36;
-    const scaleByW = Math.min(1.2, Math.max(0.9, Math.floor((availableW / (2 * BOARD_WIDTH * PANEL_SIZE + 20)) * 100) / 100));
-    const availableH = height - 150;
-    const scaleByH = Math.min(1.2, Math.max(0.9, Math.floor((availableH / (BOARD_VISIBLE_HEIGHT * PANEL_SIZE)) * 100) / 100));
+    // Responsive board scaling for mobile/desktop (accounting for snug 1.2x frame border width)
+    const availableW = width - 44;
+    const maxScaleByW = Math.floor((availableW / (2.4 * BOARD_WIDTH * PANEL_SIZE + 18)) * 100) / 100;
+    const scaleByW = Math.min(1.05, Math.max(0.72, maxScaleByW));
+    const availableH = height - 160;
+    const scaleByH = Math.min(1.05, Math.max(0.72, Math.floor((availableH / (1.14 * BOARD_VISIBLE_HEIGHT * PANEL_SIZE)) * 100) / 100));
     this.boardScale = Math.min(scaleByW, scaleByH);
 
     const boardW = Math.round(BOARD_WIDTH * PANEL_SIZE * this.boardScale);
@@ -452,11 +453,11 @@ export default class GameScene extends Phaser.Scene {
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
 
-    // Single-board scaling: can expand significantly on mobile portrait & desktop
-    const availableW = width - 40;
-    const scaleByW = Math.min(1.45, Math.max(1.0, Math.floor((availableW / (BOARD_WIDTH * PANEL_SIZE)) * 100) / 100));
+    // Single-board scaling: comfortable arcade sizing without oversized tiles
+    const availableW = width - 48;
+    const scaleByW = Math.min(1.2, Math.max(0.85, Math.floor((availableW / (1.2 * BOARD_WIDTH * PANEL_SIZE)) * 100) / 100));
     const availableH = height - 160;
-    const scaleByH = Math.min(1.45, Math.max(1.0, Math.floor((availableH / (BOARD_VISIBLE_HEIGHT * PANEL_SIZE)) * 100) / 100));
+    const scaleByH = Math.min(1.2, Math.max(0.85, Math.floor((availableH / (1.14 * BOARD_VISIBLE_HEIGHT * PANEL_SIZE)) * 100) / 100));
     this.boardScale = Math.min(scaleByW, scaleByH);
 
     const boardW = Math.round(BOARD_WIDTH * PANEL_SIZE * this.boardScale);
@@ -626,10 +627,10 @@ export default class GameScene extends Phaser.Scene {
     const frameKey = isPlayer ? 'p1_wood_frame' : 'cpu_wood_frame';
     let frameImg = this.children.getByName(frameKey) as Phaser.GameObjects.Image;
     if (!frameImg && this.textures.exists('board_wood_frame')) {
-      // board_wood_frame_6x10 is 1069x1464 with inner opening 600x1000 at (233, 231)
+      // board_wood_frame_6x10 is 720x1130 with snug inner opening 600x1000 at (60, 70)
       const frameScale = w / 600;
-      const frameX = x - 233 * frameScale;
-      const frameY = y - 231 * frameScale;
+      const frameX = x - 60 * frameScale;
+      const frameY = y - 70 * frameScale;
 
       frameImg = this.add.image(frameX, frameY, 'board_wood_frame');
       frameImg.setName(frameKey);
@@ -639,16 +640,6 @@ export default class GameScene extends Phaser.Scene {
 
       if (isPlayer) this.playerWoodFrame = frameImg;
       else this.cpuWoodFrame = frameImg;
-
-      // Cute mini slimes peeking over the top beam of the wooden board
-      const pColor1 = isPlayer ? 'panel_2' : 'panel_0';
-      const pColor2 = isPlayer ? 'panel_3' : 'panel_1';
-      const peek1 = this.add.image(x + w * 0.28, y - 6 * this.boardScale, pColor1);
-      peek1.setDisplaySize(18 * this.boardScale, 18 * this.boardScale);
-      peek1.setDepth(23);
-      const peek2 = this.add.image(x + w * 0.72, y - 6 * this.boardScale, pColor2);
-      peek2.setDisplaySize(18 * this.boardScale, 18 * this.boardScale);
-      peek2.setDepth(23);
     }
 
     // 3. Danger border indicator

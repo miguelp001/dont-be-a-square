@@ -64,7 +64,7 @@ export default class PreloadScene extends Phaser.Scene {
       if (this.textures.exists(`panel_${i}`)) {
         this.textures.remove(`panel_${i}`);
       }
-      this.load.image(`panel_${i}`, `assets/sprites/slimes/panel_${i}.png?v=32px_v3`);
+      this.load.image(`panel_${i}`, `assets/sprites/slimes/panel_${i}.png?v=32px_v4`);
     }
 
     // Load character portrait assets
