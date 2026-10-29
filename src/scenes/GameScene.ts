@@ -61,6 +61,13 @@ export default class GameScene extends Phaser.Scene {
   private pauseButtons: Phaser.GameObjects.Container[] = [];
   private pauseActions: (() => void)[] = [];
 
+  // Game Over Modal State
+  private gameOverModalContainer?: Phaser.GameObjects.Container;
+  private gameOverButtons: Phaser.GameObjects.Container[] = [];
+  private gameOverActions: (() => void)[] = [];
+  private gameOverModalIndex: number = 0;
+  private gameOverPadRepeatTimer: number = 0;
+
   // Gamepad State (DAS Repeat & Button Tracking)
   private padMoveTimer: number = 0;
   private padLastDir: 'up' | 'down' | 'left' | 'right' | null = null;
@@ -102,6 +109,11 @@ export default class GameScene extends Phaser.Scene {
     this.cpuScore = 0;
     this.gameTime = 180;
     this.isMatchOver = false;
+    this.gameOverModalContainer = undefined;
+    this.gameOverButtons = [];
+    this.gameOverActions = [];
+    this.gameOverModalIndex = 0;
+    this.gameOverPadRepeatTimer = 0;
   }
 
   create(): void {
@@ -730,7 +742,17 @@ export default class GameScene extends Phaser.Scene {
         return;
       }
 
-      if (this.isMatchOver) return;
+      // If game over, keyboard navigates the game over menu
+      if (this.isMatchOver) {
+        if (event.key === 'ArrowUp' || event.code === 'KeyW') {
+          this.navigateGameOverMenu(-1);
+        } else if (event.key === 'ArrowDown' || event.code === 'KeyS') {
+          this.navigateGameOverMenu(1);
+        } else if (event.key === 'Enter' || event.code === 'Space') {
+          this.selectGameOverOption();
+        }
+        return;
+      }
 
       // Gameplay cursor moves
       if (this.matchesAction(event, 'moveLeft', ['LEFT', 'A', 'ArrowLeft'])) {
@@ -1399,7 +1421,10 @@ export default class GameScene extends Phaser.Scene {
       return;
     }
 
-    if (this.isMatchOver) return;
+    if (this.isMatchOver) {
+      this.handleGameOverGamepad(delta);
+      return;
+    }
 
     // Multi-touch two-finger lift (tablets / mobile devices)
     const p1 = this.input.pointer1;
@@ -1548,20 +1573,89 @@ export default class GameScene extends Phaser.Scene {
     this.padPrevButtons.set(1, backDown);
   }
 
+  private handleGameOverGamepad(delta: number): void {
+    const pad = this.getActiveGamepad();
+    if (!pad) return;
+
+    // Up / Down navigation in game over menu
+    const stickY = pad.leftStick ? pad.leftStick.y : 0;
+    const isUp = pad.up || pad.isButtonDown(12) || stickY < -0.45;
+    const isDown = pad.down || pad.isButtonDown(13) || stickY > 0.45;
+
+    if (isUp || isDown) {
+      if (this.gameOverPadRepeatTimer <= 0) {
+        if (isUp) this.navigateGameOverMenu(-1);
+        else if (isDown) this.navigateGameOverMenu(1);
+        this.gameOverPadRepeatTimer = 220;
+      } else {
+        this.gameOverPadRepeatTimer -= delta;
+      }
+    } else {
+      this.gameOverPadRepeatTimer = 0;
+    }
+
+    // Button 0 (A) selects
+    const selectDown = pad.A || pad.isButtonDown(0);
+    const prevSelect = this.padPrevButtons.get(0) || false;
+    if (selectDown && !prevSelect) {
+      this.selectGameOverOption();
+    }
+    this.padPrevButtons.set(0, selectDown);
+  }
+
+  private navigateGameOverMenu(delta: number): void {
+    if (this.gameOverButtons.length === 0) return;
+    SoundFx.playCursor();
+    this.gameOverModalIndex =
+      (this.gameOverModalIndex + delta + this.gameOverButtons.length) % this.gameOverButtons.length;
+    this.updateGameOverButtonSelection();
+  }
+
+  private selectGameOverOption(): void {
+    if (this.gameOverActions[this.gameOverModalIndex]) {
+      this.gameOverActions[this.gameOverModalIndex]();
+    }
+  }
+
+  private updateGameOverButtonSelection(): void {
+    this.gameOverButtons.forEach((btn, idx) => {
+      if (idx === this.gameOverModalIndex) {
+        btn.setScale(1.08);
+      } else {
+        btn.setScale(1.0);
+      }
+    });
+  }
+
   private endMatch(bannerText: string, isVictory: boolean): void {
+    if (this.isMatchOver) return;
     this.isMatchOver = true;
+
     if (this.timerEvent) {
       this.timerEvent.remove();
     }
 
+    // Soften battle background music so result jingle pops
+    if (this.cache.audio.exists('battle_cpu')) {
+      const bgm = this.sound.get('battle_cpu');
+      if (bgm && bgm.isPlaying) {
+        this.tweens.add({
+          targets: bgm,
+          volume: 0.12,
+          duration: 400
+        });
+      }
+    }
+
     if (isVictory) {
       SoundFx.playVictory();
-      // Victory confetti!
-      for (let i = 0; i < 28; i++) {
+      // Victory confetti falling over the entire screen at depth 250!
+      for (let i = 0; i < 30; i++) {
         const x = Math.random() * this.cameras.main.width;
         const y = -10 - Math.random() * 50;
         const star = this.add.image(x, y, 'sparkle_star');
         star.setDisplaySize(14, 14);
+        star.setDepth(250);
         star.setTint([0xfff200, 0xff69b4, 0x00d2d3, 0x2ed573, 0xff9f43][Math.floor(Math.random() * 5)]);
 
         this.tweens.add({
@@ -1590,21 +1684,43 @@ export default class GameScene extends Phaser.Scene {
     const isChampion = this.gameMode === 'challenge' && this.defeatedOpponents.length >= 7;
     const finalBanner = isChampion ? 'CHAMPION!' : bannerText;
 
-    const overlay = this.add.graphics();
-    overlay.fillStyle(0x000000, 0.78);
-    overlay.fillRect(0, 0, width, height);
+    // Create Game Over Modal Container at Depth 200 (guaranteed on top of boards, frames, and cursors)
+    this.gameOverModalContainer = this.add.container(width / 2, height / 2);
+    this.gameOverModalContainer.setDepth(200);
 
-    this.add
-      .text(width / 2, height / 2 - 70, finalBanner, {
-        fontSize: '44px',
-        color: isChampion ? '#feca57' : isVictory ? '#2ed573' : '#ff4757',
-        fontStyle: 'bold',
-        stroke: '#000000',
-        strokeThickness: 6
-      })
-      .setOrigin(0.5);
+    // 1. Dark fullscreen backdrop to shield underlying game and absorb touch/pointer input
+    const backdrop = this.add.rectangle(0, 0, width, height, 0x000000, 0.78);
+    backdrop.setInteractive();
 
-    // Defeat/victory quote
+    // 2. Themed Modal Box
+    const hasThreeButtons = this.gameMode === 'challenge' && !isVictory;
+    const cardW = Math.min(width - 36, 360);
+    const cardH = hasThreeButtons ? 390 : 330;
+    const halfW = cardW / 2;
+    const halfH = cardH / 2;
+
+    const box = this.add.graphics();
+    const borderColor = isChampion ? 0xfeca57 : isVictory ? 0x2ed573 : 0xff4757;
+    box.fillStyle(0x181028, 0.98);
+    box.fillRoundedRect(-halfW, -halfH, cardW, cardH, 20);
+    box.lineStyle(3, borderColor, 1);
+    box.strokeRoundedRect(-halfW, -halfH, cardW, cardH, 20);
+
+    // Subtle header accent line
+    box.lineStyle(1.5, borderColor, 0.45);
+    box.strokeLineShape(new Phaser.Geom.Line(-halfW + 24, -halfH + 68, halfW - 24, -halfH + 68));
+
+    // 3. Banner Title
+    const titleColor = isChampion ? '#feca57' : isVictory ? '#2ed573' : '#ff4757';
+    const titleText = this.add.text(0, -halfH + 38, finalBanner, {
+      fontSize: '34px',
+      color: titleColor,
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 5
+    }).setOrigin(0.5);
+
+    // 4. Character Quote / Flavor text
     const winningCharId = isVictory ? this.characterId : this.opponentCharacterId;
     const losingCharId = isVictory ? this.opponentCharacterId : this.characterId;
     const winChar = CHARACTERS.find((c) => c.id === winningCharId);
@@ -1616,86 +1732,159 @@ export default class GameScene extends Phaser.Scene {
       ? `${winChar?.name}: "${winChar?.quote}"`
       : `${loseChar?.name}: "${loseChar?.defeatQuote}"`;
 
-    this.add
-      .text(width / 2, height / 2 - 25, subQuote, {
-        fontSize: '13px',
-        color: isChampion ? '#feca57' : isVictory ? '#2ed573' : '#c8d6e5',
-        fontStyle: 'italic bold',
-        stroke: '#000000',
-        strokeThickness: 2
-      })
-      .setOrigin(0.5);
+    const quoteText = this.add.text(0, -halfH + 92, subQuote, {
+      fontSize: '12.5px',
+      color: isChampion ? '#feca57' : isVictory ? '#7bed9f' : '#dfe4ea',
+      fontStyle: 'italic bold',
+      stroke: '#000000',
+      strokeThickness: 2.5,
+      align: 'center',
+      wordWrap: { width: cardW - 40, useAdvancedWrap: true }
+    }).setOrigin(0.5);
 
+    // 5. Score summary pill
     const scoreSummary =
       this.gameMode === 'endless'
-        ? `Final Score: ${this.playerScore}`
-        : `You: ${this.playerScore}   |   Opponent: ${this.cpuScore}`;
+        ? `Final Score: ${this.playerScore.toLocaleString()}`
+        : `You: ${this.playerScore.toLocaleString()}   |   Opponent: ${this.cpuScore.toLocaleString()}`;
 
-    this.add
-      .text(width / 2, height / 2 + 8, scoreSummary, {
-        fontSize: '16px',
-        color: '#ffffff',
-        stroke: '#000000',
-        strokeThickness: 3
-      })
-      .setOrigin(0.5);
+    const scoreBox = this.add.graphics();
+    scoreBox.fillStyle(0x0d071c, 0.92);
+    scoreBox.fillRoundedRect(-cardW / 2 + 18, -halfH + 120, cardW - 36, 32, 10);
+    scoreBox.lineStyle(1.2, 0x57606f, 0.6);
+    scoreBox.strokeRoundedRect(-cardW / 2 + 18, -halfH + 120, cardW - 36, 32, 10);
+
+    const scoreText = this.add.text(0, -halfH + 136, scoreSummary, {
+      fontSize: '14px',
+      color: '#ffffff',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 3
+    }).setOrigin(0.5);
+
+    this.gameOverButtons = [];
+    this.gameOverActions = [];
+
+    // 6. Action buttons
+    const btnW = Math.min(cardW - 48, 220);
+    const btnH = 38;
+    const startBtnY = -halfH + 188;
+    const btnSpacing = 52;
 
     if (this.gameMode === 'challenge') {
       if (isChampion) {
-        CuteUI.createPillButton(this, width / 2, height / 2 + 55, 'CLAIM CHAMPION CROWN 🏆', () => {
+        const claimBtn = CuteUI.createPillButton(this, 0, startBtnY, 'CLAIM CHAMPION CROWN 🏆', () => {
           this.scene.start('ChallengeMapScene', {
             characterId: this.characterId,
             defeatedOpponents: this.defeatedOpponents
           });
-        }, { textureKey: 'pill_pink', fontSize: '13px', width: 220, height: 40 });
+        }, { textureKey: 'pill_pink', fontSize: '13px', width: btnW, height: btnH });
 
-        CuteUI.createPillButton(this, width / 2, height / 2 + 105, 'MAIN MENU', () => {
+        const menuBtn = CuteUI.createPillButton(this, 0, startBtnY + btnSpacing, 'MAIN MENU', () => {
           this.scene.start('MenuScene');
-        }, { textureKey: 'pill_grey', fontSize: '13px', width: 220, height: 40 });
+        }, { textureKey: 'pill_grey', fontSize: '13px', width: btnW, height: btnH });
+
+        this.gameOverButtons = [claimBtn, menuBtn];
+        this.gameOverActions = [
+          () => this.scene.start('ChallengeMapScene', { characterId: this.characterId, defeatedOpponents: this.defeatedOpponents }),
+          () => this.scene.start('MenuScene')
+        ];
       } else if (isVictory) {
-        CuteUI.createPillButton(this, width / 2, height / 2 + 55, `NEXT CHALLENGER (${this.defeatedOpponents.length}/7)`, () => {
+        const nextBtn = CuteUI.createPillButton(this, 0, startBtnY, `NEXT CHALLENGER (${this.defeatedOpponents.length}/7)`, () => {
           this.scene.start('ChallengeMapScene', {
             characterId: this.characterId,
             defeatedOpponents: this.defeatedOpponents
           });
-        }, { textureKey: 'pill_green', fontSize: '13px', width: 220, height: 40 });
+        }, { textureKey: 'pill_green', fontSize: '13px', width: btnW, height: btnH });
 
-        CuteUI.createPillButton(this, width / 2, height / 2 + 105, 'MAIN MENU', () => {
+        const menuBtn = CuteUI.createPillButton(this, 0, startBtnY + btnSpacing, 'MAIN MENU', () => {
           this.scene.start('MenuScene');
-        }, { textureKey: 'pill_grey', fontSize: '13px', width: 220, height: 40 });
+        }, { textureKey: 'pill_grey', fontSize: '13px', width: btnW, height: btnH });
+
+        this.gameOverButtons = [nextBtn, menuBtn];
+        this.gameOverActions = [
+          () => this.scene.start('ChallengeMapScene', { characterId: this.characterId, defeatedOpponents: this.defeatedOpponents }),
+          () => this.scene.start('MenuScene')
+        ];
       } else {
-        CuteUI.createPillButton(this, width / 2, height / 2 + 45, 'RETRY MATCH', () => {
+        const retryBtn = CuteUI.createPillButton(this, 0, startBtnY, 'RETRY MATCH', () => {
           this.scene.restart({
             mode: this.gameMode,
             characterId: this.characterId,
             opponentCharacterId: this.opponentCharacterId,
             defeatedOpponents: this.defeatedOpponents
           });
-        }, { textureKey: 'pill_blue', fontSize: '13px', width: 200, height: 38 });
+        }, { textureKey: 'pill_blue', fontSize: '13px', width: btnW, height: btnH });
 
-        CuteUI.createPillButton(this, width / 2, height / 2 + 92, 'CHALLENGE MAP', () => {
+        const mapBtn = CuteUI.createPillButton(this, 0, startBtnY + btnSpacing, 'CHALLENGE MAP', () => {
           this.scene.start('ChallengeMapScene', {
             characterId: this.characterId,
             defeatedOpponents: this.defeatedOpponents
           });
-        }, { textureKey: 'pill_pink', fontSize: '13px', width: 200, height: 38 });
+        }, { textureKey: 'pill_pink', fontSize: '13px', width: btnW, height: btnH });
 
-        CuteUI.createPillButton(this, width / 2, height / 2 + 138, 'MAIN MENU', () => {
+        const menuBtn = CuteUI.createPillButton(this, 0, startBtnY + btnSpacing * 2, 'MAIN MENU', () => {
           this.scene.start('MenuScene');
-        }, { textureKey: 'pill_grey', fontSize: '13px', width: 200, height: 38 });
+        }, { textureKey: 'pill_grey', fontSize: '13px', width: btnW, height: btnH });
+
+        this.gameOverButtons = [retryBtn, mapBtn, menuBtn];
+        this.gameOverActions = [
+          () => this.scene.restart({
+            mode: this.gameMode,
+            characterId: this.characterId,
+            opponentCharacterId: this.opponentCharacterId,
+            defeatedOpponents: this.defeatedOpponents
+          }),
+          () => this.scene.start('ChallengeMapScene', { characterId: this.characterId, defeatedOpponents: this.defeatedOpponents }),
+          () => this.scene.start('MenuScene')
+        ];
       }
     } else {
-      CuteUI.createPillButton(this, width / 2, height / 2 + 55, 'PLAY AGAIN', () => {
+      const playAgainBtn = CuteUI.createPillButton(this, 0, startBtnY, 'PLAY AGAIN', () => {
         this.scene.restart({
           mode: this.gameMode,
           characterId: this.characterId,
           opponentCharacterId: this.opponentCharacterId
         });
-      }, { textureKey: 'pill_green', fontSize: '14px', width: 200, height: 40 });
+      }, { textureKey: 'pill_green', fontSize: '14px', width: btnW, height: btnH });
 
-      CuteUI.createPillButton(this, width / 2, height / 2 + 105, 'MAIN MENU', () => {
+      const menuBtn = CuteUI.createPillButton(this, 0, startBtnY + btnSpacing, 'MAIN MENU', () => {
         this.scene.start('MenuScene');
-      }, { textureKey: 'pill_grey', fontSize: '14px', width: 200, height: 40 });
+      }, { textureKey: 'pill_grey', fontSize: '14px', width: btnW, height: btnH });
+
+      this.gameOverButtons = [playAgainBtn, menuBtn];
+      this.gameOverActions = [
+        () => this.scene.restart({
+          mode: this.gameMode,
+          characterId: this.characterId,
+          opponentCharacterId: this.opponentCharacterId
+        }),
+        () => this.scene.start('MenuScene')
+      ];
     }
+
+    this.gameOverModalContainer.add([
+      backdrop,
+      box,
+      titleText,
+      quoteText,
+      scoreBox,
+      scoreText,
+      ...this.gameOverButtons
+    ]);
+
+    this.gameOverModalIndex = 0;
+    this.updateGameOverButtonSelection();
+
+    // Bouncy pop-in tween!
+    this.gameOverModalContainer.setScale(0.72);
+    this.gameOverModalContainer.setAlpha(0);
+    this.tweens.add({
+      targets: this.gameOverModalContainer,
+      scale: 1,
+      alpha: 1,
+      duration: 320,
+      ease: 'Back.easeOut'
+    });
   }
 }
