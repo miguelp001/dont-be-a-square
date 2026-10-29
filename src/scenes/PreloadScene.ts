@@ -51,6 +51,14 @@ export default class PreloadScene extends Phaser.Scene {
       percentText.destroy();
     });
     
+    // Storybook Environment and UI Assets
+    this.load.image('forest_meadow_bg', 'assets/ui/forest_meadow_bg.png');
+    this.load.image('forest_autumn_bg', 'assets/ui/forest_autumn_bg.png');
+    this.load.image('board_wood_frame', 'assets/ui/board_wood_frame_6x10.png');
+    this.load.image('board_wood_backdrop', 'assets/ui/board_wood_backdrop.png');
+    this.load.image('wood_plaque_sign', 'assets/ui/wood_plaque_sign.png');
+    this.load.image('wood_clock_icon', 'assets/ui/wood_clock_icon.png');
+
     // Load custom kawaii slime sprites for puzzle panels (panel_0 .. panel_5)
     for (let i = 0; i < 6; i++) {
       if (this.textures.exists(`panel_${i}`)) {

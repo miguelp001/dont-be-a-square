@@ -26,7 +26,9 @@ export default class GameScene extends Phaser.Scene {
   private playerScoreText!: Phaser.GameObjects.Text;
   private playerChainText!: Phaser.GameObjects.Text;
   private playerBorder!: Phaser.GameObjects.Graphics;
-  private playerAvatar!: Phaser.GameObjects.Image;
+  private playerAvatar?: Phaser.GameObjects.Image;
+  private playerMascot?: Phaser.GameObjects.Image;
+  private playerWoodFrame?: Phaser.GameObjects.Image;
   private playerSpeechBubble?: Phaser.GameObjects.Text;
   private playerDangerText?: Phaser.GameObjects.Text;
 
@@ -39,6 +41,8 @@ export default class GameScene extends Phaser.Scene {
   private cpuChainText?: Phaser.GameObjects.Text;
   private cpuBorder?: Phaser.GameObjects.Graphics;
   private cpuAvatar?: Phaser.GameObjects.Image;
+  private cpuMascot?: Phaser.GameObjects.Image;
+  private cpuWoodFrame?: Phaser.GameObjects.Image;
   private cpuSpeechBubble?: Phaser.GameObjects.Text;
   private cpuDangerText?: Phaser.GameObjects.Text;
 
@@ -109,7 +113,7 @@ export default class GameScene extends Phaser.Scene {
     const height = this.cameras.main.height;
 
     // Slowly drifting cute pastel pattern background
-    CuteUI.createCuteBackground(this);
+    CuteUI.createCuteBackground(this, this.gameMode === 'challenge' ? 'autumn' : 'meadow');
 
     // Support multi-touch (e.g. 2-finger lift on mobile/tablet)
     this.input.addPointer(2);
@@ -149,7 +153,7 @@ export default class GameScene extends Phaser.Scene {
     const boardH = Math.round(BOARD_VISIBLE_HEIGHT * PANEL_SIZE * this.boardScale);
 
     // Adaptive vertical positioning on mobile / tall screens
-    const boardY = height > 550 ? Math.max(88, Math.round((height - boardH - 100) * 0.38)) : 88;
+    const boardY = height > 550 ? Math.max(90, Math.round((height - boardH - 100) * 0.38)) : 88;
 
     const centerX = width / 2;
     const boardGap = Math.min(50, Math.max(14, width - boardW * 2 - 24));
@@ -160,60 +164,67 @@ export default class GameScene extends Phaser.Scene {
     this.boardP2X = p2X;
     this.boardY = boardY;
 
-    // Center divider & VS badge
-    this.add
-      .text(centerX, boardY + Math.round(boardH * 0.22), 'VS', {
-        fontSize: '28px',
-        color: '#ff69b4',
-        fontStyle: 'bold',
-        stroke: '#000000',
-        strokeThickness: 4
-      })
-      .setOrigin(0.5);
+    // Center Timer Sign between boards (Hanging Wood Plaque with Clock Icon)
+    const timerContainer = this.add.container(centerX, boardY + Math.round(boardH * 0.28));
+    timerContainer.setDepth(30);
 
-    this.timeText = this.add
-      .text(centerX, boardY + Math.round(boardH * 0.42), `${this.gameTime}`, {
-        fontSize: '20px',
-        color: '#feca57',
-        fontStyle: 'bold',
-        stroke: '#000000',
-        strokeThickness: 3
-      })
-      .setOrigin(0.5);
+    const timerPlaque = this.add.image(0, 0, 'wood_plaque_sign');
+    timerPlaque.setDisplaySize(Math.min(boardGap + 44, 114), 38);
+
+    const clockIcon = this.add.image(-28, 0, 'wood_clock_icon');
+    clockIcon.setDisplaySize(20, 20);
+
+    this.timeText = this.add.text(12, -1, this.formatTime(this.gameTime), {
+      fontSize: '15px',
+      color: '#fff3c4',
+      fontStyle: 'bold',
+      stroke: '#3e2415',
+      strokeThickness: 3
+    }).setOrigin(0.5);
+
+    timerContainer.add([timerPlaque, clockIcon, this.timeText]);
 
     // Setup Player 1 (Left)
     this.playerBorder = this.add.graphics();
-    this.drawBoardFrame(this.playerBorder, p1X, boardY, boardW, boardH, 0xff69b4);
+    this.drawBoardFrame(this.playerBorder, p1X, boardY, boardW, boardH, 0xff69b4, true);
     this.playerBoard = new Board(this, p1X, boardY, this.boardScale);
     this.playerBoard.addInitialPanels(5);
     this.playerCursor = new Cursor(this, this.playerBoard);
 
-    const headerY = boardY - 42;
     const p1Char = CHARACTERS.find((c) => c.id === this.characterId) || CHARACTERS[0];
-    this.playerAvatar = this.add.image(p1X + 24, headerY, p1Char.id);
-    this.playerAvatar.setDisplaySize(42, 42);
 
-    this.add.text(p1X + 52, headerY - 18, p1Char.name, {
-      fontSize: '13px',
-      color: '#ff69b4',
-      fontStyle: 'bold',
-      stroke: '#000000',
-      strokeThickness: 2
-    });
-    this.add.text(p1X + 52, headerY - 3, p1Char.species, {
-      fontSize: '9px',
-      color: '#ff9ff3',
-      fontStyle: 'italic bold',
-      stroke: '#000000',
-      strokeThickness: 2
-    });
-    this.playerScoreText = this.add.text(p1X + 52, headerY + 10, 'SCORE: 0', {
+    // Player 1 Header Wooden Plaque
+    const p1PlaqueW = Math.min(boardW - 6, 210);
+    const p1Header = this.add.container(p1X + boardW / 2, boardY - 32);
+    p1Header.setDepth(24);
+    const p1Sign = this.add.image(0, 0, 'wood_plaque_sign');
+    p1Sign.setDisplaySize(p1PlaqueW, 38);
+
+    const p1Badge = CuteUI.createPillButton(this, -p1PlaqueW / 2 + 24, 0, 'P1', () => {}, {
+      textureKey: 'pill_pink',
       fontSize: '11px',
+      width: 36,
+      height: 22,
+      shadow: false
+    });
+
+    const p1NameText = this.add.text(-p1PlaqueW / 2 + 48, -7, p1Char.name, {
+      fontSize: '12px',
+      color: '#fff3c4',
+      fontStyle: 'bold',
+      stroke: '#3e2415',
+      strokeThickness: 3
+    });
+
+    this.playerScoreText = this.add.text(-p1PlaqueW / 2 + 48, 6, 'SCORE: 0', {
+      fontSize: '10px',
       color: '#ffffff',
       fontStyle: 'bold',
-      stroke: '#000000',
+      stroke: '#3e2415',
       strokeThickness: 2
     });
+
+    p1Header.add([p1Sign, p1Badge, p1NameText, this.playerScoreText]);
 
     this.playerChainText = this.add
       .text(p1X + boardW / 2, boardY + boardH + 16, '', {
@@ -226,7 +237,7 @@ export default class GameScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     this.playerDangerText = this.add
-      .text(p1X + boardW / 2, boardY - 14, '', {
+      .text(p1X + boardW / 2, boardY - 50, '', {
         fontSize: '12px',
         color: '#ff4757',
         fontStyle: 'bold',
@@ -239,14 +250,14 @@ export default class GameScene extends Phaser.Scene {
     const p2Label = this.gameMode === 'vs_online' ? 'P2' : 'CPU';
     const p2Color = 0x54a0ff;
     this.cpuBorder = this.add.graphics();
-    this.drawBoardFrame(this.cpuBorder, p2X, boardY, boardW, boardH, p2Color);
+    this.drawBoardFrame(this.cpuBorder, p2X, boardY, boardW, boardH, p2Color, false);
     this.cpuBoard = new Board(this, p2X, boardY, this.boardScale);
     this.cpuBoard.addInitialPanels(5);
     this.cpuCursor = new Cursor(this, this.cpuBoard);
     this.cpuCursor.setStrokeStyle(3 * this.boardScale, p2Color);
 
     this.cpuDangerText = this.add
-      .text(p2X + boardW / 2, boardY - 14, '', {
+      .text(p2X + boardW / 2, boardY - 50, '', {
         fontSize: '12px',
         color: '#ff4757',
         fontStyle: 'bold',
@@ -266,39 +277,39 @@ export default class GameScene extends Phaser.Scene {
     }
 
     const p2Char = CHARACTERS.find((c) => c.id === this.opponentCharacterId) || CHARACTERS[1];
-    this.cpuAvatar = this.add.image(p2X + boardW - 24, headerY, p2Char.id);
-    this.cpuAvatar.setDisplaySize(42, 42);
 
-    this.add
-      .text(p2X + boardW - 52, headerY - 18, `${p2Label}: ${p2Char.name}`, {
-        fontSize: '13px',
-        color: '#54a0ff',
-        fontStyle: 'bold',
-        stroke: '#000000',
-        strokeThickness: 2
-      })
-      .setOrigin(1, 0);
+    // CPU / Opponent Header Wooden Plaque
+    const p2PlaqueW = Math.min(boardW - 6, 210);
+    const p2Header = this.add.container(p2X + boardW / 2, boardY - 32);
+    p2Header.setDepth(24);
+    const p2Sign = this.add.image(0, 0, 'wood_plaque_sign');
+    p2Sign.setDisplaySize(p2PlaqueW, 38);
 
-    const subTitle = this.cpuBot ? this.cpuBot.personality.title : p2Char.species;
-    this.add
-      .text(p2X + boardW - 52, headerY - 3, subTitle, {
-        fontSize: '9px',
-        color: '#feca57',
-        fontStyle: 'italic bold',
-        stroke: '#000000',
-        strokeThickness: 2
-      })
-      .setOrigin(1, 0);
+    const p2Badge = CuteUI.createPillButton(this, -p2PlaqueW / 2 + 26, 0, p2Label, () => {}, {
+      textureKey: 'pill_blue',
+      fontSize: '11px',
+      width: 40,
+      height: 22,
+      shadow: false
+    });
 
-    this.cpuScoreText = this.add
-      .text(p2X + boardW - 52, headerY + 10, 'SCORE: 0', {
-        fontSize: '11px',
-        color: '#ffffff',
-        fontStyle: 'bold',
-        stroke: '#000000',
-        strokeThickness: 2
-      })
-      .setOrigin(1, 0);
+    const p2NameText = this.add.text(-p2PlaqueW / 2 + 52, -7, p2Char.name, {
+      fontSize: '12px',
+      color: '#fff3c4',
+      fontStyle: 'bold',
+      stroke: '#3e2415',
+      strokeThickness: 3
+    });
+
+    this.cpuScoreText = this.add.text(-p2PlaqueW / 2 + 52, 6, 'SCORE: 0', {
+      fontSize: '10px',
+      color: '#ffffff',
+      fontStyle: 'bold',
+      stroke: '#3e2415',
+      strokeThickness: 2
+    });
+
+    p2Header.add([p2Sign, p2Badge, p2NameText, this.cpuScoreText]);
 
     this.cpuChainText = this.add
       .text(p2X + boardW / 2, boardY + boardH + 16, '', {
@@ -309,6 +320,62 @@ export default class GameScene extends Phaser.Scene {
         strokeThickness: 3
       })
       .setOrigin(0.5);
+
+    // Full-Body Mascot Characters Standing on the Meadow (Storybook Animal Crossing / Ghibli Style)
+    const charH = Math.round(180 * Math.min(1.15, this.boardScale));
+    const charW = charH;
+    const isMobilePortrait = height > 600 && width <= 540;
+
+    let p1CharX: number;
+    let p1CharY: number;
+    let cpuCharX: number;
+    let cpuCharY: number;
+
+    if (isMobilePortrait) {
+      p1CharX = Math.round(p1X + 44);
+      p1CharY = Math.round(boardY + boardH + 105);
+      cpuCharX = Math.round(p2X + boardW - 44);
+      cpuCharY = Math.round(boardY + boardH + 105);
+    } else {
+      p1CharX = Math.max(70, Math.round(p1X - 75));
+      p1CharY = Math.round(boardY + boardH - 45);
+      cpuCharX = Math.min(width - 70, Math.round(p2X + boardW + 75));
+      cpuCharY = Math.round(boardY + boardH - 45);
+    }
+
+    // Ground Contact Shadows
+    const shadowG = this.add.graphics();
+    shadowG.fillStyle(0x1a3311, 0.38);
+    shadowG.fillEllipse(p1CharX, p1CharY + charH * 0.42, charW * 0.48, 14);
+    shadowG.fillEllipse(cpuCharX, cpuCharY + charH * 0.42, charW * 0.48, 14);
+    shadowG.setDepth(14);
+
+    // Player 1 Mascot
+    this.playerMascot = this.add.image(p1CharX, p1CharY, p1Char.id);
+    this.playerMascot.setDisplaySize(charW, charH);
+    this.playerMascot.setDepth(15);
+    this.tweens.add({
+      targets: this.playerMascot,
+      y: p1CharY - 5,
+      duration: 1300,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
+    });
+
+    // Opponent Mascot (facing inwards towards battle)
+    this.cpuMascot = this.add.image(cpuCharX, cpuCharY, p2Char.id);
+    this.cpuMascot.setDisplaySize(charW, charH);
+    this.cpuMascot.setFlipX(true);
+    this.cpuMascot.setDepth(15);
+    this.tweens.add({
+      targets: this.cpuMascot,
+      y: cpuCharY - 5,
+      duration: 1350,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
+    });
 
     // Wire Player Events
     this.playerBoard.on('stackRise', (e: { offset: number }) => this.playerCursor.setStackOffset(e.offset));
@@ -397,49 +464,50 @@ export default class GameScene extends Phaser.Scene {
     this.boardY = boardY;
 
     this.playerBorder = this.add.graphics();
-    this.drawBoardFrame(this.playerBorder, boardX, boardY, boardW, boardH, 0xff69b4);
+    this.drawBoardFrame(this.playerBorder, boardX, boardY, boardW, boardH, 0xff69b4, true);
 
     this.playerBoard = new Board(this, boardX, boardY, this.boardScale);
     this.playerBoard.addInitialPanels(6);
     this.playerCursor = new Cursor(this, this.playerBoard);
 
-    const headerY = boardY - 42;
     const charData = CHARACTERS.find((c) => c.id === this.characterId) || CHARACTERS[0];
-    this.playerAvatar = this.add.image(boardX + 24, headerY, charData.id);
-    this.playerAvatar.setDisplaySize(44, 44);
 
-    this.add.text(boardX + 52, headerY - 18, charData.name, {
-      fontSize: '14px',
-      color: '#ff69b4',
-      fontStyle: 'bold',
-      stroke: '#000000',
-      strokeThickness: 2
-    });
-    this.add.text(boardX + 52, headerY - 3, charData.species, {
-      fontSize: '10px',
-      color: '#ff9ff3',
-      fontStyle: 'italic bold',
-      stroke: '#000000',
-      strokeThickness: 2
+    // Wooden Header Plaque above board
+    const plaqueW = Math.min(boardW - 6, 260);
+    const header = this.add.container(boardX + boardW / 2, boardY - 34);
+    header.setDepth(24);
+
+    const sign = this.add.image(0, 0, 'wood_plaque_sign');
+    sign.setDisplaySize(plaqueW, 40);
+
+    const charBadge = CuteUI.createPillButton(this, -plaqueW / 2 + 30, 0, charData.name.toUpperCase(), () => {}, {
+      textureKey: 'pill_pink',
+      fontSize: '11px',
+      width: 76,
+      height: 24,
+      shadow: false
     });
 
-    this.playerScoreText = this.add.text(boardX + 52, headerY + 10, 'SCORE: 0', {
+    this.playerScoreText = this.add.text(-plaqueW / 2 + 76, -8, 'SCORE: 0', {
       fontSize: '12px',
       color: '#ffffff',
       fontStyle: 'bold',
-      stroke: '#000000',
+      stroke: '#3e2415',
       strokeThickness: 2
     });
 
-    this.timeText = this.add
-      .text(boardX + boardW, headerY, `TIME: ${this.gameTime}`, {
-        fontSize: '15px',
-        color: '#feca57',
-        fontStyle: 'bold',
-        stroke: '#000000',
-        strokeThickness: 3
-      })
-      .setOrigin(1, 0.5);
+    const clockIcon = this.add.image(plaqueW / 2 - 76, 0, 'wood_clock_icon');
+    clockIcon.setDisplaySize(18, 18);
+
+    this.timeText = this.add.text(plaqueW / 2 - 38, -1, this.formatTime(this.gameTime), {
+      fontSize: '13px',
+      color: '#fff3c4',
+      fontStyle: 'bold',
+      stroke: '#3e2415',
+      strokeThickness: 2
+    }).setOrigin(0.5);
+
+    header.add([sign, charBadge, this.playerScoreText, clockIcon, this.timeText]);
 
     this.playerChainText = this.add
       .text(boardX + boardW / 2, boardY + boardH + 18, '', {
@@ -452,7 +520,7 @@ export default class GameScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     this.playerDangerText = this.add
-      .text(boardX + boardW / 2, boardY - 14, '', {
+      .text(boardX + boardW / 2, boardY - 50, '', {
         fontSize: '12px',
         color: '#ff4757',
         fontStyle: 'bold',
@@ -460,6 +528,39 @@ export default class GameScene extends Phaser.Scene {
         strokeThickness: 3
       })
       .setOrigin(0.5);
+
+    // Full-Body Mascot Standing on the Meadow (matching Reference 2)
+    const charH = Math.round(200 * Math.min(1.2, this.boardScale));
+    const charW = charH;
+    const isMobilePortrait = height > 600 && width <= 540;
+
+    let mascotX: number;
+    let mascotY: number;
+
+    if (isMobilePortrait) {
+      mascotX = Math.round(width / 2 + boardW * 0.32);
+      mascotY = Math.round(boardY + boardH + 90);
+    } else {
+      mascotX = Math.min(width - 90, Math.round(boardX + boardW + 105));
+      mascotY = Math.round(boardY + boardH - 60);
+    }
+
+    const shadowG = this.add.graphics();
+    shadowG.fillStyle(0x1a3311, 0.38);
+    shadowG.fillEllipse(mascotX, mascotY + charH * 0.42, charW * 0.48, 15);
+    shadowG.setDepth(14);
+
+    this.playerMascot = this.add.image(mascotX, mascotY, charData.id);
+    this.playerMascot.setDisplaySize(charW, charH);
+    this.playerMascot.setDepth(15);
+    this.tweens.add({
+      targets: this.playerMascot,
+      y: mascotY - 6,
+      duration: 1300,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
+    });
 
     this.playerBoard.on('stackRise', (e: { offset: number }) => this.playerCursor.setStackOffset(e.offset));
     this.playerBoard.on('rowShift', (e: { offset: number }) => this.playerCursor.shiftWithStack(e?.offset));
@@ -502,18 +603,58 @@ export default class GameScene extends Phaser.Scene {
     y: number,
     w: number,
     h: number,
-    borderColor: number
+    borderColor: number,
+    isPlayer: boolean = true
   ): void {
     g.clear();
-    g.fillStyle(0x0a0c14, 0.75);
-    g.fillRoundedRect(x - 4, y - 4, w + 8, h + 8, 6);
-    g.lineStyle(3, borderColor, 1);
-    g.strokeRoundedRect(x - 4, y - 4, w + 8, h + 8, 6);
 
-    g.lineStyle(1, 0xffffff, 0.08);
-    const colW = w / BOARD_WIDTH;
-    for (let c = 1; c < BOARD_WIDTH; c++) {
-      g.lineBetween(x + c * colW, y, x + c * colW, y + h);
+    // 1. Dark warm wood backdrop behind board grid
+    const backdropKey = isPlayer ? 'p1_wood_backdrop' : 'cpu_wood_backdrop';
+    if (!this.children.getByName(backdropKey) && this.textures.exists('board_wood_backdrop')) {
+      const backdrop = this.add.image(x, y, 'board_wood_backdrop');
+      backdrop.setName(backdropKey);
+      backdrop.setOrigin(0, 0);
+      backdrop.setDisplaySize(w, h);
+      backdrop.setDepth(2);
+    }
+
+    // 2. High-res carved timber frame with leaves and flowers on top
+    const frameKey = isPlayer ? 'p1_wood_frame' : 'cpu_wood_frame';
+    let frameImg = this.children.getByName(frameKey) as Phaser.GameObjects.Image;
+    if (!frameImg && this.textures.exists('board_wood_frame')) {
+      // board_wood_frame_6x10 is 1069x1464 with inner opening 600x1000 at (233, 231)
+      const frameScale = w / 600;
+      const frameX = x - 233 * frameScale;
+      const frameY = y - 231 * frameScale;
+
+      frameImg = this.add.image(frameX, frameY, 'board_wood_frame');
+      frameImg.setName(frameKey);
+      frameImg.setOrigin(0, 0);
+      frameImg.setScale(frameScale);
+      frameImg.setDepth(22); // Above panels, below cursor (cursor is 25)
+
+      if (isPlayer) this.playerWoodFrame = frameImg;
+      else this.cpuWoodFrame = frameImg;
+
+      // Cute mini slimes peeking over the top beam of the wooden board
+      const pColor1 = isPlayer ? 'panel_2' : 'panel_0';
+      const pColor2 = isPlayer ? 'panel_3' : 'panel_1';
+      const peek1 = this.add.image(x + w * 0.28, y - 6 * this.boardScale, pColor1);
+      peek1.setDisplaySize(18 * this.boardScale, 18 * this.boardScale);
+      peek1.setDepth(23);
+      const peek2 = this.add.image(x + w * 0.72, y - 6 * this.boardScale, pColor2);
+      peek2.setDisplaySize(18 * this.boardScale, 18 * this.boardScale);
+      peek2.setDepth(23);
+    }
+
+    // 3. Danger border indicator
+    const isDanger = borderColor === 0xff4757;
+    if (isDanger) {
+      g.lineStyle(3.5, 0xff4757, 0.95);
+      g.strokeRoundedRect(x - 2, y - 2, w + 4, h + 4, 6);
+      if (frameImg) frameImg.setTint(0xff7675);
+    } else {
+      if (frameImg) frameImg.clearTint();
     }
   }
 
@@ -530,13 +671,13 @@ export default class GameScene extends Phaser.Scene {
     if (!borderObj) return;
 
     if (inDanger) {
-      this.drawBoardFrame(borderObj, boardX, boardY, boardW, boardH, 0xff4757);
+      this.drawBoardFrame(borderObj, boardX, boardY, boardW, boardH, 0xff4757, isPlayer);
       if (textObj) {
         textObj.setText(`! DANGER: ${secondsRemaining.toFixed(1)}s !`);
         textObj.setColor(secondsRemaining < 2.5 ? '#ff3838' : '#ff9f43');
       }
     } else {
-      this.drawBoardFrame(borderObj, boardX, boardY, boardW, boardH, defaultColor);
+      this.drawBoardFrame(borderObj, boardX, boardY, boardW, boardH, defaultColor, isPlayer);
       if (textObj) {
         textObj.setText('');
       }
@@ -922,25 +1063,36 @@ export default class GameScene extends Phaser.Scene {
   /** Animate character avatar bounce and quote when attacking */
   private triggerAvatarAttack(isPlayer1: boolean): void {
     const avatar = isPlayer1 ? this.playerAvatar : this.cpuAvatar;
-    if (!avatar) return;
+    if (avatar) {
+      const originalY = avatar.y;
+      const baseScaleX = avatar.scaleX;
+      const baseScaleY = avatar.scaleY;
 
-    const originalY = avatar.y;
-    const baseScaleX = avatar.scaleX;
-    const baseScaleY = avatar.scaleY;
+      this.tweens.add({
+        targets: avatar,
+        y: originalY - 12,
+        scaleX: baseScaleX * 1.15,
+        scaleY: baseScaleY * 1.15,
+        duration: 120,
+        yoyo: true,
+        ease: 'Back.easeOut',
+        onComplete: () => {
+          avatar.y = originalY;
+          avatar.setDisplaySize(42, 42);
+        }
+      });
+    }
 
-    this.tweens.add({
-      targets: avatar,
-      y: originalY - 12,
-      scaleX: baseScaleX * 1.15,
-      scaleY: baseScaleY * 1.15,
-      duration: 120,
-      yoyo: true,
-      ease: 'Back.easeOut',
-      onComplete: () => {
-        avatar.y = originalY;
-        avatar.setDisplaySize(42, 42);
-      }
-    });
+    const mascot = isPlayer1 ? this.playerMascot : this.cpuMascot;
+    if (mascot) {
+      this.tweens.add({
+        targets: mascot,
+        y: mascot.y - 20,
+        duration: 160,
+        yoyo: true,
+        ease: 'Back.easeOut'
+      });
+    }
 
     const charId = isPlayer1 ? this.characterId : this.opponentCharacterId;
     const charData = CHARACTERS.find((c) => c.id === charId);
@@ -952,21 +1104,36 @@ export default class GameScene extends Phaser.Scene {
   /** Animate character avatar hurt/shake when under attack or danger */
   private triggerAvatarHurt(isPlayer1: boolean): void {
     const avatar = isPlayer1 ? this.playerAvatar : this.cpuAvatar;
-    if (!avatar) return;
+    if (avatar) {
+      const originalX = avatar.x;
+      this.tweens.add({
+        targets: avatar,
+        x: originalX + 4,
+        duration: 40,
+        yoyo: true,
+        repeat: 4,
+        onComplete: () => {
+          avatar.x = originalX;
+        }
+      });
+      avatar.setTint(0xff4757);
+      this.time.delayedCall(300, () => avatar.clearTint());
+    }
 
-    const originalX = avatar.x;
-    this.tweens.add({
-      targets: avatar,
-      x: originalX + 4,
-      duration: 40,
-      yoyo: true,
-      repeat: 4,
-      onComplete: () => {
-        avatar.x = originalX;
-      }
-    });
-    avatar.setTint(0xff4757);
-    this.time.delayedCall(300, () => avatar.clearTint());
+    const mascot = isPlayer1 ? this.playerMascot : this.cpuMascot;
+    if (mascot) {
+      const origX = mascot.x;
+      this.tweens.add({
+        targets: mascot,
+        x: origX + 6,
+        duration: 40,
+        yoyo: true,
+        repeat: 5,
+        onComplete: () => { mascot.x = origX; }
+      });
+      mascot.setTint(0xff7675);
+      this.time.delayedCall(350, () => mascot.clearTint());
+    }
   }
 
   /** Display speech bubble above character */
@@ -1023,6 +1190,16 @@ export default class GameScene extends Phaser.Scene {
     this.playerScore += event.scoreGained;
     this.playerScoreText.setText(`SCORE: ${this.playerScore}`);
 
+    if (this.playerMascot && (event.comboSize >= 4 || event.chainLevel > 1)) {
+      this.tweens.add({
+        targets: this.playerMascot,
+        y: this.playerMascot.y - 18,
+        duration: 160,
+        yoyo: true,
+        ease: 'Back.easeOut'
+      });
+    }
+
     if (event.chainLevel > 1) {
       this.playerChainText.setText(`CHAIN x${event.chainLevel}!`);
     }
@@ -1060,6 +1237,16 @@ export default class GameScene extends Phaser.Scene {
     this.cpuScore += event.scoreGained;
     if (this.cpuScoreText) {
       this.cpuScoreText.setText(`SCORE: ${this.cpuScore}`);
+    }
+
+    if (this.cpuMascot && (event.comboSize >= 4 || event.chainLevel > 1)) {
+      this.tweens.add({
+        targets: this.cpuMascot,
+        y: this.cpuMascot.y - 18,
+        duration: 160,
+        yoyo: true,
+        ease: 'Back.easeOut'
+      });
     }
 
     if (event.chainLevel > 1 && this.cpuChainText) {
@@ -1114,10 +1301,16 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
+  private formatTime(secs: number): string {
+    const m = Math.floor(Math.max(0, secs) / 60);
+    const s = Math.max(0, secs) % 60;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  }
+
   private updateTimer(): void {
     if (this.isMatchOver || this.isPaused) return;
     this.gameTime--;
-    this.timeText.setText(`${this.gameTime}`);
+    this.timeText.setText(this.formatTime(this.gameTime));
 
     if (this.gameTime <= 0) {
       this.timerEvent.remove();

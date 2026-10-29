@@ -17,12 +17,76 @@ export interface PillButtonOptions {
 
 export class CuteUI {
   /**
-   * Create a continuously drifting cute pattern background.
-   * Attaches an event listener to the scene's update loop so scenes don't need manual update wiring.
+   * Create a fairytale storybook forest landscape background with drifting breeze particles.
+   * Seamlessly scales to cover any viewport ratio and supports 'meadow' and 'autumn' themes.
    */
-  public static createCuteBackground(scene: Phaser.Scene): Phaser.GameObjects.TileSprite {
+  public static createCuteBackground(
+    scene: Phaser.Scene,
+    theme: 'meadow' | 'autumn' = 'meadow'
+  ): Phaser.GameObjects.GameObject {
     const width = scene.cameras?.main?.width || GAME_WIDTH;
     const height = scene.cameras?.main?.height || GAME_HEIGHT;
+
+    const textureKey = theme === 'autumn' ? 'forest_autumn_bg' : 'forest_meadow_bg';
+
+    if (scene.textures.exists(textureKey)) {
+      const container = scene.add.container(0, 0);
+      container.setDepth(-100);
+
+      const bg = scene.add.image(width / 2, height / 2, textureKey);
+      bg.setOrigin(0.5, 0.5);
+
+      const updateScale = (w: number, h: number) => {
+        bg.setPosition(w / 2, h / 2);
+        const scale = Math.max(w / bg.width, h / bg.height);
+        bg.setScale(scale);
+      };
+      updateScale(width, height);
+
+      container.add(bg);
+
+      // Storybook ambient drifting breeze (floating pastel petals / autumn leaves)
+      const particleCount = 8;
+      for (let i = 0; i < particleCount; i++) {
+        const px = Math.random() * width;
+        const py = Math.random() * height;
+        const isAutumn = theme === 'autumn';
+        const pTint = isAutumn
+          ? [0xfeca57, 0xff9f43, 0xff6b6b, 0xe55039][Math.floor(Math.random() * 4)]
+          : [0xff9ff3, 0xfeca57, 0x54a0ff, 0x1dd1a1][Math.floor(Math.random() * 4)];
+
+        const p = scene.add.image(px, py, 'sparkle_star');
+        p.setDisplaySize(7 + Math.random() * 6, 7 + Math.random() * 6);
+        p.setTint(pTint);
+        p.setAlpha(0.65);
+        container.add(p);
+
+        scene.tweens.add({
+          targets: p,
+          x: `+=${90 + Math.random() * 120}`,
+          y: `+=${height * 0.45 + Math.random() * 150}`,
+          rotation: Math.PI * 3,
+          duration: 7000 + Math.random() * 5000,
+          repeat: -1,
+          ease: 'Linear',
+          onRepeat: () => {
+            p.x = -20 + Math.random() * (scene.cameras?.main?.width || width) * 0.8;
+            p.y = -20 - Math.random() * 40;
+          }
+        });
+      }
+
+      const resizeListener = (gameSize: Phaser.Structs.Size) => {
+        if (!bg || !bg.active) return;
+        updateScale(gameSize.width, gameSize.height);
+      };
+      scene.scale.on('resize', resizeListener);
+      scene.events.once('shutdown', () => {
+        scene.scale.off('resize', resizeListener);
+      });
+
+      return container;
+    }
 
     const bg = scene.add.tileSprite(0, 0, width, height, 'cute_bg_pattern');
     bg.setOrigin(0, 0);
