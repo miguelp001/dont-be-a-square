@@ -85,6 +85,8 @@ export default class GameScene extends Phaser.Scene {
   private touchStartY: number = 0;
   private touchStartGridX: number = 0;
   private touchStartGridY: number = 0;
+  private lastMouseX: number = -1;
+  private lastMouseY: number = -1;
 
   constructor() {
     super({ key: 'GameScene' });
@@ -114,6 +116,8 @@ export default class GameScene extends Phaser.Scene {
     this.gameOverActions = [];
     this.gameOverModalIndex = 0;
     this.gameOverPadRepeatTimer = 0;
+    this.lastMouseX = -1;
+    this.lastMouseY = -1;
   }
 
   create(): void {
@@ -874,63 +878,44 @@ export default class GameScene extends Phaser.Scene {
       const bY = this.playerBoard.boardOffsetY;
       const bW = BOARD_WIDTH * PANEL_SIZE * this.boardScale;
       const bH = BOARD_VISIBLE_HEIGHT * PANEL_SIZE * this.boardScale;
+      const padX = 24 * this.boardScale;
+      const padY = 36 * this.boardScale;
 
       if (
-        pointer.x >= bX &&
-        pointer.x <= bX + bW &&
-        pointer.y >= bY &&
-        pointer.y <= bY + bH
+        pointer.x >= bX - padX &&
+        pointer.x <= bX + bW + padX &&
+        pointer.y >= bY - padY &&
+        pointer.y <= bY + bH + padY
       ) {
         const localX = (pointer.x - bX) / this.boardScale;
         const localY = (pointer.y - (bY - this.playerBoard.stackOffsetPixels * this.boardScale)) / this.boardScale;
-        const gx = Math.floor(localX / PANEL_SIZE);
-        const gy = Math.floor(localY / PANEL_SIZE);
 
-        if (gx >= 0 && gx < BOARD_WIDTH && gy >= 0 && gy < BOARD_VISIBLE_HEIGHT) {
-          this.touchBoardActive = true;
-          this.touchStartX = pointer.x;
-          this.touchStartY = pointer.y;
-          this.touchStartGridX = gx;
-          this.touchStartGridY = gy;
+        const rawGx = Math.floor((localX - PANEL_SIZE / 2) / PANEL_SIZE + 0.5);
+        const gx = Math.max(0, Math.min(rawGx, BOARD_WIDTH - 2));
 
-          // Align cursor with clicked slime pair
-          const swapCol = Math.min(gx, BOARD_WIDTH - 2);
-          this.playerCursor.setGridPosition(swapCol, gy);
+        const rawGy = Math.floor(localY / PANEL_SIZE);
+        const gy = Math.max(0, Math.min(rawGy, BOARD_VISIBLE_HEIGHT - 1));
 
-          // Direct click-to-swap on desktop & immediate responsive touch
-          this.playerBoard.swap(swapCol, gy);
-        }
+        this.touchBoardActive = true;
+        this.touchStartX = pointer.x;
+        this.touchStartY = pointer.y;
+        this.touchStartGridX = gx;
+        this.touchStartGridY = gy;
+
+        // Align cursor with clicked slime pair
+        this.playerCursor.setGridPosition(gx, gy);
+
+        // Direct click-to-swap on desktop & immediate responsive touch
+        this.playerBoard.swap(gx, gy);
       }
     });
 
-    // 4. Pointer Move: Desktop mouse hover cursor tracking + drag/flick gestures
+    // 4. Pointer Move: Selection rectangle smoothly follows mouse + drag/flick gestures
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
       if (this.isMatchOver || this.isPaused) return;
 
-      const bX = this.playerBoard.boardOffsetX;
-      const bY = this.playerBoard.boardOffsetY;
-      const bW = BOARD_WIDTH * PANEL_SIZE * this.boardScale;
-      const bH = BOARD_VISIBLE_HEIGHT * PANEL_SIZE * this.boardScale;
-
-      // Desktop Hover: Cursor smoothly tracks the mouse over the board
-      if (!pointer.isDown) {
-        if (
-          pointer.x >= bX &&
-          pointer.x <= bX + bW &&
-          pointer.y >= bY &&
-          pointer.y <= bY + bH
-        ) {
-          const localX = (pointer.x - bX) / this.boardScale;
-          const localY = (pointer.y - (bY - this.playerBoard.stackOffsetPixels * this.boardScale)) / this.boardScale;
-          const gx = Math.floor(localX / PANEL_SIZE);
-          const gy = Math.floor(localY / PANEL_SIZE);
-
-          if (gx >= 0 && gx < BOARD_WIDTH && gy >= 0 && gy < BOARD_VISIBLE_HEIGHT) {
-            this.playerCursor.setGridPosition(Math.min(gx, BOARD_WIDTH - 2), gy);
-          }
-        }
-        return;
-      }
+      // Selection rectangle directly tracks mouse on hover or drag
+      this.updateMouseCursorTracking(pointer);
 
       // Drag / Flick handling
       if (!this.touchBoardActive) return;
@@ -1038,6 +1023,49 @@ export default class GameScene extends Phaser.Scene {
 
     container.add([bg, text, hit]);
     return container;
+  }
+
+  /** Smoothly update selection rectangle to follow the mouse position over the player board */
+  private updateMouseCursorTracking(pointer: Phaser.Input.Pointer): void {
+    if (this.isMatchOver || this.isPaused || !this.playerBoard || !this.playerCursor) return;
+
+    // Only update if pointer has moved
+    const moved = Math.abs(pointer.x - this.lastMouseX) >= 1.5 || Math.abs(pointer.y - this.lastMouseY) >= 1.5;
+    if (!moved) return;
+
+    this.lastMouseX = pointer.x;
+    this.lastMouseY = pointer.y;
+
+    const bX = this.playerBoard.boardOffsetX;
+    const bY = this.playerBoard.boardOffsetY;
+    const bW = BOARD_WIDTH * PANEL_SIZE * this.boardScale;
+    const bH = BOARD_VISIBLE_HEIGHT * PANEL_SIZE * this.boardScale;
+
+    // Generous bounding box covering the entire board, wood frame, and rising stack
+    const padX = 28 * this.boardScale;
+    const padY = 40 * this.boardScale;
+
+    if (
+      pointer.x >= bX - padX &&
+      pointer.x <= bX + bW + padX &&
+      pointer.y >= bY - padY &&
+      pointer.y <= bY + bH + padY
+    ) {
+      const localX = (pointer.x - bX) / this.boardScale;
+      // Account for sub-pixel stack rising offset
+      const localY = (pointer.y - (bY - this.playerBoard.stackOffsetPixels * this.boardScale)) / this.boardScale;
+
+      // Natural centering: cursor centers under the mouse pointer
+      const rawGx = Math.floor((localX - PANEL_SIZE / 2) / PANEL_SIZE + 0.5);
+      const gx = Math.max(0, Math.min(rawGx, BOARD_WIDTH - 2));
+
+      const rawGy = Math.floor(localY / PANEL_SIZE);
+      const gy = Math.max(0, Math.min(rawGy, BOARD_VISIBLE_HEIGHT - 1));
+
+      if (this.playerCursor.gridX !== gx || this.playerCursor.gridY !== gy) {
+        this.playerCursor.setGridPosition(gx, gy);
+      }
+    }
   }
 
   private togglePause(): void {
@@ -1439,6 +1467,11 @@ export default class GameScene extends Phaser.Scene {
     }
 
     this.playerBoard.update(time, delta);
+
+    if (this.input.activePointer) {
+      this.updateMouseCursorTracking(this.input.activePointer);
+    }
+
     this.playerCursor.updatePosition();
 
     if (this.cpuBoard && this.cpuBot) {
