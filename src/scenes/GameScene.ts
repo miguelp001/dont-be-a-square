@@ -72,6 +72,7 @@ export default class GameScene extends Phaser.Scene {
   // Touch & Mobile Gesture State
   private boardScale: number = 1.0;
   private twoFingerLifting: boolean = false;
+  private mouseRightLifting: boolean = false;
   private touchBoardActive: boolean = false;
   private touchStartX: number = 0;
   private touchStartY: number = 0;
@@ -784,12 +785,20 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
-  /** Setup direct board gestures and mobile on-screen controls */
+  /** Setup mouse & touch controls (Desktop click-to-swap, hover cursor, right-click/wheel lift, mobile gestures) */
   private setupTouchControls(): void {
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
 
-    // 1. Mobile Pause Button (Top-Right)
+    // Prevent default browser context menu on right-click inside the game
+    this.input.mouse?.disableContextMenu();
+    const onContextMenu = (e: MouseEvent) => e.preventDefault();
+    window.addEventListener('contextmenu', onContextMenu);
+    this.events.once('shutdown', () => {
+      window.removeEventListener('contextmenu', onContextMenu);
+    });
+
+    // 1. Mobile & Desktop Pause Button (Top-Right)
     const pauseBtn = this.add.container(width - 24, 22);
     pauseBtn.setDepth(45);
     const pauseBg = this.add.graphics();
@@ -808,10 +817,31 @@ export default class GameScene extends Phaser.Scene {
     pauseHit.on('pointerdown', () => this.togglePause());
     pauseBtn.add([pauseBg, pauseIcon, pauseHit]);
 
-    // 2. Direct Board Touch Gestures (Tap slime to swap, flick left/right to swap, flick up to pulse lift)
+    // 2. Mouse Wheel Scroll -> Quick fast-lift impulse
+    this.input.on('wheel', (pointer: Phaser.Input.Pointer, gameObjects: any, deltaX: number, deltaY: number) => {
+      if (this.isMatchOver || this.isPaused) return;
+      if (Math.abs(deltaY) > 0) {
+        this.playerBoard.setLifting(true);
+        this.time.delayedCall(220, () => {
+          if (!this.mouseRightLifting && !this.twoFingerLifting) {
+            this.playerBoard.setLifting(false);
+          }
+        });
+      }
+    });
+
+    // 3. Pointer Down: Left-Click / Tap to swap, Right-Click to fast-lift
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       if (this.isMatchOver || this.isPaused) return;
 
+      // Method 1 for mouse-only lift: RIGHT-CLICK or Middle Click to fast lift!
+      if (pointer.rightButtonDown() || pointer.button === 2 || pointer.button === 1) {
+        this.mouseRightLifting = true;
+        this.playerBoard.setLifting(true);
+        return;
+      }
+
+      // Left Click or Touch on the Player Board
       const bX = this.playerBoard.boardOffsetX;
       const bY = this.playerBoard.boardOffsetY;
       const bW = BOARD_WIDTH * PANEL_SIZE * this.boardScale;
@@ -834,56 +864,91 @@ export default class GameScene extends Phaser.Scene {
           this.touchStartY = pointer.y;
           this.touchStartGridX = gx;
           this.touchStartGridY = gy;
-          // Position cursor directly at the touched pair
-          const curX = Math.min(gx, BOARD_WIDTH - 2);
-          this.playerCursor.setGridPosition(curX, gy);
+
+          // Align cursor with clicked slime pair
+          const swapCol = Math.min(gx, BOARD_WIDTH - 2);
+          this.playerCursor.setGridPosition(swapCol, gy);
+
+          // Direct click-to-swap on desktop & immediate responsive touch
+          this.playerBoard.swap(swapCol, gy);
         }
       }
     });
 
+    // 4. Pointer Move: Desktop mouse hover cursor tracking + drag/flick gestures
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
-      if (!this.touchBoardActive || this.isMatchOver || this.isPaused) return;
+      if (this.isMatchOver || this.isPaused) return;
+
+      const bX = this.playerBoard.boardOffsetX;
+      const bY = this.playerBoard.boardOffsetY;
+      const bW = BOARD_WIDTH * PANEL_SIZE * this.boardScale;
+      const bH = BOARD_VISIBLE_HEIGHT * PANEL_SIZE * this.boardScale;
+
+      // Desktop Hover: Cursor smoothly tracks the mouse over the board
+      if (!pointer.isDown) {
+        if (
+          pointer.x >= bX &&
+          pointer.x <= bX + bW &&
+          pointer.y >= bY &&
+          pointer.y <= bY + bH
+        ) {
+          const localX = (pointer.x - bX) / this.boardScale;
+          const localY = (pointer.y - (bY - this.playerBoard.stackOffsetPixels * this.boardScale)) / this.boardScale;
+          const gx = Math.floor(localX / PANEL_SIZE);
+          const gy = Math.floor(localY / PANEL_SIZE);
+
+          if (gx >= 0 && gx < BOARD_WIDTH && gy >= 0 && gy < BOARD_VISIBLE_HEIGHT) {
+            this.playerCursor.setGridPosition(Math.min(gx, BOARD_WIDTH - 2), gy);
+          }
+        }
+        return;
+      }
+
+      // Drag / Flick handling
+      if (!this.touchBoardActive) return;
 
       const dx = pointer.x - this.touchStartX;
       const dy = pointer.y - this.touchStartY;
-      const threshold = 12 * this.boardScale;
+      const threshold = 18 * this.boardScale;
 
       // Horizontal flick to swap
       if (Math.abs(dx) > threshold && Math.abs(dx) > Math.abs(dy)) {
         if (dx > 0) {
-          // Flick Right: swap column with right neighbor
+          // Flick Right
           const swapCol = Math.min(this.touchStartGridX, BOARD_WIDTH - 2);
           this.playerCursor.setGridPosition(swapCol, this.touchStartGridY);
           this.playerBoard.swap(swapCol, this.touchStartGridY);
         } else {
-          // Flick Left: swap column with left neighbor
+          // Flick Left
           const swapCol = Math.max(0, this.touchStartGridX - 1);
           this.playerCursor.setGridPosition(swapCol, this.touchStartGridY);
           this.playerBoard.swap(swapCol, this.touchStartGridY);
         }
         this.touchBoardActive = false;
-      } else if (dy < -22 * this.boardScale && Math.abs(dy) > Math.abs(dx)) {
+      } else if (dy < -24 * this.boardScale && Math.abs(dy) > Math.abs(dx)) {
         // Upward flick: quick fast-lift impulse
         this.playerBoard.setLifting(true);
-        this.time.delayedCall(220, () => this.playerBoard.setLifting(false));
+        this.time.delayedCall(220, () => {
+          if (!this.mouseRightLifting && !this.twoFingerLifting) {
+            this.playerBoard.setLifting(false);
+          }
+        });
         this.touchBoardActive = false;
       }
     });
 
+    // 5. Pointer Up: Release Right-Click fast lift & reset gesture
     this.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
-      if (this.touchBoardActive && !this.isMatchOver && !this.isPaused) {
-        const dist = Phaser.Math.Distance.Between(this.touchStartX, this.touchStartY, pointer.x, pointer.y);
-        if (dist < 10) {
-          // Direct slime tap: swap with neighbor
-          const swapCol = Math.min(this.touchStartGridX, BOARD_WIDTH - 2);
-          this.playerCursor.setGridPosition(swapCol, this.touchStartGridY);
-          this.playerBoard.swap(swapCol, this.touchStartGridY);
+      if (this.mouseRightLifting && (pointer.button === 2 || pointer.button === 1 || !pointer.rightButtonDown())) {
+        this.mouseRightLifting = false;
+        if (!this.twoFingerLifting) {
+          this.playerBoard.setLifting(false);
         }
       }
       this.touchBoardActive = false;
     });
 
-    // 3. Sleek Mobile Fast-Lift Bar anchored directly below player board
+    // 6. Sleek Fast-Lift Bar anchored directly below player board (Clickable with mouse or thumb)
     const bW = Math.round(BOARD_WIDTH * PANEL_SIZE * this.boardScale);
     const bH = Math.round(BOARD_VISIBLE_HEIGHT * PANEL_SIZE * this.boardScale);
     const liftBarW = Math.min(bW, 260);
@@ -892,9 +957,9 @@ export default class GameScene extends Phaser.Scene {
 
     this.createMobileLiftBar(liftBarX, liftBarY, liftBarW, 34);
 
-    // Subtle touch control hint
+    // Dynamic control hint
     const hintY = Math.min(height - 14, liftBarY + 28);
-    this.add.text(width / 2, hintY, 'TAP / FLICK SLIME: Swap • 2 FINGERS / BAR: Lift', {
+    this.add.text(width / 2, hintY, 'CLICK / TAP: Swap • RIGHT-CLICK / SCROLL / BAR: Fast Lift', {
       fontSize: '10px',
       color: '#a4b0be',
       stroke: '#000000',
