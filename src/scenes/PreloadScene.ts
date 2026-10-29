@@ -51,6 +51,14 @@ export default class PreloadScene extends Phaser.Scene {
       percentText.destroy();
     });
     
+    // Load custom kawaii slime sprites for puzzle panels (panel_0 .. panel_5)
+    for (let i = 0; i < 6; i++) {
+      if (this.textures.exists(`panel_${i}`)) {
+        this.textures.remove(`panel_${i}`);
+      }
+      this.load.image(`panel_${i}`, `assets/sprites/slimes/panel_${i}.png`);
+    }
+
     // Load character portrait assets
     CHARACTERS.forEach(char => {
       this.load.image(char.id, `assets/sprites/characters/${char.id}.png`);
