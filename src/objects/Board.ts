@@ -785,13 +785,17 @@ export default class Board extends Phaser.Events.EventEmitter {
           this.container.add(panel);
 
           // Bouncy pop-in tween for newly transformed cute slime
-          panel.setScale(0.2);
+          const baseScale = panel.width > 0 ? PANEL_SIZE / panel.width : 1.0;
+          panel.setScale(baseScale * 0.2);
           this.scene.tweens.add({
             targets: panel,
-            scaleX: 1,
-            scaleY: 1,
+            scaleX: baseScale,
+            scaleY: baseScale,
             duration: 180,
-            ease: 'Back.easeOut'
+            ease: 'Back.easeOut',
+            onComplete: () => {
+              panel.setDisplaySize(PANEL_SIZE, PANEL_SIZE);
+            }
           });
 
           this.checkPanelGravity(pos.gridX, pos.gridY);

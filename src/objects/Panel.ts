@@ -26,6 +26,10 @@ export default class Panel extends Phaser.GameObjects.Sprite {
   
   private flashTween?: Phaser.Tweens.Tween;
 
+  private get baseScale(): number {
+    return this.width > 0 ? PANEL_SIZE / this.width : 1.0;
+  }
+
   constructor(scene: Phaser.Scene, x: number, y: number, color: number) {
     // Use the color-specific icon texture panel_0..panel_5 if available
     const textureKey = scene.textures.exists(`panel_${color}`) ? `panel_${color}` : 'panel';
@@ -101,18 +105,17 @@ export default class Panel extends Phaser.GameObjects.Sprite {
   /** Squishy bounce on landing */
   public playLandingBounce(): void {
     const baseY = this.gridY * PANEL_SIZE;
+    const s = this.baseScale;
     this.scene.tweens.add({
       targets: this,
-      scaleY: 0.86,
-      scaleX: 1.14,
-      y: baseY + 3,
+      scaleY: s * 0.88,
+      scaleX: s * 1.12,
+      y: baseY + 2,
       duration: 45,
       yoyo: true,
       ease: 'Quad.easeOut',
       onComplete: () => {
-        this.y = this.gridY * PANEL_SIZE;
-        this.scaleX = 1.0;
-        this.scaleY = 1.0;
+        this.y = baseY;
         this.setDisplaySize(PANEL_SIZE, PANEL_SIZE);
       }
     });
@@ -155,11 +158,12 @@ export default class Panel extends Phaser.GameObjects.Sprite {
       }
       this.alpha = 1.0;
 
+      const s = this.baseScale;
       // Pop shrink & brighten tween
       this.scene.tweens.add({
         targets: this,
-        scaleX: 1.25,
-        scaleY: 1.25,
+        scaleX: s * 1.25,
+        scaleY: s * 1.25,
         alpha: 0,
         x: this.x - (PANEL_SIZE * 0.125),
         y: this.y - (PANEL_SIZE * 0.125),
