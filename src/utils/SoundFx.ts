@@ -131,6 +131,32 @@ export class SoundFx {
     });
   }
 
+  /** Bright ascending chime for menu decisions / confirmations */
+  public static playDecide(): void {
+    const ctx = this.getContext();
+    if (!ctx) return;
+    const notes = [587.33, 880.0]; // D5 -> A5
+    const now = ctx.currentTime;
+
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const startTime = now + i * 0.05;
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, startTime);
+      osc.frequency.exponentialRampToValueAtTime(freq * 1.05, startTime + 0.12);
+
+      gain.gain.setValueAtTime(this.volume * 0.45, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.14);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(startTime);
+      osc.stop(startTime + 0.14);
+    });
+  }
+
   /** Fanfare chord for combos (4+, 5+, 6+) and Chains (x2, x3, x4...) */
   public static playCombo(chainLevel: number): void {
     const ctx = this.getContext();

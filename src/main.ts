@@ -7,6 +7,7 @@ import ChallengeMapScene from './scenes/ChallengeMapScene';
 import GameScene from './scenes/GameScene';
 import LobbyScene from './scenes/LobbyScene';
 import OptionsMenuScene from './scenes/OptionsMenuScene';
+import CharacterProfileScene from './scenes/CharacterProfileScene';
 import { GAME_WIDTH, GAME_HEIGHT, CUTE_FONT } from './utils/Constants';
 
 // Globally set the default font family for all Phaser text objects to our cute & legible font
@@ -51,7 +52,8 @@ const config: Phaser.Types.Core.GameConfig = {
     ChallengeMapScene,
     GameScene,
     LobbyScene,
-    OptionsMenuScene
+    OptionsMenuScene,
+    CharacterProfileScene
   ],
   scale: {
     mode: Phaser.Scale.EXPAND,

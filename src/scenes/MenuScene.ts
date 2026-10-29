@@ -154,8 +154,8 @@ export default class MenuScene extends Phaser.Scene {
     this.setupKeyboardNavigation();
 
     // Character showcase section: "Meet the Slime catchers!"
-    const charHeading = this.add.text(width / 2, charHeadingY, 'Meet the Slime catchers!', {
-      fontSize: '15px',
+    const charHeading = this.add.text(width / 2, charHeadingY, 'Meet the Slime Catchers! (Click to View Profile)', {
+      fontSize: '14.5px',
       color: '#ff9ff3',
       fontStyle: 'bold',
       stroke: '#000000',
@@ -171,6 +171,10 @@ export default class MenuScene extends Phaser.Scene {
 
       const charContainer = this.add.container(x, baseY);
 
+      // Interactive hit area covering both the sprite and name
+      const hitArea = this.add.rectangle(0, 10, 52, 60, 0x000000, 0);
+      hitArea.setInteractive({ useHandCursor: true });
+
       const sprite = this.add.sprite(0, 0, char.id);
       sprite.setDisplaySize(42, 42);
 
@@ -182,7 +186,33 @@ export default class MenuScene extends Phaser.Scene {
         strokeThickness: 2
       }).setOrigin(0.5);
 
-      charContainer.add([sprite, name]);
+      charContainer.add([hitArea, sprite, name]);
+
+      hitArea.on('pointerover', () => {
+        SoundFx.playCursor();
+        this.tweens.add({
+          targets: charContainer,
+          scale: 1.18,
+          duration: 120,
+          ease: 'Back.easeOut'
+        });
+        name.setColor('#feca57');
+      });
+
+      hitArea.on('pointerout', () => {
+        this.tweens.add({
+          targets: charContainer,
+          scale: 1.0,
+          duration: 120,
+          ease: 'Sine.easeOut'
+        });
+        name.setColor('#ffffff');
+      });
+
+      hitArea.on('pointerdown', () => {
+        SoundFx.playDecide();
+        this.scene.start('CharacterProfileScene', { characterId: char.id, returnScene: 'MenuScene' });
+      });
 
       // Staggered cute sinusoidal bobbing animation
       this.tweens.add({
