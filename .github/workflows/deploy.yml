@@ -1,0 +1,42 @@
+name: Deploy to DreamHost (dbas.aredpanic.com)
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Node Dependencies
+        run: npm ci
+
+      - name: Build Production Client
+        run: npm run build
+
+      - name: Install Python Paramiko
+        run: pip install paramiko
+
+      - name: Deploy to DreamHost via SFTP
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+          SSH_TARGET: ${{ secrets.SSH_TARGET }}
+        run: python scripts/deploy.py
