@@ -1,10 +1,11 @@
 import Phaser from 'phaser';
-import { GAME_WIDTH, GAME_HEIGHT } from './Constants';
+import { GAME_WIDTH, GAME_HEIGHT, CUTE_FONT } from './Constants';
 import { SoundFx } from './SoundFx';
 
 export interface PillButtonOptions {
   textureKey?: string;
   fontSize?: string;
+  fontFamily?: string;
   fontColor?: string;
   strokeColor?: string;
   strokeThickness?: number;
@@ -174,6 +175,7 @@ export class CuteUI {
     }
 
     const label = scene.add.text(0, -1, text, {
+      fontFamily: options.fontFamily || CUTE_FONT,
       fontSize,
       color: fontColor,
       fontStyle: 'bold',

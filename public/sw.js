@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dont-be-a-square-v14';
+const CACHE_NAME = 'dont-be-a-square-v15';
 
 const PRECACHE_URLS = [
   '/',
@@ -66,7 +66,13 @@ self.addEventListener('fetch', (event) => {
         if (
           networkResponse &&
           networkResponse.status === 200 &&
-          (url.origin === self.location.origin || url.pathname.endsWith('.png') || url.pathname.endsWith('.mp3') || url.pathname.endsWith('.js'))
+          (url.origin === self.location.origin ||
+            url.hostname === 'fonts.googleapis.com' ||
+            url.hostname === 'fonts.gstatic.com' ||
+            url.pathname.endsWith('.woff2') ||
+            url.pathname.endsWith('.png') ||
+            url.pathname.endsWith('.mp3') ||
+            url.pathname.endsWith('.js'))
         ) {
           const clone = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));

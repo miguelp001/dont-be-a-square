@@ -7,7 +7,25 @@ import ChallengeMapScene from './scenes/ChallengeMapScene';
 import GameScene from './scenes/GameScene';
 import LobbyScene from './scenes/LobbyScene';
 import OptionsMenuScene from './scenes/OptionsMenuScene';
-import { GAME_WIDTH, GAME_HEIGHT } from './utils/Constants';
+import { GAME_WIDTH, GAME_HEIGHT, CUTE_FONT } from './utils/Constants';
+
+// Globally set the default font family for all Phaser text objects to our cute & legible font
+const origSetStyle = (Phaser.GameObjects.TextStyle as any).prototype.setStyle;
+(Phaser.GameObjects.TextStyle as any).prototype.setStyle = function (
+  style: any,
+  updateText: boolean,
+  setDefaults: boolean
+) {
+  if (style && !style.fontFamily) {
+    style.fontFamily = CUTE_FONT;
+  }
+  const result = origSetStyle.call(this, style, updateText, setDefaults);
+  if (this.fontFamily === 'Courier' || !this.fontFamily) {
+    this.fontFamily = CUTE_FONT;
+    this._font = [this.fontStyle, this.fontSize, this.fontFamily].join(' ').trim();
+  }
+  return result;
+};
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,

@@ -16,6 +16,11 @@
     <link rel="icon" type="image/png" sizes="64x64" href="/favicon.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
 
+    <!-- Cute & Highly Legible Rounded Game Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet" />
+
     <title>Don't Be A Square</title>
     <style>
       * {
@@ -26,6 +31,7 @@
         touch-action: none;
         user-select: none;
         -webkit-user-select: none;
+        font-family: 'Fredoka', 'Nunito', 'Arial Rounded MT Bold', -apple-system, BlinkMacSystemFont, sans-serif;
       }
       html, body {
         width: 100%;
@@ -74,6 +80,10 @@
     </style>
   </head>
   <body>
+    <!-- Hidden font preloader ensures glyphs are instantly available on canvas render -->
+    <div style="font-family: 'Fredoka', 'Nunito', sans-serif; font-weight: 700; position: absolute; left: -9999px; top: -9999px; visibility: hidden;" aria-hidden="true">
+      Don't Be A Square 0123456789 VICTORY DEFEAT PAUSED
+    </div>
     <div id="game-container"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>

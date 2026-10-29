@@ -351,6 +351,19 @@ export default class BootScene extends Phaser.Scene {
 
   create(): void {
     Settings.load(this);
-    this.scene.start('PreloadScene');
+
+    let started = false;
+    const proceed = () => {
+      if (started) return;
+      started = true;
+      this.scene.start('PreloadScene');
+    };
+
+    if ('fonts' in document) {
+      document.fonts.ready.then(proceed).catch(proceed);
+      this.time.delayedCall(400, proceed);
+    } else {
+      proceed();
+    }
   }
 }

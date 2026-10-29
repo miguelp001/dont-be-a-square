@@ -1,6 +1,9 @@
 export const GAME_WIDTH = 512;
 export const GAME_HEIGHT = 512;
 
+/** Cute & ultra-legible rounded font family for all game text */
+export const CUTE_FONT = '"Fredoka", "Nunito", "Arial Rounded MT Bold", sans-serif';
+
 export const BOARD_WIDTH = 6;
 export const BOARD_HEIGHT = 12; // visible + buffer
 export const BOARD_VISIBLE_HEIGHT = 10;
