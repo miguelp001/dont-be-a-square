@@ -11,7 +11,7 @@ import {
 } from '../utils/Constants';
 import { SoundFx } from '../utils/SoundFx';
 import { CuteUI } from '../utils/CuteUI';
-import { Settings } from '../utils/Settings';
+import { Settings, KeyBindings } from '../utils/Settings';
 
 export default class GameScene extends Phaser.Scene {
   public gameMode: 'vs_cpu' | 'endless' | 'vs_online' | 'challenge' = 'challenge';
@@ -53,6 +53,17 @@ export default class GameScene extends Phaser.Scene {
   private isMatchOver: boolean = false;
   private isPaused: boolean = false;
   private pauseModalContainer?: Phaser.GameObjects.Container;
+  private pauseModalIndex: number = 0;
+  private pauseButtons: Phaser.GameObjects.Container[] = [];
+  private pauseActions: (() => void)[] = [];
+
+  // Gamepad State (DAS Repeat & Button Tracking)
+  private padMoveTimer: number = 0;
+  private padLastDir: 'up' | 'down' | 'left' | 'right' | null = null;
+  private padPrevButtons: Map<number, boolean> = new Map();
+  private pausePadRepeatTimer: number = 0;
+  private keydownHandler?: (e: KeyboardEvent) => void;
+  private keyupHandler?: (e: KeyboardEvent) => void;
 
   // Touch & Mobile Gesture State
   private touchBoardActive: boolean = false;
@@ -514,75 +525,103 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
+  private matchesAction(event: KeyboardEvent, action: keyof KeyBindings, defaultCodes: string[]): boolean {
+    const customKey = Settings.keyBindings[action]?.toUpperCase();
+    let pressed = event.key.toUpperCase();
+    if (event.code.startsWith('Key')) pressed = event.code.replace('Key', '').toUpperCase();
+    else if (event.code.startsWith('Digit')) pressed = event.code.replace('Digit', '');
+    else if (event.code === 'ArrowUp') pressed = 'UP';
+    else if (event.code === 'ArrowDown') pressed = 'DOWN';
+    else if (event.code === 'ArrowLeft') pressed = 'LEFT';
+    else if (event.code === 'ArrowRight') pressed = 'RIGHT';
+    else if (event.code === 'Space') pressed = 'SPACE';
+    else if (event.code === 'ShiftLeft' || event.code === 'ShiftRight') pressed = 'SHIFT';
+    else if (event.code === 'Escape') pressed = 'ESCAPE';
+    else if (event.code === 'Enter') pressed = 'ENTER';
+
+    if (customKey && (pressed === customKey || event.code.toUpperCase() === customKey)) return true;
+    if (defaultCodes.includes(pressed) || defaultCodes.includes(event.code)) return true;
+    return false;
+  }
+
   private setupControls(): void {
-    if (!this.input.keyboard) return;
+    this.keydownHandler = (event: KeyboardEvent) => {
+      // Pause handling
+      if (this.matchesAction(event, 'pause', ['ESCAPE', 'Escape', 'Esc'])) {
+        this.togglePause();
+        return;
+      }
 
-    this.input.keyboard.on('keydown-LEFT', () => this.playerCursor.moveLeft());
-    this.input.keyboard.on('keydown-A', () => this.playerCursor.moveLeft());
+      // If paused, keyboard navigates the pause menu
+      if (this.isPaused) {
+        if (event.key === 'ArrowUp' || event.code === 'KeyW') {
+          this.navigatePauseMenu(-1);
+        } else if (event.key === 'ArrowDown' || event.code === 'KeyS') {
+          this.navigatePauseMenu(1);
+        } else if (event.key === 'Enter' || event.code === 'Space') {
+          this.selectPauseMenuOption();
+        }
+        return;
+      }
 
-    this.input.keyboard.on('keydown-RIGHT', () => this.playerCursor.moveRight());
-    this.input.keyboard.on('keydown-D', () => this.playerCursor.moveRight());
+      if (this.isMatchOver) return;
 
-    this.input.keyboard.on('keydown-UP', () => this.playerCursor.moveUp());
-    this.input.keyboard.on('keydown-W', () => this.playerCursor.moveUp());
+      // Gameplay cursor moves
+      if (this.matchesAction(event, 'moveLeft', ['LEFT', 'A', 'ArrowLeft'])) {
+        this.playerCursor.moveLeft();
+      } else if (this.matchesAction(event, 'moveRight', ['RIGHT', 'D', 'ArrowRight'])) {
+        this.playerCursor.moveRight();
+      } else if (this.matchesAction(event, 'moveUp', ['UP', 'W', 'ArrowUp'])) {
+        this.playerCursor.moveUp();
+      } else if (this.matchesAction(event, 'moveDown', ['DOWN', 'S', 'ArrowDown'])) {
+        this.playerCursor.moveDown();
+      }
 
-    this.input.keyboard.on('keydown-DOWN', () => this.playerCursor.moveDown());
-    this.input.keyboard.on('keydown-S', () => this.playerCursor.moveDown());
+      // Swap
+      if (this.matchesAction(event, 'swap', ['SPACE', 'X', 'C', ' '])) {
+        this.playerBoard.swap(this.playerCursor.gridX, this.playerCursor.gridY);
+      }
 
-    this.input.keyboard.on('keydown-SPACE', () => {
-      if (!this.isMatchOver) this.playerBoard.swap(this.playerCursor.gridX, this.playerCursor.gridY);
-    });
-    this.input.keyboard.on('keydown-X', () => {
-      if (!this.isMatchOver) this.playerBoard.swap(this.playerCursor.gridX, this.playerCursor.gridY);
-    });
-    this.input.keyboard.on('keydown-C', () => {
-      if (!this.isMatchOver) this.playerBoard.swap(this.playerCursor.gridX, this.playerCursor.gridY);
-    });
+      // Lift (Keydown)
+      if (this.matchesAction(event, 'lift', ['SHIFT', 'R', 'ShiftLeft', 'ShiftRight'])) {
+        this.playerBoard.setLifting(true);
+      }
 
-    this.input.keyboard.on('keydown-SHIFT', () => this.playerBoard.setLifting(true));
-    this.input.keyboard.on('keyup-SHIFT', () => this.playerBoard.setLifting(false));
-
-    this.input.keyboard.on('keydown-R', () => this.playerBoard.setLifting(true));
-    this.input.keyboard.on('keyup-R', () => this.playerBoard.setLifting(false));
-
-    // Garbage Test Hotkeys
-    this.input.keyboard.on('keydown-G', () => {
-      if (!this.isMatchOver) {
+      // Garbage Test Hotkeys
+      if (event.code === 'KeyG') {
         this.playerBoard.queueGarbage(3, 1);
         this.showAttackAlert(false, 1);
         this.triggerAvatarHurt(true);
         this.cameras.main.shake(100, 0.004);
-      }
-    });
-
-    this.input.keyboard.on('keydown-H', () => {
-      if (!this.isMatchOver) {
+      } else if (event.code === 'KeyH') {
         this.playerBoard.queueGarbage(6, 1);
         this.showAttackAlert(false, 1);
         this.triggerAvatarHurt(true);
         this.cameras.main.shake(120, 0.005);
-      }
-    });
-
-    this.input.keyboard.on('keydown-B', () => {
-      if (!this.isMatchOver) {
+      } else if (event.code === 'KeyB') {
         this.playerBoard.queueGarbage(6, 2);
         this.showAttackAlert(false, 2);
         this.triggerAvatarHurt(true);
         this.cameras.main.shake(150, 0.007);
-      }
-    });
-
-    this.input.keyboard.on('keydown-Y', () => {
-      if (!this.isMatchOver && this.cpuBoard) {
+      } else if (event.code === 'KeyY' && this.cpuBoard) {
         this.cpuBoard.queueGarbage(3, 1);
         this.showAttackAlert(true, 1);
         this.triggerAvatarHurt(false);
       }
-    });
+    };
 
-    this.input.keyboard.on('keydown-ESC', () => {
-      this.togglePause();
+    this.keyupHandler = (event: KeyboardEvent) => {
+      if (this.matchesAction(event, 'lift', ['SHIFT', 'R', 'ShiftLeft', 'ShiftRight'])) {
+        this.playerBoard.setLifting(false);
+      }
+    };
+
+    window.addEventListener('keydown', this.keydownHandler);
+    window.addEventListener('keyup', this.keyupHandler);
+
+    this.events.once('shutdown', () => {
+      if (this.keydownHandler) window.removeEventListener('keydown', this.keydownHandler);
+      if (this.keyupHandler) window.removeEventListener('keyup', this.keyupHandler);
     });
   }
 
@@ -898,10 +937,51 @@ export default class GameScene extends Phaser.Scene {
         this.scene.start('MenuScene');
       }, { textureKey: 'pill_grey', fontSize: '14px', width: 170, height: 36 });
 
+      this.pauseButtons = [resumeBtn, optionsBtn, restartBtn, menuBtn];
+      this.pauseActions = [
+        () => this.resumeGame(),
+        () => {
+          this.resumeGame();
+          this.scene.start('OptionsMenuScene', { returnScene: 'GameScene' });
+        },
+        () => {
+          this.resumeGame();
+          this.scene.restart();
+        },
+        () => {
+          this.resumeGame();
+          this.scene.start('MenuScene');
+        }
+      ];
+
       this.pauseModalContainer.add([backdrop, box, title, resumeBtn, optionsBtn, restartBtn, menuBtn]);
     }
 
+    this.pauseModalIndex = 0;
+    this.updatePauseButtonSelection();
     this.pauseModalContainer.setVisible(true);
+  }
+
+  private navigatePauseMenu(delta: number): void {
+    SoundFx.playCursor();
+    this.pauseModalIndex = (this.pauseModalIndex + delta + this.pauseButtons.length) % this.pauseButtons.length;
+    this.updatePauseButtonSelection();
+  }
+
+  private selectPauseMenuOption(): void {
+    if (this.pauseActions[this.pauseModalIndex]) {
+      this.pauseActions[this.pauseModalIndex]();
+    }
+  }
+
+  private updatePauseButtonSelection(): void {
+    this.pauseButtons.forEach((btn, idx) => {
+      if (idx === this.pauseModalIndex) {
+        btn.setScale(1.08);
+      } else {
+        btn.setScale(1.0);
+      }
+    });
   }
 
   private resumeGame(): void {
@@ -1120,7 +1200,14 @@ export default class GameScene extends Phaser.Scene {
   }
 
   public update(time: number, delta: number): void {
-    if (this.isMatchOver || this.isPaused) return;
+    this.handleGamepadInput(delta);
+
+    if (this.isPaused) {
+      this.handlePauseGamepad(delta);
+      return;
+    }
+
+    if (this.isMatchOver) return;
 
     this.playerBoard.update(time, delta);
     this.playerCursor.updatePosition();
@@ -1130,6 +1217,131 @@ export default class GameScene extends Phaser.Scene {
       this.cpuCursor?.updatePosition();
       this.cpuBot.update(delta);
     }
+  }
+
+  private getActiveGamepad(): Phaser.Input.Gamepad.Gamepad | null {
+    if (this.input.gamepad && this.input.gamepad.total > 0) {
+      for (let i = 0; i < this.input.gamepad.gamepads.length; i++) {
+        const pad = this.input.gamepad.gamepads[i];
+        if (pad && pad.connected) return pad;
+      }
+    }
+    return null;
+  }
+
+  private handleGamepadInput(delta: number): void {
+    const pad = this.getActiveGamepad();
+    if (!pad) return;
+
+    // Start (btn 9) or Select (btn 8) toggles pause
+    const pauseDown = pad.isButtonDown(9) || pad.isButtonDown(8);
+    const prevPause = this.padPrevButtons.get(9) || false;
+    if (pauseDown && !prevPause) {
+      this.togglePause();
+    }
+    this.padPrevButtons.set(9, pauseDown);
+
+    if (this.isPaused || this.isMatchOver) return;
+
+    // Directional DAS repeat (D-pad & Left Stick)
+    let dir: 'up' | 'down' | 'left' | 'right' | null = null;
+    const stickX = pad.leftStick ? pad.leftStick.x : 0;
+    const stickY = pad.leftStick ? pad.leftStick.y : 0;
+
+    if (pad.left || pad.isButtonDown(14) || stickX < -0.45) {
+      dir = 'left';
+    } else if (pad.right || pad.isButtonDown(15) || stickX > 0.45) {
+      dir = 'right';
+    } else if (pad.up || pad.isButtonDown(12) || stickY < -0.45) {
+      dir = 'up';
+    } else if (pad.down || pad.isButtonDown(13) || stickY > 0.45) {
+      dir = 'down';
+    }
+
+    if (dir) {
+      if (this.padLastDir !== dir) {
+        this.padLastDir = dir;
+        this.executePadMove(dir);
+        this.padMoveTimer = 160;
+      } else {
+        this.padMoveTimer -= delta;
+        if (this.padMoveTimer <= 0) {
+          this.executePadMove(dir);
+          this.padMoveTimer = 75;
+        }
+      }
+    } else {
+      this.padLastDir = null;
+      this.padMoveTimer = 0;
+    }
+
+    // Button 0 (A) or Button 2 (X) for SWAP
+    const swapDown = pad.A || pad.X || pad.isButtonDown(0) || pad.isButtonDown(2);
+    const prevSwap = this.padPrevButtons.get(0) || false;
+    if (swapDown && !prevSwap) {
+      this.playerBoard.swap(this.playerCursor.gridX, this.playerCursor.gridY);
+    }
+    this.padPrevButtons.set(0, swapDown);
+
+    // Button 1 (B), Button 3 (Y), L1 (4), R1 (5), L2, R2 for FAST LIFT
+    const liftDown = Boolean(
+      pad.B || pad.Y || pad.L1 || pad.R1 ||
+      pad.isButtonDown(1) || pad.isButtonDown(3) || pad.isButtonDown(4) || pad.isButtonDown(5) ||
+      (pad.L2 > 0.3) || (pad.R2 > 0.3)
+    );
+    const prevLift = this.padPrevButtons.get(1) || false;
+
+    if (liftDown && !prevLift) {
+      this.playerBoard.setLifting(true);
+    } else if (!liftDown && prevLift) {
+      this.playerBoard.setLifting(false);
+    }
+    this.padPrevButtons.set(1, liftDown);
+  }
+
+  private executePadMove(dir: 'up' | 'down' | 'left' | 'right'): void {
+    if (dir === 'left') this.playerCursor.moveLeft();
+    else if (dir === 'right') this.playerCursor.moveRight();
+    else if (dir === 'up') this.playerCursor.moveUp();
+    else if (dir === 'down') this.playerCursor.moveDown();
+  }
+
+  private handlePauseGamepad(delta: number): void {
+    const pad = this.getActiveGamepad();
+    if (!pad) return;
+
+    // Up / Down navigation in pause menu
+    const stickY = pad.leftStick ? pad.leftStick.y : 0;
+    const isUp = pad.up || pad.isButtonDown(12) || stickY < -0.45;
+    const isDown = pad.down || pad.isButtonDown(13) || stickY > 0.45;
+
+    if (isUp || isDown) {
+      if (this.pausePadRepeatTimer <= 0) {
+        if (isUp) this.navigatePauseMenu(-1);
+        else if (isDown) this.navigatePauseMenu(1);
+        this.pausePadRepeatTimer = 220;
+      } else {
+        this.pausePadRepeatTimer -= delta;
+      }
+    } else {
+      this.pausePadRepeatTimer = 0;
+    }
+
+    // Button 0 (A) selects
+    const selectDown = pad.A || pad.isButtonDown(0);
+    const prevSelect = this.padPrevButtons.get(0) || false;
+    if (selectDown && !prevSelect) {
+      this.selectPauseMenuOption();
+    }
+    this.padPrevButtons.set(0, selectDown);
+
+    // Button 1 (B) resumes
+    const backDown = pad.B || pad.isButtonDown(1);
+    const prevBack = this.padPrevButtons.get(1) || false;
+    if (backDown && !prevBack) {
+      this.resumeGame();
+    }
+    this.padPrevButtons.set(1, backDown);
   }
 
   private endMatch(bannerText: string, isVictory: boolean): void {

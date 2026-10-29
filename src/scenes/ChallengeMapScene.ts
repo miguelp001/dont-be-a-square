@@ -9,6 +9,14 @@ export default class ChallengeMapScene extends Phaser.Scene {
   public characterId: string = 'kiri';
   public defeatedOpponents: string[] = [];
 
+  private selectedIndex: number = 0;
+  private selectableItems: {
+    highlight: (on: boolean) => void;
+    activate: () => void;
+  }[] = [];
+  private padRepeatTimer: number = 0;
+  private prevPadButtons: Map<number, boolean> = new Map();
+
   constructor() {
     super({ key: 'ChallengeMapScene' });
   }
@@ -135,6 +143,149 @@ export default class ChallengeMapScene extends Phaser.Scene {
     this.createFooterButton(width / 2 + 110, height - 32, 'MAIN MENU', () => {
       this.scene.start('MenuScene');
     });
+
+    this.selectedIndex = 0;
+    this.selectableItems[0]?.highlight(true);
+    this.setupNavigation();
+  }
+
+  private setupNavigation(): void {
+    const moveSelection = (dx: number, dy: number) => {
+      let nextIndex = this.selectedIndex;
+
+      if (dy !== 0) {
+        if (dy > 0) {
+          if (this.selectedIndex <= 3) nextIndex = Math.min(4 + this.selectedIndex, 6);
+          else if (this.selectedIndex <= 6) nextIndex = this.selectedIndex <= 5 ? 7 : 8;
+        } else {
+          if (this.selectedIndex >= 7) nextIndex = this.selectedIndex === 7 ? 4 : 6;
+          else if (this.selectedIndex >= 4) nextIndex = Math.min(this.selectedIndex - 4, 3);
+        }
+      } else if (dx !== 0) {
+        if (this.selectedIndex <= 3) {
+          nextIndex = (this.selectedIndex + dx + 4) % 4;
+        } else if (this.selectedIndex <= 6) {
+          nextIndex = 4 + (this.selectedIndex - 4 + dx + 3) % 3;
+        } else {
+          nextIndex = 7 + (this.selectedIndex - 7 + dx + 2) % 2;
+        }
+      }
+
+      if (nextIndex !== this.selectedIndex && this.selectableItems[nextIndex]) {
+        SoundFx.playCursor();
+        this.selectableItems[this.selectedIndex]?.highlight(false);
+        this.selectedIndex = nextIndex;
+        this.selectableItems[this.selectedIndex]?.highlight(true);
+      }
+    };
+
+    this.input.keyboard?.on('keydown-LEFT', () => moveSelection(-1, 0));
+    this.input.keyboard?.on('keydown-A', () => moveSelection(-1, 0));
+    this.input.keyboard?.on('keydown-RIGHT', () => moveSelection(1, 0));
+    this.input.keyboard?.on('keydown-D', () => moveSelection(1, 0));
+    this.input.keyboard?.on('keydown-UP', () => moveSelection(0, -1));
+    this.input.keyboard?.on('keydown-W', () => moveSelection(0, -1));
+    this.input.keyboard?.on('keydown-DOWN', () => moveSelection(0, 1));
+    this.input.keyboard?.on('keydown-S', () => moveSelection(0, 1));
+
+    this.input.keyboard?.on('keydown-ENTER', () => {
+      this.selectableItems[this.selectedIndex]?.activate();
+    });
+    this.input.keyboard?.on('keydown-SPACE', () => {
+      this.selectableItems[this.selectedIndex]?.activate();
+    });
+
+    this.input.keyboard?.on('keydown-ESC', () => {
+      SoundFx.playCursor();
+      this.scene.start('CharacterSelectScene', { mode: 'challenge' });
+    });
+  }
+
+  public update(_time: number, delta: number): void {
+    this.handleGamepadInput(delta);
+  }
+
+  private getActiveGamepad(): Phaser.Input.Gamepad.Gamepad | null {
+    if (this.input.gamepad && this.input.gamepad.total > 0) {
+      for (let i = 0; i < this.input.gamepad.gamepads.length; i++) {
+        const pad = this.input.gamepad.gamepads[i];
+        if (pad && pad.connected) return pad;
+      }
+    }
+    return null;
+  }
+
+  private handleGamepadInput(delta: number): void {
+    const pad = this.getActiveGamepad();
+    if (!pad) return;
+
+    const stickX = pad.leftStick ? pad.leftStick.x : 0;
+    const stickY = pad.leftStick ? pad.leftStick.y : 0;
+
+    const isLeft = pad.left || pad.isButtonDown(14) || stickX < -0.45;
+    const isRight = pad.right || pad.isButtonDown(15) || stickX > 0.45;
+    const isUp = pad.up || pad.isButtonDown(12) || stickY < -0.45;
+    const isDown = pad.down || pad.isButtonDown(13) || stickY > 0.45;
+
+    if (isLeft || isRight || isUp || isDown) {
+      if (this.padRepeatTimer <= 0) {
+        let dx = 0;
+        let dy = 0;
+        if (isLeft) dx = -1;
+        else if (isRight) dx = 1;
+        if (isUp) dy = -1;
+        else if (isDown) dy = 1;
+
+        let nextIndex = this.selectedIndex;
+        if (dy !== 0) {
+          if (dy > 0) {
+            if (this.selectedIndex <= 3) nextIndex = Math.min(4 + this.selectedIndex, 6);
+            else if (this.selectedIndex <= 6) nextIndex = this.selectedIndex <= 5 ? 7 : 8;
+          } else {
+            if (this.selectedIndex >= 7) nextIndex = this.selectedIndex === 7 ? 4 : 6;
+            else if (this.selectedIndex >= 4) nextIndex = Math.min(this.selectedIndex - 4, 3);
+          }
+        } else if (dx !== 0) {
+          if (this.selectedIndex <= 3) {
+            nextIndex = (this.selectedIndex + dx + 4) % 4;
+          } else if (this.selectedIndex <= 6) {
+            nextIndex = 4 + (this.selectedIndex - 4 + dx + 3) % 3;
+          } else {
+            nextIndex = 7 + (this.selectedIndex - 7 + dx + 2) % 2;
+          }
+        }
+
+        if (nextIndex !== this.selectedIndex && this.selectableItems[nextIndex]) {
+          SoundFx.playCursor();
+          this.selectableItems[this.selectedIndex]?.highlight(false);
+          this.selectedIndex = nextIndex;
+          this.selectableItems[this.selectedIndex]?.highlight(true);
+        }
+
+        this.padRepeatTimer = 220;
+      } else {
+        this.padRepeatTimer -= delta;
+      }
+    } else {
+      this.padRepeatTimer = 0;
+    }
+
+    // Button 0 (A) or Start confirms
+    const selectDown = pad.A || pad.isButtonDown(0) || pad.isButtonDown(9);
+    const prevSelect = this.prevPadButtons.get(0) || false;
+    if (selectDown && !prevSelect) {
+      this.selectableItems[this.selectedIndex]?.activate();
+    }
+    this.prevPadButtons.set(0, selectDown);
+
+    // Button 1 (B) returns
+    const backDown = pad.B || pad.isButtonDown(1);
+    const prevBack = this.prevPadButtons.get(1) || false;
+    if (backDown && !prevBack) {
+      SoundFx.playCursor();
+      this.scene.start('CharacterSelectScene', { mode: 'challenge' });
+    }
+    this.prevPadButtons.set(1, backDown);
   }
 
   /** Render an interactive challenger card */
@@ -186,6 +337,32 @@ export default class ChallengeMapScene extends Phaser.Scene {
     });
     titleText.setOrigin(0.5);
 
+    const cardIndex = this.selectableItems.length;
+
+    const setCardHighlight = (on: boolean) => {
+      card.clear();
+      card.fillStyle(on ? 0x1e293b : fillColor, on ? 0.95 : fillAlpha);
+      card.fillRoundedRect(x - w / 2, y - h / 2, w, h, 8);
+      card.lineStyle(on ? 3 : 2, on ? 0xff4757 : borderColor, on ? 1.0 : (isDefeated ? 0.6 : 1.0));
+      card.strokeRoundedRect(x - w / 2, y - h / 2, w, h, 8);
+      avatar.setDisplaySize(on ? 48 : 44, on ? 48 : 44);
+    };
+
+    const startBattleAction = () => {
+      this.sound.stopAll();
+      this.scene.start('GameScene', {
+        mode: 'challenge',
+        characterId: this.characterId,
+        opponentCharacterId: char.id,
+        defeatedOpponents: this.defeatedOpponents
+      });
+    };
+
+    this.selectableItems.push({
+      highlight: setCardHighlight,
+      activate: startBattleAction
+    });
+
     if (isDefeated) {
       // Golden / Green Crown / Checkmark
       const clearBadge = this.add.text(x, y + 44, '✓ DEFEATED', {
@@ -212,39 +389,27 @@ export default class ChallengeMapScene extends Phaser.Scene {
         strokeThickness: 2
       });
       battleText.setOrigin(0.5);
-
-      // Hit area for clicking the card
-      const hitArea = this.add.rectangle(x, y, w, h, 0x000000, 0);
-      hitArea.setInteractive({ useHandCursor: true });
-
-      hitArea.on('pointerover', () => {
-        card.clear();
-        card.fillStyle(0x1e293b, 0.95);
-        card.fillRoundedRect(x - w / 2, y - h / 2, w, h, 8);
-        card.lineStyle(3, 0xff4757, 1);
-        card.strokeRoundedRect(x - w / 2, y - h / 2, w, h, 8);
-        avatar.setDisplaySize(48, 48);
-      });
-
-      hitArea.on('pointerout', () => {
-        card.clear();
-        card.fillStyle(fillColor, fillAlpha);
-        card.fillRoundedRect(x - w / 2, y - h / 2, w, h, 8);
-        card.lineStyle(2, borderColor, 1);
-        card.strokeRoundedRect(x - w / 2, y - h / 2, w, h, 8);
-        avatar.setDisplaySize(44, 44);
-      });
-
-      hitArea.on('pointerdown', () => {
-        this.sound.stopAll();
-        this.scene.start('GameScene', {
-          mode: 'challenge',
-          characterId: this.characterId,
-          opponentCharacterId: char.id,
-          defeatedOpponents: this.defeatedOpponents
-        });
-      });
     }
+
+    // Hit area for clicking the card
+    const hitArea = this.add.rectangle(x, y, w, h, 0x000000, 0);
+    hitArea.setInteractive({ useHandCursor: true });
+
+    hitArea.on('pointerover', () => {
+      if (this.selectedIndex !== cardIndex) {
+        this.selectableItems[this.selectedIndex]?.highlight(false);
+        this.selectedIndex = cardIndex;
+        setCardHighlight(true);
+      }
+    });
+
+    hitArea.on('pointerout', () => {
+      if (this.selectedIndex !== cardIndex) {
+        setCardHighlight(false);
+      }
+    });
+
+    hitArea.on('pointerdown', startBattleAction);
   }
 
   /** Grand Champion Celebration Screen */
@@ -341,12 +506,17 @@ export default class ChallengeMapScene extends Phaser.Scene {
     });
   }
 
-  private createFooterButton(x: number, y: number, text: string, callback: () => void): void {
-    CuteUI.createPillButton(this, x, y, text, callback, {
+  private createFooterButton(x: number, y: number, text: string, callback: () => void): Phaser.GameObjects.Container {
+    const btn = CuteUI.createPillButton(this, x, y, text, callback, {
       textureKey: 'pill_sm_pink',
       fontSize: '12px',
       width: 150,
       height: 34
     });
+    this.selectableItems.push({
+      highlight: (on: boolean) => btn.setScale(on ? 1.08 : 1.0),
+      activate: callback
+    });
+    return btn;
   }
 }

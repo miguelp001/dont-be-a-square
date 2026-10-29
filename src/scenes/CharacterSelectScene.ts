@@ -3,12 +3,15 @@ import { CHARACTERS } from '../utils/Constants';
 import { AI_PERSONALITIES } from '../objects/AIBot';
 import { CuteUI } from '../utils/CuteUI';
 import { Settings } from '../utils/Settings';
+import { SoundFx } from '../utils/SoundFx';
 
 export default class CharacterSelectScene extends Phaser.Scene {
   private mode: string = 'challenge';
   private selectedIndex: number = 0;
   private charSprites: Phaser.GameObjects.Sprite[] = [];
   private charText!: Phaser.GameObjects.Text;
+  private padRepeatTimer: number = 0;
+  private prevPadButtons: Map<number, boolean> = new Map();
   
   constructor() {
     super({ key: 'CharacterSelectScene' });
@@ -97,23 +100,97 @@ export default class CharacterSelectScene extends Phaser.Scene {
     }, { textureKey: 'pill_grey' });
     
     // Keyboard controls
-    this.input.keyboard!.on('keydown-LEFT', () => {
-      this.selectedIndex = (this.selectedIndex - 1 + CHARACTERS.length) % CHARACTERS.length;
-      this.selectCharacter(this.selectedIndex);
-    });
-    
-    this.input.keyboard!.on('keydown-RIGHT', () => {
-      this.selectedIndex = (this.selectedIndex + 1) % CHARACTERS.length;
-      this.selectCharacter(this.selectedIndex);
-    });
+    const moveSelection = (dx: number, dy: number) => {
+      SoundFx.playCursor();
+      let row = Math.floor(this.selectedIndex / 4);
+      let col = this.selectedIndex % 4;
 
-    this.input.keyboard!.on('keydown-ENTER', () => {
-      this.startGame();
-    });
+      if (dx !== 0) col = (col + dx + 4) % 4;
+      if (dy !== 0) row = (row + dy + 2) % 2;
 
-    this.input.keyboard!.on('keydown-SPACE', () => {
-      this.startGame();
+      this.selectCharacter(row * 4 + col);
+    };
+
+    this.input.keyboard!.on('keydown-LEFT', () => moveSelection(-1, 0));
+    this.input.keyboard!.on('keydown-A', () => moveSelection(-1, 0));
+    this.input.keyboard!.on('keydown-RIGHT', () => moveSelection(1, 0));
+    this.input.keyboard!.on('keydown-D', () => moveSelection(1, 0));
+    this.input.keyboard!.on('keydown-UP', () => moveSelection(0, -1));
+    this.input.keyboard!.on('keydown-W', () => moveSelection(0, -1));
+    this.input.keyboard!.on('keydown-DOWN', () => moveSelection(0, 1));
+    this.input.keyboard!.on('keydown-S', () => moveSelection(0, 1));
+
+    this.input.keyboard!.on('keydown-ENTER', () => this.startGame());
+    this.input.keyboard!.on('keydown-SPACE', () => this.startGame());
+    this.input.keyboard!.on('keydown-ESC', () => {
+      SoundFx.playCursor();
+      this.scene.start('MenuScene');
     });
+  }
+
+  public update(_time: number, delta: number): void {
+    this.handleGamepadInput(delta);
+  }
+
+  private getActiveGamepad(): Phaser.Input.Gamepad.Gamepad | null {
+    if (this.input.gamepad && this.input.gamepad.total > 0) {
+      for (let i = 0; i < this.input.gamepad.gamepads.length; i++) {
+        const pad = this.input.gamepad.gamepads[i];
+        if (pad && pad.connected) return pad;
+      }
+    }
+    return null;
+  }
+
+  private handleGamepadInput(delta: number): void {
+    const pad = this.getActiveGamepad();
+    if (!pad) return;
+
+    const stickX = pad.leftStick ? pad.leftStick.x : 0;
+    const stickY = pad.leftStick ? pad.leftStick.y : 0;
+
+    const isLeft = pad.left || pad.isButtonDown(14) || stickX < -0.45;
+    const isRight = pad.right || pad.isButtonDown(15) || stickX > 0.45;
+    const isUp = pad.up || pad.isButtonDown(12) || stickY < -0.45;
+    const isDown = pad.down || pad.isButtonDown(13) || stickY > 0.45;
+
+    if (isLeft || isRight || isUp || isDown) {
+      if (this.padRepeatTimer <= 0) {
+        SoundFx.playCursor();
+        let row = Math.floor(this.selectedIndex / 4);
+        let col = this.selectedIndex % 4;
+
+        if (isLeft) col = (col - 1 + 4) % 4;
+        else if (isRight) col = (col + 1) % 4;
+
+        if (isUp) row = (row - 1 + 2) % 2;
+        else if (isDown) row = (row + 1) % 2;
+
+        this.selectCharacter(row * 4 + col);
+        this.padRepeatTimer = 220;
+      } else {
+        this.padRepeatTimer -= delta;
+      }
+    } else {
+      this.padRepeatTimer = 0;
+    }
+
+    // Button 0 (A) or Start confirms
+    const selectDown = pad.A || pad.isButtonDown(0) || pad.isButtonDown(9);
+    const prevSelect = this.prevPadButtons.get(0) || false;
+    if (selectDown && !prevSelect) {
+      this.startGame();
+    }
+    this.prevPadButtons.set(0, selectDown);
+
+    // Button 1 (B) returns to MenuScene
+    const backDown = pad.B || pad.isButtonDown(1);
+    const prevBack = this.prevPadButtons.get(1) || false;
+    if (backDown && !prevBack) {
+      SoundFx.playCursor();
+      this.scene.start('MenuScene');
+    }
+    this.prevPadButtons.set(1, backDown);
   }
 
   private startGame(): void {

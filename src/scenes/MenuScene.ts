@@ -2,8 +2,16 @@ import Phaser from 'phaser';
 import { CHARACTERS } from '../utils/Constants';
 import { CuteUI } from '../utils/CuteUI';
 import { Settings } from '../utils/Settings';
+import { SoundFx } from '../utils/SoundFx';
 
 export default class MenuScene extends Phaser.Scene {
+  private selectedButtonIndex: number = 0;
+  private menuButtons: Phaser.GameObjects.Container[] = [];
+  private menuActions: (() => void)[] = [];
+  private padRepeatTimer: number = 0;
+  private prevPadButtons: Map<number, boolean> = new Map();
+  private cursorIndicator?: Phaser.GameObjects.Image;
+
   constructor() {
     super({ key: 'MenuScene' });
   }
@@ -64,7 +72,7 @@ export default class MenuScene extends Phaser.Scene {
     const totalBtnSpan = btnSpacing * 3;
     const startY = height > 530 ? Math.round(100 + (availableSpace - totalBtnSpan) / 2) : 138;
 
-    CuteUI.createPillButton(
+    const btn1 = CuteUI.createPillButton(
       this,
       width / 2,
       startY,
@@ -75,7 +83,7 @@ export default class MenuScene extends Phaser.Scene {
       { textureKey: 'pill_pink', fontSize: '15px', height: 42 }
     );
 
-    CuteUI.createPillButton(
+    const btn2 = CuteUI.createPillButton(
       this,
       width / 2,
       startY + btnSpacing,
@@ -86,7 +94,7 @@ export default class MenuScene extends Phaser.Scene {
       { textureKey: 'pill_green', fontSize: '15px', height: 42 }
     );
 
-    CuteUI.createPillButton(
+    const btn3 = CuteUI.createPillButton(
       this,
       width / 2,
       startY + btnSpacing * 2,
@@ -97,7 +105,7 @@ export default class MenuScene extends Phaser.Scene {
       { textureKey: 'pill_blue', fontSize: '15px', height: 42 }
     );
 
-    CuteUI.createPillButton(
+    const btn4 = CuteUI.createPillButton(
       this,
       width / 2,
       startY + btnSpacing * 3,
@@ -107,6 +115,42 @@ export default class MenuScene extends Phaser.Scene {
       },
       { textureKey: 'pill_purple', fontSize: '15px', height: 42 }
     );
+
+    this.menuButtons = [btn1, btn2, btn3, btn4];
+    this.menuActions = [
+      () => this.scene.start('CharacterSelectScene', { mode: 'challenge' }),
+      () => this.scene.start('CharacterSelectScene', { mode: 'endless' }),
+      () => this.scene.start('LobbyScene'),
+      () => this.scene.start('OptionsMenuScene', { returnScene: 'MenuScene' })
+    ];
+
+    // Pointer hover syncs selection
+    this.menuButtons.forEach((btn, idx) => {
+      btn.on('pointerover', () => {
+        if (this.selectedButtonIndex !== idx) {
+          this.selectedButtonIndex = idx;
+          this.updateButtonSelection();
+        }
+      });
+    });
+
+    // Sparkling indicator next to active button
+    this.cursorIndicator = this.add.image(width / 2 - 120, startY, 'sparkle_star');
+    this.cursorIndicator.setDisplaySize(16, 16);
+    this.cursorIndicator.setTint(0xfffa65);
+    this.tweens.add({
+      targets: this.cursorIndicator,
+      angle: 360,
+      scaleX: 1.25,
+      scaleY: 1.25,
+      duration: 1600,
+      repeat: -1,
+      yoyo: true
+    });
+
+    this.selectedButtonIndex = 0;
+    this.updateButtonSelection();
+    this.setupKeyboardNavigation();
 
     // Character showcase section: "Meet the Slime catchers!"
     const charHeading = this.add.text(width / 2, charHeadingY, 'Meet the Slime catchers!', {
@@ -150,5 +194,85 @@ export default class MenuScene extends Phaser.Scene {
         delay: i * 140
       });
     });
+  }
+
+  private setupKeyboardNavigation(): void {
+    this.input.keyboard?.on('keydown-UP', () => this.navigateMenu(-1));
+    this.input.keyboard?.on('keydown-W', () => this.navigateMenu(-1));
+    this.input.keyboard?.on('keydown-DOWN', () => this.navigateMenu(1));
+    this.input.keyboard?.on('keydown-S', () => this.navigateMenu(1));
+
+    this.input.keyboard?.on('keydown-ENTER', () => this.activateSelectedButton());
+    this.input.keyboard?.on('keydown-SPACE', () => this.activateSelectedButton());
+  }
+
+  private navigateMenu(delta: number): void {
+    SoundFx.playCursor();
+    this.selectedButtonIndex = (this.selectedButtonIndex + delta + this.menuButtons.length) % this.menuButtons.length;
+    this.updateButtonSelection();
+  }
+
+  private activateSelectedButton(): void {
+    SoundFx.playCursor();
+    if (this.menuActions[this.selectedButtonIndex]) {
+      this.menuActions[this.selectedButtonIndex]();
+    }
+  }
+
+  private updateButtonSelection(): void {
+    this.menuButtons.forEach((btn, idx) => {
+      if (idx === this.selectedButtonIndex) {
+        btn.setScale(1.06);
+        if (this.cursorIndicator) {
+          this.cursorIndicator.setPosition(btn.x - 118, btn.y);
+          this.cursorIndicator.setVisible(true);
+        }
+      } else {
+        btn.setScale(1.0);
+      }
+    });
+  }
+
+  public update(_time: number, delta: number): void {
+    this.handleGamepadInput(delta);
+  }
+
+  private getActiveGamepad(): Phaser.Input.Gamepad.Gamepad | null {
+    if (this.input.gamepad && this.input.gamepad.total > 0) {
+      for (let i = 0; i < this.input.gamepad.gamepads.length; i++) {
+        const pad = this.input.gamepad.gamepads[i];
+        if (pad && pad.connected) return pad;
+      }
+    }
+    return null;
+  }
+
+  private handleGamepadInput(delta: number): void {
+    const pad = this.getActiveGamepad();
+    if (!pad) return;
+
+    const stickY = pad.leftStick ? pad.leftStick.y : 0;
+    const isUp = pad.up || pad.isButtonDown(12) || stickY < -0.45;
+    const isDown = pad.down || pad.isButtonDown(13) || stickY > 0.45;
+
+    if (isUp || isDown) {
+      if (this.padRepeatTimer <= 0) {
+        if (isUp) this.navigateMenu(-1);
+        else if (isDown) this.navigateMenu(1);
+        this.padRepeatTimer = 220;
+      } else {
+        this.padRepeatTimer -= delta;
+      }
+    } else {
+      this.padRepeatTimer = 0;
+    }
+
+    // Button 0 (A) or Button 9 (Start)
+    const selectDown = pad.A || pad.isButtonDown(0) || pad.isButtonDown(9);
+    const prevSelect = this.prevPadButtons.get(0) || false;
+    if (selectDown && !prevSelect) {
+      this.activateSelectedButton();
+    }
+    this.prevPadButtons.set(0, selectDown);
   }
 }

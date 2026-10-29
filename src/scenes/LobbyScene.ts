@@ -28,6 +28,16 @@ export default class LobbyScene extends Phaser.Scene {
   private joinErrorText!: Phaser.GameObjects.Text;
   private keydownHandler?: (e: KeyboardEvent) => void;
 
+  // Universal Navigation & Gamepad State
+  private focusIndex: number = 1; // 0: Character Banner, 1: Create, 2: Join, 3: Back
+  private mainPillButtons: Phaser.GameObjects.Container[] = [];
+  private bannerBg!: Phaser.GameObjects.Graphics;
+  private bannerX: number = 0;
+  private bannerY: number = 0;
+  private padRepeatTimer: number = 0;
+  private prevPadButtons: Map<number, boolean> = new Map();
+  private globalKeydownHandler?: (e: KeyboardEvent) => void;
+
   constructor() {
     super({ key: 'LobbyScene' });
   }
@@ -103,15 +113,17 @@ export default class LobbyScene extends Phaser.Scene {
 
     // Wire Socket Events
     this.setupSocketEvents();
+
+    // Setup Keyboard & Gamepad navigation
+    this.setupUniversalNavigation();
   }
 
   /** Character selector allowing quick switching before entering rooms */
   private createCharacterBanner(x: number, y: number): void {
-    const cardBg = this.add.graphics();
-    cardBg.fillStyle(0x000000, 0.45);
-    cardBg.fillRoundedRect(x - 170, y - 30, 340, 60, 10);
-    cardBg.lineStyle(1.5, 0x54a0ff, 0.8);
-    cardBg.strokeRoundedRect(x - 170, y - 30, 340, 60, 10);
+    this.bannerX = x;
+    this.bannerY = y;
+    this.bannerBg = this.add.graphics();
+    this.updateBannerBorder(false);
 
     const char = CHARACTERS[this.characterIndex];
 
@@ -168,6 +180,15 @@ export default class LobbyScene extends Phaser.Scene {
     return CHARACTERS[this.characterIndex].id;
   }
 
+  private updateBannerBorder(focused: boolean): void {
+    if (!this.bannerBg) return;
+    this.bannerBg.clear();
+    this.bannerBg.fillStyle(0x000000, 0.45);
+    this.bannerBg.fillRoundedRect(this.bannerX - 170, this.bannerY - 30, 340, 60, 10);
+    this.bannerBg.lineStyle(focused ? 2.5 : 1.5, focused ? 0xff69b4 : 0x54a0ff, focused ? 1.0 : 0.8);
+    this.bannerBg.strokeRoundedRect(this.bannerX - 170, this.bannerY - 30, 340, 60, 10);
+  }
+
   /** The 3 required buttons under Online Multiplayer */
   private createMainButtons(x: number, startY: number): void {
     this.mainButtonsContainer = this.add.container(0, 0);
@@ -188,6 +209,14 @@ export default class LobbyScene extends Phaser.Scene {
     const backBtn = CuteUI.createPillButton(this, x, startY + btnSpacing * 2, 'BACK TO MENU', () => {
       this.handleBackToMenu();
     }, { textureKey: 'pill_grey', fontSize: '15px' });
+
+    this.mainPillButtons = [createBtn, joinBtn, backBtn];
+    this.mainPillButtons.forEach((btn, idx) => {
+      btn.on('pointerover', () => {
+        this.focusIndex = idx + 1;
+        this.updateFocusVisuals();
+      });
+    });
 
     this.mainButtonsContainer.add([createBtn, joinBtn, backBtn]);
   }
@@ -593,5 +622,163 @@ export default class LobbyScene extends Phaser.Scene {
       width: 110,
       height: 30
     });
+  }
+
+  private setupUniversalNavigation(): void {
+    this.updateFocusVisuals();
+
+    this.globalKeydownHandler = (e: KeyboardEvent) => {
+      // If join modal is open, it has its own typing listener
+      if (this.joinModalContainer?.visible) return;
+
+      if (e.key === 'Escape') {
+        if (this.waitingRoomContainer?.visible) {
+          this.handleBackToMenu();
+        } else {
+          this.handleBackToMenu();
+        }
+        return;
+      }
+
+      if (this.waitingRoomContainer?.visible) return;
+
+      if (e.key === 'ArrowUp' || e.code === 'KeyW') {
+        SoundFx.playCursor();
+        this.focusIndex = (this.focusIndex - 1 + 4) % 4;
+        this.updateFocusVisuals();
+      } else if (e.key === 'ArrowDown' || e.code === 'KeyS') {
+        SoundFx.playCursor();
+        this.focusIndex = (this.focusIndex + 1) % 4;
+        this.updateFocusVisuals();
+      } else if (this.focusIndex === 0 && (e.key === 'ArrowLeft' || e.code === 'KeyA')) {
+        this.cycleCharacter(-1);
+      } else if (this.focusIndex === 0 && (e.key === 'ArrowRight' || e.code === 'KeyD')) {
+        this.cycleCharacter(1);
+      } else if (e.key === 'Enter' || e.code === 'Space') {
+        this.activateFocusedItem();
+      }
+    };
+
+    window.addEventListener('keydown', this.globalKeydownHandler);
+
+    this.events.once('shutdown', () => {
+      if (this.globalKeydownHandler) {
+        window.removeEventListener('keydown', this.globalKeydownHandler);
+      }
+    });
+  }
+
+  private activateFocusedItem(): void {
+    if (this.focusIndex === 0) {
+      this.cycleCharacter(1);
+    } else if (this.focusIndex === 1) {
+      this.handleCreateRoom();
+    } else if (this.focusIndex === 2) {
+      this.openJoinModal();
+    } else if (this.focusIndex === 3) {
+      this.handleBackToMenu();
+    }
+  }
+
+  private updateFocusVisuals(): void {
+    this.updateBannerBorder(this.focusIndex === 0);
+    this.mainPillButtons.forEach((btn, idx) => {
+      btn.setScale(this.focusIndex === idx + 1 ? 1.06 : 1.0);
+    });
+  }
+
+  public update(_time: number, delta: number): void {
+    this.handleGamepadInput(delta);
+  }
+
+  private getActiveGamepad(): Phaser.Input.Gamepad.Gamepad | null {
+    if (this.input.gamepad && this.input.gamepad.total > 0) {
+      for (let i = 0; i < this.input.gamepad.gamepads.length; i++) {
+        const pad = this.input.gamepad.gamepads[i];
+        if (pad && pad.connected) return pad;
+      }
+    }
+    return null;
+  }
+
+  private handleGamepadInput(delta: number): void {
+    const pad = this.getActiveGamepad();
+    if (!pad) return;
+
+    // Join Modal handling
+    if (this.joinModalContainer?.visible) {
+      const backDown = pad.B || pad.isButtonDown(1);
+      const prevBack = this.prevPadButtons.get(1) || false;
+      if (backDown && !prevBack) {
+        this.closeJoinModal();
+      }
+      this.prevPadButtons.set(1, backDown);
+
+      const submitDown = pad.A || pad.isButtonDown(0) || pad.isButtonDown(9);
+      const prevSubmit = this.prevPadButtons.get(0) || false;
+      if (submitDown && !prevSubmit) {
+        this.submitJoinCode();
+      }
+      this.prevPadButtons.set(0, submitDown);
+      return;
+    }
+
+    // Waiting Room handling
+    if (this.waitingRoomContainer?.visible) {
+      const backDown = pad.B || pad.isButtonDown(1);
+      const prevBack = this.prevPadButtons.get(1) || false;
+      if (backDown && !prevBack) {
+        this.handleBackToMenu();
+      }
+      this.prevPadButtons.set(1, backDown);
+      return;
+    }
+
+    const stickX = pad.leftStick ? pad.leftStick.x : 0;
+    const stickY = pad.leftStick ? pad.leftStick.y : 0;
+
+    const isUp = pad.up || pad.isButtonDown(12) || stickY < -0.45;
+    const isDown = pad.down || pad.isButtonDown(13) || stickY > 0.45;
+    const isLeft = pad.left || pad.isButtonDown(14) || stickX < -0.45;
+    const isRight = pad.right || pad.isButtonDown(15) || stickX > 0.45;
+
+    if (isUp || isDown || isLeft || isRight) {
+      if (this.padRepeatTimer <= 0) {
+        if (isUp) {
+          SoundFx.playCursor();
+          this.focusIndex = (this.focusIndex - 1 + 4) % 4;
+          this.updateFocusVisuals();
+        } else if (isDown) {
+          SoundFx.playCursor();
+          this.focusIndex = (this.focusIndex + 1) % 4;
+          this.updateFocusVisuals();
+        } else if (this.focusIndex === 0 && isLeft) {
+          this.cycleCharacter(-1);
+        } else if (this.focusIndex === 0 && isRight) {
+          this.cycleCharacter(1);
+        }
+        this.padRepeatTimer = 220;
+      } else {
+        this.padRepeatTimer -= delta;
+      }
+    } else {
+      this.padRepeatTimer = 0;
+    }
+
+    // Button 0 (A) or Start
+    const selectDown = pad.A || pad.isButtonDown(0) || pad.isButtonDown(9);
+    const prevSelect = this.prevPadButtons.get(0) || false;
+    if (selectDown && !prevSelect) {
+      this.activateFocusedItem();
+    }
+    this.prevPadButtons.set(0, selectDown);
+
+    // Button 1 (B)
+    const backDown = pad.B || pad.isButtonDown(1);
+    const prevBack = this.prevPadButtons.get(1) || false;
+    if (backDown && !prevBack) {
+      this.handleBackToMenu();
+    }
+    this.prevPadButtons.set(1, backDown);
   }
 }

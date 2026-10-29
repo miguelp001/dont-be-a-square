@@ -1,10 +1,31 @@
 import Phaser from 'phaser';
 import { SoundFx } from './SoundFx';
 
+export interface KeyBindings {
+  moveUp: string;
+  moveDown: string;
+  moveLeft: string;
+  moveRight: string;
+  swap: string;
+  lift: string;
+  pause: string;
+}
+
+export const DEFAULT_KEYBINDINGS: KeyBindings = {
+  moveUp: 'UP',
+  moveDown: 'DOWN',
+  moveLeft: 'LEFT',
+  moveRight: 'RIGHT',
+  swap: 'SPACE',
+  lift: 'SHIFT',
+  pause: 'ESCAPE'
+};
+
 export class Settings {
   private static STORAGE_KEY = 'dont_be_a_square_settings_v1';
   public static musicVolume: number = 0.6; // 0.0 to 1.0
   public static sfxVolume: number = 0.6;   // 0.0 to 1.0
+  public static keyBindings: KeyBindings = { ...DEFAULT_KEYBINDINGS };
 
   public static load(scene?: Phaser.Scene): void {
     try {
@@ -16,6 +37,12 @@ export class Settings {
         }
         if (typeof parsed.sfxVolume === 'number') {
           this.sfxVolume = Math.max(0, Math.min(1, parsed.sfxVolume));
+        }
+        if (parsed.keyBindings && typeof parsed.keyBindings === 'object') {
+          this.keyBindings = {
+            ...DEFAULT_KEYBINDINGS,
+            ...parsed.keyBindings
+          };
         }
       }
     } catch (e) {
@@ -30,12 +57,23 @@ export class Settings {
         this.STORAGE_KEY,
         JSON.stringify({
           musicVolume: this.musicVolume,
-          sfxVolume: this.sfxVolume
+          sfxVolume: this.sfxVolume,
+          keyBindings: this.keyBindings
         })
       );
     } catch (e) {
       console.warn('Failed to save settings to localStorage:', e);
     }
+  }
+
+  public static setKeyBinding(action: keyof KeyBindings, key: string): void {
+    this.keyBindings[action] = key.toUpperCase();
+    this.save();
+  }
+
+  public static resetKeyBindings(): void {
+    this.keyBindings = { ...DEFAULT_KEYBINDINGS };
+    this.save();
   }
 
   public static apply(scene?: Phaser.Scene): void {
