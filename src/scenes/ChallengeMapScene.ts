@@ -34,6 +34,8 @@ export default class ChallengeMapScene extends Phaser.Scene {
 
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
+    const uiScale = CuteUI.getUIScale(this);
+    const cardScale = Math.min(1.35, uiScale);
 
     // Slowly drifting cute pastel pattern background
     CuteUI.createCuteBackground(this);
@@ -48,19 +50,19 @@ export default class ChallengeMapScene extends Phaser.Scene {
     }
 
     // Top Header Banner
-    const title = this.add.text(width / 2, 32, 'CHALLENGE MODE: ROAD TO CHAMPION', {
-      fontSize: '20px',
+    const title = this.add.text(width / 2, Math.round(30 * uiScale), 'CHALLENGE MODE: ROAD TO CHAMPION', {
+      fontSize: Math.round(20 * uiScale) + 'px',
       color: '#feca57',
       fontStyle: 'bold',
       stroke: '#000000',
-      strokeThickness: 4
+      strokeThickness: Math.max(3, Math.round(4 * uiScale))
     });
     title.setOrigin(0.5);
 
     // Subtitle instruction
     this.add
-      .text(width / 2, 54, 'Defeat all 7 challengers in any order to claim the crown!', {
-        fontSize: '11px',
+      .text(width / 2, Math.round(54 * uiScale), 'Defeat all 7 challengers in any order to claim the crown!', {
+        fontSize: Math.round(11 * uiScale) + 'px',
         color: '#c8d6e5',
         stroke: '#000000',
         strokeThickness: 2
@@ -68,25 +70,31 @@ export default class ChallengeMapScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     // Header bar with Player Portrait & Champion Progress
+    const barW = Math.min(width - 40, Math.round(760 * uiScale));
+    const barH = Math.round(48 * uiScale);
+    const barX = (width - barW) / 2;
+    const barY = Math.round(68 * uiScale);
+
     const headerBar = this.add.graphics();
     headerBar.fillStyle(0x000000, 0.45);
-    headerBar.fillRoundedRect(20, 68, width - 40, 48, 8);
+    headerBar.fillRoundedRect(barX, barY, barW, barH, 8);
     headerBar.lineStyle(1, 0xffffff, 0.15);
-    headerBar.strokeRoundedRect(20, 68, width - 40, 48, 8);
+    headerBar.strokeRoundedRect(barX, barY, barW, barH, 8);
 
     // Player Avatar badge
-    const pAvatar = this.add.image(44, 92, playerChar.id);
-    pAvatar.setDisplaySize(38, 38);
+    const pAvatar = this.add.image(barX + Math.round(24 * uiScale), barY + barH / 2, playerChar.id);
+    const pAvatarSize = Math.round(38 * cardScale);
+    pAvatar.setDisplaySize(pAvatarSize, pAvatarSize);
 
-    this.add.text(70, 78, `Fighter: ${playerChar.name}`, {
-      fontSize: '13px',
+    this.add.text(barX + Math.round(50 * uiScale), barY + barH / 2 - Math.round(10 * uiScale), `Fighter: ${playerChar.name}`, {
+      fontSize: Math.round(13 * uiScale) + 'px',
       color: '#ff69b4',
       fontStyle: 'bold',
       stroke: '#000000',
       strokeThickness: 2
     });
-    this.add.text(70, 94, playerChar.species, {
-      fontSize: '10px',
+    this.add.text(barX + Math.round(50 * uiScale), barY + barH / 2 + Math.round(7 * uiScale), playerChar.species, {
+      fontSize: Math.round(10.5 * uiScale) + 'px',
       color: '#ff9ff3',
       fontStyle: 'italic',
       stroke: '#000000',
@@ -95,11 +103,11 @@ export default class ChallengeMapScene extends Phaser.Scene {
 
     // Progress counter on right
     const progressText = this.add.text(
-      width - 36,
-      92,
+      barX + barW - Math.round(16 * uiScale),
+      barY + barH / 2,
       `🏆 PROGRESS: ${this.defeatedOpponents.length} / ${totalOpponents} DEFEATED`,
       {
-        fontSize: '13px',
+        fontSize: Math.round(12.5 * uiScale) + 'px',
         color: '#feca57',
         fontStyle: 'bold',
         stroke: '#000000',
@@ -111,42 +119,45 @@ export default class ChallengeMapScene extends Phaser.Scene {
     // Challengers Grid (7 opponents)
     // Row 1: 4 cards, Row 2: 3 cards
     const opponents = CHARACTERS.filter((c) => c.id !== this.characterId);
-    const cardW = 108;
-    const cardH = 130;
+    const cardW = Math.round(108 * cardScale);
+    const cardH = Math.round(130 * cardScale);
+    const spacingX = Math.round(122 * cardScale);
 
-    // Positions for 7 cards
+    const row1Y = barY + barH + Math.round(18 * uiScale) + cardH / 2;
+    const row2Y = row1Y + cardH + Math.round(16 * uiScale);
+
+    // Positions for 7 cards dynamically centered
     const cardPositions = [
-      { x: 74, y: 195 },
-      { x: 195, y: 195 },
-      { x: 316, y: 195 },
-      { x: 437, y: 195 },
-      { x: 135, y: 345 },
-      { x: 256, y: 345 },
-      { x: 377, y: 345 }
+      { x: width / 2 - 1.5 * spacingX, y: row1Y },
+      { x: width / 2 - 0.5 * spacingX, y: row1Y },
+      { x: width / 2 + 0.5 * spacingX, y: row1Y },
+      { x: width / 2 + 1.5 * spacingX, y: row1Y },
+      { x: width / 2 - spacingX, y: row2Y },
+      { x: width / 2, y: row2Y },
+      { x: width / 2 + spacingX, y: row2Y }
     ];
-
-    const xOffset = Math.round(width / 2 - 256);
 
     opponents.forEach((opp, i) => {
       const pos = cardPositions[i];
       const isDefeated = this.defeatedOpponents.includes(opp.id);
       const personality = AI_PERSONALITIES[opp.id];
 
-      this.createOpponentCard(pos.x + xOffset, pos.y, cardW, cardH, opp, personality, isDefeated);
+      this.createOpponentCard(pos.x, pos.y, cardW, cardH, opp, personality, isDefeated, cardScale);
     });
 
     // Bottom Navigation Buttons
-    const cardsBottom = 345 + 65; // 410
-    const safeBottom = height - 42;
-    const footerY = Math.min(safeBottom, Math.max(cardsBottom + 45, 465));
+    const cardsBottom = row2Y + cardH / 2;
+    const safeBottom = height - Math.round(35 * uiScale);
+    const footerY = Math.min(safeBottom, cardsBottom + Math.round(38 * uiScale));
+    const btnSpacing = Math.round(125 * uiScale);
 
-    this.createFooterButton(width / 2 - 110, footerY, 'CHANGE FIGHTER', () => {
+    this.createFooterButton(width / 2 - btnSpacing, footerY, 'CHANGE FIGHTER', () => {
       this.scene.start('CharacterSelectScene', { mode: 'challenge' });
-    });
+    }, uiScale);
 
-    this.createFooterButton(width / 2 + 110, footerY, 'MAIN MENU', () => {
+    this.createFooterButton(width / 2 + btnSpacing, footerY, 'MAIN MENU', () => {
       this.scene.start('MenuScene');
-    });
+    }, uiScale);
 
     this.selectedIndex = 0;
     this.selectableItems[0]?.highlight(true);
@@ -300,7 +311,8 @@ export default class ChallengeMapScene extends Phaser.Scene {
     h: number,
     char: any,
     personality: any,
-    isDefeated: boolean
+    isDefeated: boolean,
+    cardScale: number = 1.0
   ): void {
     const card = this.add.graphics();
     const borderColor = isDefeated ? 0x2ed573 : 0x54a0ff;
@@ -313,16 +325,18 @@ export default class ChallengeMapScene extends Phaser.Scene {
     card.strokeRoundedRect(x - w / 2, y - h / 2, w, h, 8);
 
     // Opponent Portrait
-    const avatar = this.add.image(x, y - 28, char.id);
-    avatar.setDisplaySize(44, 44);
+    const avatar = this.add.image(x, y - Math.round(28 * cardScale), char.id);
+    const normalSize = Math.round(44 * cardScale);
+    const hoverSize = Math.round(48 * cardScale);
+    avatar.setDisplaySize(normalSize, normalSize);
     if (isDefeated) {
       avatar.setTint(0x7f8c8d);
       avatar.setAlpha(0.65);
     }
 
     // Name
-    const nameText = this.add.text(x, y + 2, char.name, {
-      fontSize: '12px',
+    const nameText = this.add.text(x, y + Math.round(2 * cardScale), char.name, {
+      fontSize: Math.round(12 * cardScale) + 'px',
       color: isDefeated ? '#a4b0be' : '#ffffff',
       fontStyle: 'bold',
       stroke: '#000000',
@@ -331,8 +345,8 @@ export default class ChallengeMapScene extends Phaser.Scene {
     nameText.setOrigin(0.5);
 
     // AI Title / Archetype
-    const titleText = this.add.text(x, y + 17, personality?.title || char.species, {
-      fontSize: '8.5px',
+    const titleText = this.add.text(x, y + Math.round(17 * cardScale), personality?.title || char.species, {
+      fontSize: Math.round(8.5 * cardScale) + 'px',
       color: isDefeated ? '#747d8c' : '#feca57',
       fontStyle: 'italic',
       stroke: '#000000',
@@ -349,7 +363,7 @@ export default class ChallengeMapScene extends Phaser.Scene {
       card.fillRoundedRect(x - w / 2, y - h / 2, w, h, 8);
       card.lineStyle(on ? 3 : 2, on ? 0xff4757 : borderColor, on ? 1.0 : (isDefeated ? 0.6 : 1.0));
       card.strokeRoundedRect(x - w / 2, y - h / 2, w, h, 8);
-      avatar.setDisplaySize(on ? 48 : 44, on ? 48 : 44);
+      avatar.setDisplaySize(on ? hoverSize : normalSize, on ? hoverSize : normalSize);
     };
 
     const startBattleAction = () => {
@@ -369,8 +383,8 @@ export default class ChallengeMapScene extends Phaser.Scene {
 
     if (isDefeated) {
       // Golden / Green Crown / Checkmark
-      const clearBadge = this.add.text(x, y + 44, '✓ DEFEATED', {
-        fontSize: '11px',
+      const clearBadge = this.add.text(x, y + Math.round(44 * cardScale), '✓ DEFEATED', {
+        fontSize: Math.round(11 * cardScale) + 'px',
         color: '#2ed573',
         fontStyle: 'bold',
         stroke: '#000000',
@@ -379,14 +393,16 @@ export default class ChallengeMapScene extends Phaser.Scene {
       clearBadge.setOrigin(0.5);
     } else {
       // Interactive Battle Button
+      const btnW = Math.round(76 * cardScale);
+      const btnH = Math.round(24 * cardScale);
       const btnBg = this.add.graphics();
       btnBg.fillStyle(0xff4757, 1);
-      btnBg.fillRoundedRect(x - 38, y + 32, 76, 24, 6);
+      btnBg.fillRoundedRect(x - btnW / 2, y + Math.round(32 * cardScale), btnW, btnH, 6);
       btnBg.lineStyle(1, 0xffffff, 0.4);
-      btnBg.strokeRoundedRect(x - 38, y + 32, 76, 24, 6);
+      btnBg.strokeRoundedRect(x - btnW / 2, y + Math.round(32 * cardScale), btnW, btnH, 6);
 
-      const battleText = this.add.text(x, y + 44, 'BATTLE!', {
-        fontSize: '11px',
+      const battleText = this.add.text(x, y + Math.round(44 * cardScale), 'BATTLE!', {
+        fontSize: Math.round(11 * cardScale) + 'px',
         color: '#ffffff',
         fontStyle: 'bold',
         stroke: '#000000',
@@ -420,6 +436,7 @@ export default class ChallengeMapScene extends Phaser.Scene {
   private createChampionCelebration(playerChar: any): void {
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
+    const uiScale = CuteUI.getUIScale(this);
 
     SoundFx.playVictory();
 
@@ -428,7 +445,7 @@ export default class ChallengeMapScene extends Phaser.Scene {
       const x = Math.random() * width;
       const y = -10 - Math.random() * 80;
       const star = this.add.image(x, y, 'sparkle_star');
-      star.setDisplaySize(14, 14);
+      star.setDisplaySize(Math.round(14 * uiScale), Math.round(14 * uiScale));
       star.setTint([0xfff200, 0xff69b4, 0x00d2d3, 0x2ed573, 0xff9f43][Math.floor(Math.random() * 5)]);
 
       this.tweens.add({
@@ -444,53 +461,54 @@ export default class ChallengeMapScene extends Phaser.Scene {
 
     // Trophy Badge
     this.add
-      .text(width / 2, 70, '🏆', {
-        fontSize: '54px'
+      .text(width / 2, Math.round(70 * uiScale), '🏆', {
+        fontSize: Math.round(54 * uiScale) + 'px'
       })
       .setOrigin(0.5);
 
     this.add
-      .text(width / 2, 130, 'CONGRATULATIONS!', {
-        fontSize: '28px',
+      .text(width / 2, Math.round(130 * uiScale), 'CONGRATULATIONS!', {
+        fontSize: Math.round(28 * uiScale) + 'px',
         color: '#feca57',
         fontStyle: 'bold',
         stroke: '#000000',
-        strokeThickness: 5
+        strokeThickness: Math.max(3, Math.round(5 * uiScale))
       })
       .setOrigin(0.5);
 
     this.add
-      .text(width / 2, 165, 'YOU ARE THE GRAND SLIME CHAMPION!', {
-        fontSize: '18px',
+      .text(width / 2, Math.round(165 * uiScale), 'YOU ARE THE GRAND SLIME CHAMPION!', {
+        fontSize: Math.round(18 * uiScale) + 'px',
         color: '#2ed573',
         fontStyle: 'bold',
         stroke: '#000000',
-        strokeThickness: 4
+        strokeThickness: Math.max(2, Math.round(4 * uiScale))
       })
       .setOrigin(0.5);
 
     // Champion Portrait
-    const avatar = this.add.image(width / 2, 235, playerChar.id);
-    avatar.setDisplaySize(80, 80);
+    const avatar = this.add.image(width / 2, Math.round(235 * uiScale), playerChar.id);
+    const champSize = Math.round(80 * uiScale);
+    avatar.setDisplaySize(champSize, champSize);
 
     // Pulsing glow circle behind champion
     const glow = this.add.graphics();
-    glow.lineStyle(4, 0xfeca57, 0.8);
-    glow.strokeCircle(width / 2, 235, 48);
+    glow.lineStyle(Math.max(2, Math.round(4 * uiScale)), 0xfeca57, 0.8);
+    glow.strokeCircle(width / 2, Math.round(235 * uiScale), Math.round(48 * uiScale));
 
     this.add
-      .text(width / 2, 295, `${playerChar.name}: "${playerChar.quote}"`, {
-        fontSize: '14px',
+      .text(width / 2, Math.round(295 * uiScale), `${playerChar.name}: "${playerChar.quote}"`, {
+        fontSize: Math.round(14 * uiScale) + 'px',
         color: '#ffffff',
         fontStyle: 'italic bold',
         stroke: '#000000',
-        strokeThickness: 3
+        strokeThickness: Math.max(2, Math.round(3 * uiScale))
       })
       .setOrigin(0.5);
 
     this.add
-      .text(width / 2, 325, 'You conquered all 7 challenger personalities with pride!', {
-        fontSize: '12px',
+      .text(width / 2, Math.round(325 * uiScale), 'You conquered all 7 challenger personalities with pride!', {
+        fontSize: Math.round(12 * uiScale) + 'px',
         color: '#c8d6e5',
         stroke: '#000000',
         strokeThickness: 2
@@ -498,24 +516,26 @@ export default class ChallengeMapScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     // Action buttons
-    this.createFooterButton(width / 2 - 110, 410, 'PLAY AGAIN', () => {
+    const btnSpacing = Math.round(125 * uiScale);
+    this.createFooterButton(width / 2 - btnSpacing, Math.round(410 * uiScale), 'PLAY AGAIN', () => {
       this.scene.start('ChallengeMapScene', {
         characterId: this.characterId,
         defeatedOpponents: []
       });
-    });
+    }, uiScale);
 
-    this.createFooterButton(width / 2 + 110, 410, 'MAIN MENU', () => {
+    this.createFooterButton(width / 2 + btnSpacing, Math.round(410 * uiScale), 'MAIN MENU', () => {
       this.scene.start('MenuScene');
-    });
+    }, uiScale);
   }
 
-  private createFooterButton(x: number, y: number, text: string, callback: () => void): Phaser.GameObjects.Container {
+  private createFooterButton(x: number, y: number, text: string, callback: () => void, uiScale: number = 1.0): Phaser.GameObjects.Container {
     const btn = CuteUI.createPillButton(this, x, y, text, callback, {
       textureKey: 'pill_sm_pink',
-      fontSize: '12px',
-      width: 150,
-      height: 34
+      fontSize: Math.round(12 * uiScale) + 'px',
+      width: Math.round(150 * uiScale),
+      height: Math.round(34 * uiScale),
+      autoScale: false
     });
     this.selectableItems.push({
       highlight: (on: boolean) => btn.setScale(on ? 1.08 : 1.0),

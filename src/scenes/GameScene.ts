@@ -426,18 +426,19 @@ export default class GameScene extends Phaser.Scene {
       const maxScaleByW = Math.floor((availableW / (2.4 * BOARD_WIDTH * PANEL_SIZE + 24)) * 100) / 100;
       const availableH = height - 160;
       const maxScaleByH = Math.floor((availableH / (1.14 * BOARD_VISIBLE_HEIGHT * PANEL_SIZE)) * 100) / 100;
-      this.playerBoardScale = Math.min(1.85, Math.max(0.85, Math.min(maxScaleByW, maxScaleByH)));
+      this.playerBoardScale = Math.min(2.45, Math.max(0.85, Math.min(maxScaleByW, maxScaleByH)));
       this.cpuBoardScale = this.playerBoardScale;
 
+      const boardScaleRatio = this.playerBoardScale / 1.15;
       const boardW = Math.round(BOARD_WIDTH * PANEL_SIZE * this.playerBoardScale);
       const boardH = Math.round(BOARD_VISIBLE_HEIGHT * PANEL_SIZE * this.playerBoardScale);
 
-      const boardY = height > 550 ? Math.max(90, Math.round((height - boardH - 100) * 0.38)) : 88;
+      const boardY = height > 550 ? Math.max(90, Math.round((height - boardH - 90) * 0.42)) : 88;
       this.boardP1Y = boardY;
       this.boardP2Y = boardY;
 
       const centerX = width / 2;
-      const boardGap = Math.min(65, Math.max(16, width - boardW * 2 - 32));
+      const boardGap = Math.min(Math.round(110 * boardScaleRatio), Math.max(24, width - boardW * 2 - 32));
       const p1X = Math.round(centerX - boardW - boardGap / 2);
       const p2X = Math.round(centerX + boardGap / 2);
 
@@ -448,18 +449,20 @@ export default class GameScene extends Phaser.Scene {
       const timerContainer = this.add.container(centerX, boardY + Math.round(boardH * 0.28));
       timerContainer.setDepth(30);
 
+      const timerPlaqueW = Math.round(120 * boardScaleRatio);
+      const timerPlaqueH = Math.round(42 * boardScaleRatio);
       const timerPlaque = this.add.image(0, 0, 'wood_plaque_sign');
-      timerPlaque.setDisplaySize(Math.min(boardGap + 44, 114), 38);
+      timerPlaque.setDisplaySize(Math.min(boardGap + 36, timerPlaqueW), timerPlaqueH);
 
-      const clockIcon = this.add.image(-28, 0, 'wood_clock_icon');
-      clockIcon.setDisplaySize(20, 20);
+      const clockIcon = this.add.image(-Math.round(28 * boardScaleRatio), 0, 'wood_clock_icon');
+      clockIcon.setDisplaySize(Math.round(22 * boardScaleRatio), Math.round(22 * boardScaleRatio));
 
-      this.timeText = this.add.text(12, -1, this.formatTime(this.gameTime), {
-        fontSize: '15px',
+      this.timeText = this.add.text(Math.round(12 * boardScaleRatio), -1, this.formatTime(this.gameTime), {
+        fontSize: `${Math.round(16 * boardScaleRatio)}px`,
         color: '#fff3c4',
         fontStyle: 'bold',
         stroke: '#3e2415',
-        strokeThickness: 3
+        strokeThickness: Math.round(3 * (boardScaleRatio > 1.3 ? 1.3 : 1.0))
       }).setOrigin(0.5);
 
       timerContainer.add([timerPlaque, clockIcon, this.timeText]);
@@ -472,30 +475,34 @@ export default class GameScene extends Phaser.Scene {
       this.playerBoard.addInitialPanels(5);
       this.playerCursor = new Cursor(this, this.playerBoard);
 
-      const p1PlaqueW = Math.min(boardW - 6, 210);
-      const p1Header = this.add.container(p1X + boardW / 2, boardY - 32);
+      const p1PlaqueW = Math.min(boardW - 6, Math.round(280 * boardScaleRatio));
+      const p1PlaqueH = Math.round(40 * boardScaleRatio);
+      const p1Header = this.add.container(p1X + boardW / 2, boardY - Math.round(28 * boardScaleRatio));
       p1Header.setDepth(24);
       const p1Sign = this.add.image(0, 0, 'wood_plaque_sign');
-      p1Sign.setDisplaySize(p1PlaqueW, 38);
+      p1Sign.setDisplaySize(p1PlaqueW, p1PlaqueH);
 
-      const p1Badge = CuteUI.createPillButton(this, -p1PlaqueW / 2 + 24, 0, 'P1', () => {}, {
+      const badgeW = Math.round(38 * boardScaleRatio);
+      const badgeH = Math.round(24 * boardScaleRatio);
+      const p1Badge = CuteUI.createPillButton(this, -p1PlaqueW / 2 + Math.round(24 * boardScaleRatio), 0, 'P1', () => {}, {
         textureKey: 'pill_pink',
-        fontSize: '11px',
-        width: 36,
-        height: 22,
-        shadow: false
+        fontSize: `${Math.round(11 * boardScaleRatio)}px`,
+        width: badgeW,
+        height: badgeH,
+        shadow: false,
+        autoScale: false
       });
 
-      const p1NameText = this.add.text(-p1PlaqueW / 2 + 48, -7, p1Char.name, {
-        fontSize: '12px',
+      const p1NameText = this.add.text(-p1PlaqueW / 2 + Math.round(50 * boardScaleRatio), -Math.round(7 * boardScaleRatio), p1Char.name, {
+        fontSize: `${Math.round(13 * boardScaleRatio)}px`,
         color: '#fff3c4',
         fontStyle: 'bold',
         stroke: '#3e2415',
-        strokeThickness: 3
+        strokeThickness: Math.round(3 * (boardScaleRatio > 1.3 ? 1.3 : 1.0))
       });
 
-      this.playerScoreText = this.add.text(-p1PlaqueW / 2 + 48, 6, 'SCORE: 0', {
-        fontSize: '10px',
+      this.playerScoreText = this.add.text(-p1PlaqueW / 2 + Math.round(50 * boardScaleRatio), Math.round(7 * boardScaleRatio), 'SCORE: 0', {
+        fontSize: `${Math.round(11 * boardScaleRatio)}px`,
         color: '#ffffff',
         fontStyle: 'bold',
         stroke: '#3e2415',
@@ -505,8 +512,8 @@ export default class GameScene extends Phaser.Scene {
       p1Header.add([p1Sign, p1Badge, p1NameText, this.playerScoreText]);
 
       this.playerChainText = this.add
-        .text(p1X + boardW / 2, boardY + boardH + 16, '', {
-          fontSize: '17px',
+        .text(p1X + boardW / 2, boardY + boardH + Math.round(18 * boardScaleRatio), '', {
+          fontSize: `${Math.round(18 * boardScaleRatio)}px`,
           color: '#ff9f43',
           fontStyle: 'bold',
           stroke: '#000000',
@@ -515,8 +522,8 @@ export default class GameScene extends Phaser.Scene {
         .setOrigin(0.5);
 
       this.playerDangerText = this.add
-        .text(p1X + boardW / 2, boardY - 50, '', {
-          fontSize: '12px',
+        .text(p1X + boardW / 2, boardY - Math.round(52 * boardScaleRatio), '', {
+          fontSize: `${Math.round(13 * boardScaleRatio)}px`,
           color: '#ff4757',
           fontStyle: 'bold',
           stroke: '#000000',
@@ -534,8 +541,8 @@ export default class GameScene extends Phaser.Scene {
       this.cpuCursor.setStrokeStyle(3 * this.cpuBoardScale, p2Color);
 
       this.cpuDangerText = this.add
-        .text(p2X + boardW / 2, boardY - 50, '', {
-          fontSize: '12px',
+        .text(p2X + boardW / 2, boardY - Math.round(52 * boardScaleRatio), '', {
+          fontSize: `${Math.round(13 * boardScaleRatio)}px`,
           color: '#ff4757',
           fontStyle: 'bold',
           stroke: '#000000',
@@ -543,30 +550,32 @@ export default class GameScene extends Phaser.Scene {
         })
         .setOrigin(0.5);
 
-      const p2PlaqueW = Math.min(boardW - 6, 210);
-      const p2Header = this.add.container(p2X + boardW / 2, boardY - 32);
+      const p2PlaqueW = Math.min(boardW - 6, Math.round(280 * boardScaleRatio));
+      const p2PlaqueH = Math.round(40 * boardScaleRatio);
+      const p2Header = this.add.container(p2X + boardW / 2, boardY - Math.round(28 * boardScaleRatio));
       p2Header.setDepth(24);
       const p2Sign = this.add.image(0, 0, 'wood_plaque_sign');
-      p2Sign.setDisplaySize(p2PlaqueW, 38);
+      p2Sign.setDisplaySize(p2PlaqueW, p2PlaqueH);
 
-      const p2Badge = CuteUI.createPillButton(this, -p2PlaqueW / 2 + 26, 0, p2Label, () => {}, {
+      const p2Badge = CuteUI.createPillButton(this, -p2PlaqueW / 2 + Math.round(26 * boardScaleRatio), 0, p2Label, () => {}, {
         textureKey: 'pill_blue',
-        fontSize: '11px',
-        width: 40,
-        height: 22,
-        shadow: false
+        fontSize: `${Math.round(11 * boardScaleRatio)}px`,
+        width: badgeW + 4,
+        height: badgeH,
+        shadow: false,
+        autoScale: false
       });
 
-      const p2NameText = this.add.text(-p2PlaqueW / 2 + 52, -7, p2Char.name, {
-        fontSize: '12px',
+      const p2NameText = this.add.text(-p2PlaqueW / 2 + Math.round(54 * boardScaleRatio), -Math.round(7 * boardScaleRatio), p2Char.name, {
+        fontSize: `${Math.round(13 * boardScaleRatio)}px`,
         color: '#fff3c4',
         fontStyle: 'bold',
         stroke: '#3e2415',
-        strokeThickness: 3
+        strokeThickness: Math.round(3 * (boardScaleRatio > 1.3 ? 1.3 : 1.0))
       });
 
-      this.cpuScoreText = this.add.text(-p2PlaqueW / 2 + 52, 6, 'SCORE: 0', {
-        fontSize: '10px',
+      this.cpuScoreText = this.add.text(-p2PlaqueW / 2 + Math.round(54 * boardScaleRatio), Math.round(7 * boardScaleRatio), 'SCORE: 0', {
+        fontSize: `${Math.round(11 * boardScaleRatio)}px`,
         color: '#ffffff',
         fontStyle: 'bold',
         stroke: '#3e2415',
@@ -576,8 +585,8 @@ export default class GameScene extends Phaser.Scene {
       p2Header.add([p2Sign, p2Badge, p2NameText, this.cpuScoreText]);
 
       this.cpuChainText = this.add
-        .text(p2X + boardW / 2, boardY + boardH + 16, '', {
-          fontSize: '17px',
+        .text(p2X + boardW / 2, boardY + boardH + Math.round(18 * boardScaleRatio), '', {
+          fontSize: `${Math.round(18 * boardScaleRatio)}px`,
           color: '#54a0ff',
           fontStyle: 'bold',
           stroke: '#000000',
@@ -586,12 +595,12 @@ export default class GameScene extends Phaser.Scene {
         .setOrigin(0.5);
 
       // Full-Body Mascots on Flanks
-      const charH = Math.round(180 * Math.min(1.15, this.playerBoardScale));
+      const charH = Math.round(180 * Math.min(1.35, this.playerBoardScale));
       const charW = charH;
-      const p1CharX = Math.max(70, Math.round(p1X - 75));
-      const p1CharY = Math.round(boardY + boardH - 45);
-      const cpuCharX = Math.min(width - 70, Math.round(p2X + boardW + 75));
-      const cpuCharY = Math.round(boardY + boardH - 45);
+      const p1CharX = Math.max(70, Math.round(p1X - 85 * boardScaleRatio));
+      const p1CharY = Math.round(boardY + boardH - 45 * boardScaleRatio);
+      const cpuCharX = Math.min(width - 70, Math.round(p2X + boardW + 85 * boardScaleRatio));
+      const cpuCharY = Math.round(boardY + boardH - 45 * boardScaleRatio);
 
       const shadowG = this.add.graphics();
       shadowG.fillStyle(0x1a3311, 0.38);
@@ -765,10 +774,11 @@ export default class GameScene extends Phaser.Scene {
       const scaleByW = Math.floor((availableW / (1.3 * BOARD_WIDTH * PANEL_SIZE)) * 100) / 100;
       const availableH = height - 160;
       const scaleByH = Math.floor((availableH / (1.14 * BOARD_VISIBLE_HEIGHT * PANEL_SIZE)) * 100) / 100;
-      this.playerBoardScale = Math.min(1.85, Math.max(1.0, Math.min(scaleByW, scaleByH)));
+      this.playerBoardScale = Math.min(2.5, Math.max(1.0, Math.min(scaleByW, scaleByH)));
     }
     this.cpuBoardScale = this.playerBoardScale;
 
+    const boardScaleRatio = isMobilePortrait ? 1.0 : this.playerBoardScale / 1.15;
     const boardW = Math.round(BOARD_WIDTH * PANEL_SIZE * this.playerBoardScale);
     const boardH = Math.round(BOARD_VISIBLE_HEIGHT * PANEL_SIZE * this.playerBoardScale);
     const boardX = Math.round((width - boardW) / 2);
@@ -779,7 +789,7 @@ export default class GameScene extends Phaser.Scene {
       const liftBarY = height - liftBarH / 2 - 8;
       boardY = liftBarY - liftBarH / 2 - 8 - boardH;
     } else {
-      boardY = height > 550 ? Math.max(88, Math.round((height - boardH - 100) * 0.38)) : 88;
+      boardY = height > 550 ? Math.max(88, Math.round((height - boardH - 100) * 0.40)) : 88;
     }
 
     this.boardP1X = boardX;
@@ -798,34 +808,38 @@ export default class GameScene extends Phaser.Scene {
     const charData = CHARACTERS.find((c) => c.id === this.characterId) || CHARACTERS[0];
 
     // Wooden Header Plaque above board
-    const plaqueW = Math.min(boardW - 6, 260);
-    const header = this.add.container(boardX + boardW / 2, boardY - 34);
+    const plaqueW = Math.min(boardW - 6, Math.round(300 * boardScaleRatio));
+    const plaqueH = Math.round(42 * boardScaleRatio);
+    const header = this.add.container(boardX + boardW / 2, boardY - Math.round(30 * boardScaleRatio));
     header.setDepth(24);
 
     const sign = this.add.image(0, 0, 'wood_plaque_sign');
-    sign.setDisplaySize(plaqueW, 40);
+    sign.setDisplaySize(plaqueW, plaqueH);
 
-    const charBadge = CuteUI.createPillButton(this, -plaqueW / 2 + 30, 0, charData.name.toUpperCase(), () => {}, {
+    const badgeW = Math.round(76 * boardScaleRatio);
+    const badgeH = Math.round(24 * boardScaleRatio);
+    const charBadge = CuteUI.createPillButton(this, -plaqueW / 2 + Math.round(34 * boardScaleRatio), 0, charData.name.toUpperCase(), () => {}, {
       textureKey: 'pill_pink',
-      fontSize: '11px',
-      width: 76,
-      height: 24,
-      shadow: false
+      fontSize: `${Math.round(11 * boardScaleRatio)}px`,
+      width: badgeW,
+      height: badgeH,
+      shadow: false,
+      autoScale: false
     });
 
-    this.playerScoreText = this.add.text(-plaqueW / 2 + 76, -8, 'SCORE: 0', {
-      fontSize: '12px',
+    this.playerScoreText = this.add.text(-plaqueW / 2 + Math.round(78 * boardScaleRatio), -Math.round(8 * boardScaleRatio), 'SCORE: 0', {
+      fontSize: `${Math.round(12 * boardScaleRatio)}px`,
       color: '#ffffff',
       fontStyle: 'bold',
       stroke: '#3e2415',
       strokeThickness: 2
     });
 
-    const clockIcon = this.add.image(plaqueW / 2 - 76, 0, 'wood_clock_icon');
-    clockIcon.setDisplaySize(18, 18);
+    const clockIcon = this.add.image(plaqueW / 2 - Math.round(76 * boardScaleRatio), 0, 'wood_clock_icon');
+    clockIcon.setDisplaySize(Math.round(18 * boardScaleRatio), Math.round(18 * boardScaleRatio));
 
-    this.timeText = this.add.text(plaqueW / 2 - 38, -1, this.formatTime(this.gameTime), {
-      fontSize: '13px',
+    this.timeText = this.add.text(plaqueW / 2 - Math.round(38 * boardScaleRatio), -1, this.formatTime(this.gameTime), {
+      fontSize: `${Math.round(13 * boardScaleRatio)}px`,
       color: '#fff3c4',
       fontStyle: 'bold',
       stroke: '#3e2415',
@@ -1353,18 +1367,19 @@ export default class GameScene extends Phaser.Scene {
     const bW = Math.round(BOARD_WIDTH * PANEL_SIZE * this.playerBoardScale);
     const bH = Math.round(BOARD_VISIBLE_HEIGHT * PANEL_SIZE * this.playerBoardScale);
     const isMobile = this.isMobileLayout;
-    const liftBarW = isMobile ? Math.min(bW, width - 24) : Math.min(bW, 260);
-    const liftBarH = isMobile ? 38 : 34;
+    const boardScaleRatio = isMobile ? 1.0 : this.playerBoardScale / 1.15;
+    const liftBarW = isMobile ? Math.min(bW, width - 24) : Math.min(bW, Math.round(300 * boardScaleRatio));
+    const liftBarH = isMobile ? 38 : Math.round(38 * boardScaleRatio);
     const liftBarX = isMobile ? width / 2 : this.boardP1X + bW / 2;
-    const liftBarY = isMobile ? height - liftBarH / 2 - 8 : Math.min(height - 48, this.boardP1Y + bH + 42);
+    const liftBarY = isMobile ? height - liftBarH / 2 - 8 : Math.min(height - 48, this.boardP1Y + bH + Math.round(32 * boardScaleRatio));
 
-    this.createMobileLiftBar(liftBarX, liftBarY, liftBarW, liftBarH);
+    this.createMobileLiftBar(liftBarX, liftBarY, liftBarW, liftBarH, isMobile ? '11px' : `${Math.round(11 * boardScaleRatio)}px`);
 
     // Dynamic control hint for desktop
     if (!isMobile) {
-      const hintY = Math.min(height - 14, liftBarY + 28);
+      const hintY = Math.min(height - 14, liftBarY + Math.round(26 * boardScaleRatio));
       this.add.text(width / 2, hintY, 'CLICK / TAP: Swap • RIGHT-CLICK / SCROLL / BAR: Fast Lift', {
-        fontSize: '10px',
+        fontSize: `${Math.round(11.5 * boardScaleRatio)}px`,
         color: '#a4b0be',
         stroke: '#000000',
         strokeThickness: 1
@@ -1372,7 +1387,7 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
-  private createMobileLiftBar(x: number, y: number, w: number, h: number = 34): Phaser.GameObjects.Container {
+  private createMobileLiftBar(x: number, y: number, w: number, h: number = 34, fontSizeStr: string = '11px'): Phaser.GameObjects.Container {
     const container = this.add.container(x, y);
     container.setDepth(35);
 
@@ -1390,7 +1405,7 @@ export default class GameScene extends Phaser.Scene {
     draw(false);
 
     const text = this.add.text(0, -1, '▲  HOLD TO FAST LIFT  ▲', {
-      fontSize: '11px',
+      fontSize: fontSizeStr,
       color: '#ffffff',
       fontStyle: 'bold',
       stroke: '#000000',
@@ -1477,6 +1492,7 @@ export default class GameScene extends Phaser.Scene {
     if (!this.pauseModalContainer) {
       const width = this.cameras.main.width;
       const height = this.cameras.main.height;
+      const uiScale = CuteUI.getUIScale(this);
 
       this.pauseModalContainer = this.add.container(width / 2, height / 2);
       this.pauseModalContainer.setDepth(100);
@@ -1486,41 +1502,51 @@ export default class GameScene extends Phaser.Scene {
       backdrop.setInteractive();
 
       // Card box
+      const boxW = Math.round(290 * uiScale);
+      const boxH = Math.round(270 * uiScale);
       const box = this.add.graphics();
       box.fillStyle(0x1a1230, 0.98);
-      box.fillRoundedRect(-140, -130, 280, 260, 16);
-      box.lineStyle(2.5, 0xff69b4, 1);
-      box.strokeRoundedRect(-140, -130, 280, 260, 16);
+      box.fillRoundedRect(-boxW / 2, -boxH / 2, boxW, boxH, Math.round(16 * uiScale));
+      box.lineStyle(Math.round(2.5 * uiScale), 0xff69b4, 1);
+      box.strokeRoundedRect(-boxW / 2, -boxH / 2, boxW, boxH, Math.round(16 * uiScale));
 
-      const title = this.add.text(0, -95, 'GAME PAUSED', {
-        fontSize: '22px',
+      const title = this.add.text(0, -Math.round(98 * uiScale), 'GAME PAUSED', {
+        fontSize: `${Math.round(22 * uiScale)}px`,
         color: '#ff69b4',
         fontStyle: 'bold',
         stroke: '#000000',
-        strokeThickness: 4
+        strokeThickness: Math.round(4 * uiScale)
       }).setOrigin(0.5);
 
-      const resumeBtn = CuteUI.createPillButton(this, 0, -45, 'RESUME', () => {
-        this.resumeGame();
-      }, { textureKey: 'pill_green', fontSize: '14px', width: 170, height: 36 });
+      const btnW = Math.round(180 * uiScale);
+      const btnH = Math.round(38 * uiScale);
+      const btnFont = `${Math.round(14 * uiScale)}px`;
+      const btnY1 = -Math.round(46 * uiScale);
+      const btnY2 = 0;
+      const btnY3 = Math.round(46 * uiScale);
+      const btnY4 = Math.round(92 * uiScale);
 
-      const optionsBtn = CuteUI.createPillButton(this, 0, 0, '⚙️ OPTIONS', () => {
+      const resumeBtn = CuteUI.createPillButton(this, 0, btnY1, 'RESUME', () => {
+        this.resumeGame();
+      }, { textureKey: 'pill_green', fontSize: btnFont, width: btnW, height: btnH, autoScale: false });
+
+      const optionsBtn = CuteUI.createPillButton(this, 0, btnY2, '⚙️ OPTIONS', () => {
         this.resumeGame();
         this.scene.start('OptionsMenuScene', { returnScene: 'GameScene' });
-      }, { textureKey: 'pill_purple', fontSize: '14px', width: 170, height: 36 });
+      }, { textureKey: 'pill_purple', fontSize: btnFont, width: btnW, height: btnH, autoScale: false });
 
-      const restartBtn = CuteUI.createPillButton(this, 0, 45, 'RESTART', () => {
+      const restartBtn = CuteUI.createPillButton(this, 0, btnY3, 'RESTART', () => {
         this.resumeGame();
         this.scene.restart();
-      }, { textureKey: 'pill_blue', fontSize: '14px', width: 170, height: 36 });
+      }, { textureKey: 'pill_blue', fontSize: btnFont, width: btnW, height: btnH, autoScale: false });
 
-      const menuBtn = CuteUI.createPillButton(this, 0, 90, 'MAIN MENU', () => {
+      const menuBtn = CuteUI.createPillButton(this, 0, btnY4, 'MAIN MENU', () => {
         if (this.gameMode === 'vs_online' && this.socketMgr && this.roomId) {
           this.socketMgr.leaveRoom(this.roomId);
         }
         this.resumeGame();
         this.scene.start('MenuScene');
-      }, { textureKey: 'pill_grey', fontSize: '14px', width: 170, height: 36 });
+      }, { textureKey: 'pill_grey', fontSize: btnFont, width: btnW, height: btnH, autoScale: false });
 
       this.pauseButtons = [resumeBtn, optionsBtn, restartBtn, menuBtn];
       this.pauseActions = [
@@ -2132,31 +2158,32 @@ export default class GameScene extends Phaser.Scene {
     backdrop.setInteractive();
 
     // 2. Themed Modal Box
+    const uiScale = CuteUI.getUIScale(this);
     const hasThreeButtons = this.gameMode === 'challenge' && !isVictory;
-    const cardW = Math.min(width - 36, 360);
-    const cardH = hasThreeButtons ? 390 : 330;
+    const cardW = Math.min(width - 36, Math.round(380 * uiScale));
+    const cardH = Math.round((hasThreeButtons ? 390 : 330) * uiScale);
     const halfW = cardW / 2;
     const halfH = cardH / 2;
 
     const box = this.add.graphics();
     const borderColor = isChampion ? 0xfeca57 : isVictory ? 0x2ed573 : 0xff4757;
     box.fillStyle(0x181028, 0.98);
-    box.fillRoundedRect(-halfW, -halfH, cardW, cardH, 20);
-    box.lineStyle(3, borderColor, 1);
-    box.strokeRoundedRect(-halfW, -halfH, cardW, cardH, 20);
+    box.fillRoundedRect(-halfW, -halfH, cardW, cardH, Math.round(20 * uiScale));
+    box.lineStyle(Math.round(3 * uiScale), borderColor, 1);
+    box.strokeRoundedRect(-halfW, -halfH, cardW, cardH, Math.round(20 * uiScale));
 
     // Subtle header accent line
-    box.lineStyle(1.5, borderColor, 0.45);
-    box.strokeLineShape(new Phaser.Geom.Line(-halfW + 24, -halfH + 68, halfW - 24, -halfH + 68));
+    box.lineStyle(Math.round(1.5 * uiScale), borderColor, 0.45);
+    box.strokeLineShape(new Phaser.Geom.Line(-halfW + Math.round(24 * uiScale), -halfH + Math.round(68 * uiScale), halfW - Math.round(24 * uiScale), -halfH + Math.round(68 * uiScale)));
 
     // 3. Banner Title
     const titleColor = isChampion ? '#feca57' : isVictory ? '#2ed573' : '#ff4757';
-    const titleText = this.add.text(0, -halfH + 38, finalBanner, {
-      fontSize: '34px',
+    const titleText = this.add.text(0, -halfH + Math.round(38 * uiScale), finalBanner, {
+      fontSize: `${Math.round(34 * uiScale)}px`,
       color: titleColor,
       fontStyle: 'bold',
       stroke: '#000000',
-      strokeThickness: 5
+      strokeThickness: Math.round(5 * uiScale)
     }).setOrigin(0.5);
 
     // 4. Character Quote / Flavor text
@@ -2171,14 +2198,14 @@ export default class GameScene extends Phaser.Scene {
       ? `${winChar?.name}: "${winChar?.quote}"`
       : `${loseChar?.name}: "${loseChar?.defeatQuote}"`;
 
-    const quoteText = this.add.text(0, -halfH + 92, subQuote, {
-      fontSize: '12.5px',
+    const quoteText = this.add.text(0, -halfH + Math.round(92 * uiScale), subQuote, {
+      fontSize: `${Math.round(12.5 * uiScale)}px`,
       color: isChampion ? '#feca57' : isVictory ? '#7bed9f' : '#dfe4ea',
       fontStyle: 'italic bold',
       stroke: '#000000',
-      strokeThickness: 2.5,
+      strokeThickness: Math.round(2.5 * uiScale),
       align: 'center',
-      wordWrap: { width: cardW - 40, useAdvancedWrap: true }
+      wordWrap: { width: cardW - Math.round(40 * uiScale), useAdvancedWrap: true }
     }).setOrigin(0.5);
 
     // 5. Score summary pill
@@ -2189,26 +2216,27 @@ export default class GameScene extends Phaser.Scene {
 
     const scoreBox = this.add.graphics();
     scoreBox.fillStyle(0x0d071c, 0.92);
-    scoreBox.fillRoundedRect(-cardW / 2 + 18, -halfH + 120, cardW - 36, 32, 10);
+    scoreBox.fillRoundedRect(-cardW / 2 + Math.round(18 * uiScale), -halfH + Math.round(120 * uiScale), cardW - Math.round(36 * uiScale), Math.round(32 * uiScale), Math.round(10 * uiScale));
     scoreBox.lineStyle(1.2, 0x57606f, 0.6);
-    scoreBox.strokeRoundedRect(-cardW / 2 + 18, -halfH + 120, cardW - 36, 32, 10);
+    scoreBox.strokeRoundedRect(-cardW / 2 + Math.round(18 * uiScale), -halfH + Math.round(120 * uiScale), cardW - Math.round(36 * uiScale), Math.round(32 * uiScale), Math.round(10 * uiScale));
 
-    const scoreText = this.add.text(0, -halfH + 136, scoreSummary, {
-      fontSize: '14px',
+    const scoreText = this.add.text(0, -halfH + Math.round(136 * uiScale), scoreSummary, {
+      fontSize: `${Math.round(14 * uiScale)}px`,
       color: '#ffffff',
       fontStyle: 'bold',
       stroke: '#000000',
-      strokeThickness: 3
+      strokeThickness: Math.round(3 * uiScale)
     }).setOrigin(0.5);
 
     this.gameOverButtons = [];
     this.gameOverActions = [];
 
     // 6. Action buttons
-    const btnW = Math.min(cardW - 48, 220);
-    const btnH = 38;
-    const startBtnY = -halfH + 188;
-    const btnSpacing = 52;
+    const btnW = Math.min(cardW - Math.round(48 * uiScale), Math.round(230 * uiScale));
+    const btnH = Math.round(38 * uiScale);
+    const btnFont = `${Math.round(13 * uiScale)}px`;
+    const startBtnY = -halfH + Math.round(188 * uiScale);
+    const btnSpacing = Math.round(52 * uiScale);
 
     if (this.gameMode === 'challenge') {
       if (isChampion) {
@@ -2217,11 +2245,11 @@ export default class GameScene extends Phaser.Scene {
             characterId: this.characterId,
             defeatedOpponents: this.defeatedOpponents
           });
-        }, { textureKey: 'pill_pink', fontSize: '13px', width: btnW, height: btnH });
+        }, { textureKey: 'pill_pink', fontSize: btnFont, width: btnW, height: btnH, autoScale: false });
 
         const menuBtn = CuteUI.createPillButton(this, 0, startBtnY + btnSpacing, 'MAIN MENU', () => {
           this.scene.start('MenuScene');
-        }, { textureKey: 'pill_grey', fontSize: '13px', width: btnW, height: btnH });
+        }, { textureKey: 'pill_grey', fontSize: btnFont, width: btnW, height: btnH, autoScale: false });
 
         this.gameOverButtons = [claimBtn, menuBtn];
         this.gameOverActions = [
@@ -2234,11 +2262,11 @@ export default class GameScene extends Phaser.Scene {
             characterId: this.characterId,
             defeatedOpponents: this.defeatedOpponents
           });
-        }, { textureKey: 'pill_green', fontSize: '13px', width: btnW, height: btnH });
+        }, { textureKey: 'pill_green', fontSize: btnFont, width: btnW, height: btnH, autoScale: false });
 
         const menuBtn = CuteUI.createPillButton(this, 0, startBtnY + btnSpacing, 'MAIN MENU', () => {
           this.scene.start('MenuScene');
-        }, { textureKey: 'pill_grey', fontSize: '13px', width: btnW, height: btnH });
+        }, { textureKey: 'pill_grey', fontSize: btnFont, width: btnW, height: btnH, autoScale: false });
 
         this.gameOverButtons = [nextBtn, menuBtn];
         this.gameOverActions = [
@@ -2253,18 +2281,18 @@ export default class GameScene extends Phaser.Scene {
             opponentCharacterId: this.opponentCharacterId,
             defeatedOpponents: this.defeatedOpponents
           });
-        }, { textureKey: 'pill_blue', fontSize: '13px', width: btnW, height: btnH });
+        }, { textureKey: 'pill_blue', fontSize: btnFont, width: btnW, height: btnH, autoScale: false });
 
         const mapBtn = CuteUI.createPillButton(this, 0, startBtnY + btnSpacing, 'CHALLENGE MAP', () => {
           this.scene.start('ChallengeMapScene', {
             characterId: this.characterId,
             defeatedOpponents: this.defeatedOpponents
           });
-        }, { textureKey: 'pill_pink', fontSize: '13px', width: btnW, height: btnH });
+        }, { textureKey: 'pill_pink', fontSize: btnFont, width: btnW, height: btnH, autoScale: false });
 
         const menuBtn = CuteUI.createPillButton(this, 0, startBtnY + btnSpacing * 2, 'MAIN MENU', () => {
           this.scene.start('MenuScene');
-        }, { textureKey: 'pill_grey', fontSize: '13px', width: btnW, height: btnH });
+        }, { textureKey: 'pill_grey', fontSize: btnFont, width: btnW, height: btnH, autoScale: false });
 
         this.gameOverButtons = [retryBtn, mapBtn, menuBtn];
         this.gameOverActions = [
@@ -2281,11 +2309,11 @@ export default class GameScene extends Phaser.Scene {
     } else if (this.gameMode === 'vs_online') {
       const lobbyBtn = CuteUI.createPillButton(this, 0, startBtnY, 'FIND NEXT MATCH ⚡', () => {
         this.scene.start('LobbyScene', { characterId: this.characterId });
-      }, { textureKey: 'pill_green', fontSize: '13px', width: btnW, height: btnH });
+      }, { textureKey: 'pill_green', fontSize: btnFont, width: btnW, height: btnH, autoScale: false });
 
       const menuBtn = CuteUI.createPillButton(this, 0, startBtnY + btnSpacing, 'MAIN MENU', () => {
         this.scene.start('MenuScene');
-      }, { textureKey: 'pill_grey', fontSize: '13px', width: btnW, height: btnH });
+      }, { textureKey: 'pill_grey', fontSize: btnFont, width: btnW, height: btnH, autoScale: false });
 
       this.gameOverButtons = [lobbyBtn, menuBtn];
       this.gameOverActions = [
@@ -2299,11 +2327,11 @@ export default class GameScene extends Phaser.Scene {
           characterId: this.characterId,
           opponentCharacterId: this.opponentCharacterId
         });
-      }, { textureKey: 'pill_green', fontSize: '14px', width: btnW, height: btnH });
+      }, { textureKey: 'pill_green', fontSize: btnFont, width: btnW, height: btnH, autoScale: false });
 
       const menuBtn = CuteUI.createPillButton(this, 0, startBtnY + btnSpacing, 'MAIN MENU', () => {
         this.scene.start('MenuScene');
-      }, { textureKey: 'pill_grey', fontSize: '14px', width: btnW, height: btnH });
+      }, { textureKey: 'pill_grey', fontSize: btnFont, width: btnW, height: btnH, autoScale: false });
 
       this.gameOverButtons = [playAgainBtn, menuBtn];
       this.gameOverActions = [

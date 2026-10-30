@@ -32,33 +32,42 @@ export default class CharacterSelectScene extends Phaser.Scene {
 
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
+    const uiScale = CuteUI.getUIScale(this);
     
     const titleText = this.mode === 'challenge' ? 'CHALLENGE: PICK YOUR SLIME CATCHER' : 'SELECT YOUR SLIME CATCHER';
-    const title = this.add.text(width / 2, 45, titleText, {
-      fontSize: this.mode === 'challenge' ? '18px' : '22px',
+    const titleY = Math.round(48 * Math.min(1.3, uiScale));
+    const title = this.add.text(width / 2, titleY, titleText, {
+      fontSize: `${Math.round((this.mode === 'challenge' ? 19 : 23) * uiScale)}px`,
       color: '#ff69b4',
       fontStyle: 'bold',
       stroke: '#000000',
-      strokeThickness: 4
+      strokeThickness: Math.round(4 * (uiScale > 1.3 ? 1.3 : 1.0))
     });
     title.setOrigin(0.5);
     
     // Create character grid centered
-    const colSpacing = Math.min(96, Math.floor((width - 48) / 3));
+    const isMobile = width < 600 || (height >= width * 1.05 && width < 768);
+    const colSpacing = isMobile
+      ? Math.min(96, Math.floor((width - 48) / 3))
+      : Math.min(150, Math.round(112 * uiScale));
     const gridStartX = Math.floor((width - 3 * colSpacing) / 2);
+    const startGridY = Math.round(135 * Math.min(1.3, uiScale));
+    const rowSpacing = Math.round(108 * Math.min(1.3, uiScale));
+    const baseSpriteSize = Math.round(58 * Math.min(1.4, uiScale));
+
     CHARACTERS.forEach((char, i) => {
       const x = gridStartX + (i % 4) * colSpacing;
-      const y = 140 + Math.floor(i / 4) * 105;
+      const y = startGridY + Math.floor(i / 4) * rowSpacing;
       
       const sprite = this.add.sprite(x, y, char.id);
-      sprite.setDisplaySize(58, 58);
+      sprite.setDisplaySize(baseSpriteSize, baseSpriteSize);
       sprite.setInteractive({ useHandCursor: true });
       
-      const nameText = this.add.text(x, y + 42, char.name, {
-        fontSize: '12px',
+      const nameText = this.add.text(x, y + Math.round(44 * Math.min(1.35, uiScale)), char.name, {
+        fontSize: `${Math.round(12.5 * Math.min(1.35, uiScale))}px`,
         color: '#ffffff',
         stroke: '#000000',
-        strokeThickness: 1
+        strokeThickness: 2
       });
       nameText.setOrigin(0.5);
       
@@ -74,32 +83,37 @@ export default class CharacterSelectScene extends Phaser.Scene {
     });
     
     // Responsive button and info positioning
-    const safeBottom = height - 52;
-    const backBtnY = Math.min(safeBottom, Math.max(464, Math.min(520, height * 0.82)));
-    const startBtnY = backBtnY - 50;
-    const charTextY = Math.max(315, startBtnY - 58);
+    const safeBottom = height - Math.round(52 * Math.min(1.3, uiScale));
+    const backBtnY = Math.min(safeBottom, Math.max(464, height * 0.85));
+    const btnSpacing = Math.round(52 * uiScale);
+    const startBtnY = backBtnY - btnSpacing;
+    const charTextY = Math.max(startGridY + rowSpacing + 45, startBtnY - Math.round(62 * uiScale));
 
     // Character info
     this.charText = this.add.text(width / 2, charTextY, '', {
-      fontSize: '12px',
+      fontSize: `${Math.round(13 * uiScale)}px`,
       color: '#ffffff',
       align: 'center',
       stroke: '#000000',
       strokeThickness: 2,
-      wordWrap: { width: 380 }
+      wordWrap: { width: Math.min(width - 40, Math.round(500 * uiScale)) }
     });
     this.charText.setOrigin(0.5);
     
     this.selectCharacter(0);
     
     // Action buttons
+    const btnW = Math.round(240 * uiScale);
+    const btnH = Math.round(44 * uiScale);
+    const btnFont = `${Math.round(15 * uiScale)}px`;
+
     CuteUI.createPillButton(this, width / 2, startBtnY, 'START GAME', () => {
       this.startGame();
-    }, { textureKey: 'pill_pink' });
+    }, { textureKey: 'pill_pink', width: btnW, height: btnH, fontSize: btnFont });
 
     CuteUI.createPillButton(this, width / 2, backBtnY, 'BACK TO MENU', () => {
       this.scene.start('MenuScene');
-    }, { textureKey: 'pill_grey' });
+    }, { textureKey: 'pill_grey', width: btnW, height: btnH, fontSize: btnFont });
     
     // Keyboard controls
     const moveSelection = (dx: number, dy: number) => {
@@ -206,13 +220,17 @@ export default class CharacterSelectScene extends Phaser.Scene {
   
   private selectCharacter(index: number): void {
     this.selectedIndex = index;
+    const uiScale = CuteUI.getUIScale(this);
+    const selSize = Math.round(64 * Math.min(1.4, uiScale));
+    const unselSize = Math.round(52 * Math.min(1.4, uiScale));
+
     this.charSprites.forEach((sprite, i) => {
       if (i === index) {
-        sprite.setDisplaySize(64, 64);
+        sprite.setDisplaySize(selSize, selSize);
         sprite.clearTint();
         sprite.setAlpha(1.0);
       } else {
-        sprite.setDisplaySize(52, 52);
+        sprite.setDisplaySize(unselSize, unselSize);
         sprite.setTint(0xcccccc);
         sprite.setAlpha(0.75);
       }

@@ -24,28 +24,31 @@ export default class MenuScene extends Phaser.Scene {
 
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
+    const uiScale = CuteUI.getUIScale(this);
 
     // Slowly drifting cute pastel pattern background
     CuteUI.createCuteBackground(this);
 
     // Title with cute glow & kawaii stars
-    const title = this.add.text(width / 2, 64, "DON'T BE A SQUARE", {
-      fontSize: '30px',
+    const titleY = Math.round(64 * Math.min(1.35, uiScale));
+    const title = this.add.text(width / 2, titleY, "DON'T BE A SQUARE", {
+      fontSize: `${Math.round(30 * uiScale)}px`,
       color: '#ff69b4',
       fontStyle: 'bold',
       stroke: '#000000',
-      strokeThickness: 5
+      strokeThickness: Math.round(5 * (uiScale > 1.3 ? 1.4 : 1.0))
     });
     title.setOrigin(0.5);
 
     // Decorative sparkling stars around title
-    const leftStar = this.add.image(width / 2 - 180, 64, 'sparkle_star').setScale(1.3);
-    const rightStar = this.add.image(width / 2 + 180, 64, 'sparkle_star').setScale(1.3);
+    const starOffset = Math.round(195 * uiScale);
+    const leftStar = this.add.image(width / 2 - starOffset, titleY, 'sparkle_star').setScale(1.3 * uiScale);
+    const rightStar = this.add.image(width / 2 + starOffset, titleY, 'sparkle_star').setScale(1.3 * uiScale);
     this.tweens.add({
       targets: [leftStar, rightStar],
       angle: 360,
-      scaleX: 1.1,
-      scaleY: 1.1,
+      scaleX: 1.1 * uiScale,
+      scaleY: 1.1 * uiScale,
       duration: 3800,
       yoyo: true,
       repeat: -1,
@@ -55,7 +58,7 @@ export default class MenuScene extends Phaser.Scene {
     // Gentle floating bob for main title
     this.tweens.add({
       targets: title,
-      y: 61,
+      y: titleY - 3,
       scaleX: 1.02,
       scaleY: 1.02,
       duration: 1800,
@@ -65,13 +68,17 @@ export default class MenuScene extends Phaser.Scene {
     });
 
     // Dynamically adapt button and showcase layout to available viewport height
-    const safeBottom = height - 55;
+    const safeBottom = height - Math.round(55 * Math.min(1.3, uiScale));
     const showcaseY = Math.min(safeBottom, Math.max(438, height * 0.88));
-    const charHeadingY = showcaseY - 50;
-    const availableSpace = charHeadingY - 105;
-    const btnSpacing = 50;
+    const charHeadingY = showcaseY - Math.round(52 * uiScale);
+    const availableSpace = charHeadingY - (titleY + Math.round(35 * uiScale));
+    const btnSpacing = Math.round(52 * uiScale);
     const totalBtnSpan = btnSpacing * 3;
-    const startY = height > 530 ? Math.round(100 + (availableSpace - totalBtnSpan) / 2) : 134;
+    const startY = height > 530 ? Math.round(titleY + 40 + (availableSpace - totalBtnSpan) / 2) : 134;
+
+    const btnW = Math.round(250 * uiScale);
+    const btnH = Math.round(44 * uiScale);
+    const btnFont = `${Math.round(15 * uiScale)}px`;
 
     const btn1 = CuteUI.createPillButton(
       this,
@@ -81,7 +88,7 @@ export default class MenuScene extends Phaser.Scene {
       () => {
         this.scene.start('CharacterSelectScene', { mode: 'challenge' });
       },
-      { textureKey: 'pill_pink', fontSize: '15px', height: 42 }
+      { textureKey: 'pill_pink', fontSize: btnFont, width: btnW, height: btnH }
     );
 
     const btn2 = CuteUI.createPillButton(
@@ -92,7 +99,7 @@ export default class MenuScene extends Phaser.Scene {
       () => {
         this.scene.start('CharacterSelectScene', { mode: 'endless' });
       },
-      { textureKey: 'pill_green', fontSize: '15px', height: 42 }
+      { textureKey: 'pill_green', fontSize: btnFont, width: btnW, height: btnH }
     );
 
     const btn3 = CuteUI.createPillButton(
@@ -103,7 +110,7 @@ export default class MenuScene extends Phaser.Scene {
       () => {
         this.scene.start('LobbyScene');
       },
-      { textureKey: 'pill_blue', fontSize: '15px', height: 42 }
+      { textureKey: 'pill_blue', fontSize: btnFont, width: btnW, height: btnH }
     );
 
     const btn4 = CuteUI.createPillButton(
@@ -114,7 +121,7 @@ export default class MenuScene extends Phaser.Scene {
       () => {
         this.scene.start('OptionsMenuScene', { returnScene: 'MenuScene' });
       },
-      { textureKey: 'pill_purple', fontSize: '15px', height: 42 }
+      { textureKey: 'pill_purple', fontSize: btnFont, width: btnW, height: btnH }
     );
 
     this.menuButtons = [btn1, btn2, btn3, btn4];
@@ -136,8 +143,9 @@ export default class MenuScene extends Phaser.Scene {
     });
 
     // Sparkling indicator next to active button
-    this.cursorIndicator = this.add.image(width / 2 - 120, startY, 'sparkle_star');
-    this.cursorIndicator.setDisplaySize(16, 16);
+    const indicatorOffset = Math.round(btnW / 2 + 20 * uiScale);
+    this.cursorIndicator = this.add.image(width / 2 - indicatorOffset, startY, 'sparkle_star');
+    this.cursorIndicator.setDisplaySize(16 * uiScale, 16 * uiScale);
     this.cursorIndicator.setTint(0xfffa65);
     this.tweens.add({
       targets: this.cursorIndicator,
@@ -155,16 +163,17 @@ export default class MenuScene extends Phaser.Scene {
 
     // Character showcase section: "Meet the Slime catchers!"
     const isNarrow = width < 500;
+    const headingFont = isNarrow ? '12px' : `${Math.round(15 * uiScale)}px`;
     const charHeading = this.add.text(
       width / 2,
       isNarrow ? showcaseY - 68 : charHeadingY,
       isNarrow ? 'Meet the Slime Catchers! (Tap for Profile)' : 'Meet the Slime Catchers! (Click to View Profile)',
       {
-        fontSize: isNarrow ? '12px' : '14.5px',
+        fontSize: headingFont,
         color: '#ff9ff3',
         fontStyle: 'bold',
         stroke: '#000000',
-        strokeThickness: 3
+        strokeThickness: Math.round(3 * (uiScale > 1.3 ? 1.3 : 1.0))
       }
     );
     charHeading.setOrigin(0.5);
@@ -237,22 +246,26 @@ export default class MenuScene extends Phaser.Scene {
       });
     } else {
       // Show all 8 characters along bottom with gentle floating idle bobs
-      const showStartX = Math.floor((width - (CHARACTERS.length - 1) * 58) / 2);
+      const colSpacing = Math.min(Math.floor((width - 40) / CHARACTERS.length), Math.round(68 * uiScale));
+      const showStartX = Math.floor((width - (CHARACTERS.length - 1) * colSpacing) / 2);
+      const spriteSize = Math.round(44 * uiScale);
+      const nameSize = `${Math.round(11.5 * uiScale)}px`;
+
       CHARACTERS.forEach((char, i) => {
-        const x = showStartX + i * 58;
+        const x = showStartX + i * colSpacing;
         const baseY = showcaseY;
 
         const charContainer = this.add.container(x, baseY);
 
         // Interactive hit area covering both the sprite and name
-        const hitArea = this.add.rectangle(0, 10, 52, 60, 0x000000, 0);
+        const hitArea = this.add.rectangle(0, 10, colSpacing - 6, Math.round(66 * uiScale), 0x000000, 0);
         hitArea.setInteractive({ useHandCursor: true });
 
         const sprite = this.add.sprite(0, 0, char.id);
-        sprite.setDisplaySize(42, 42);
+        sprite.setDisplaySize(spriteSize, spriteSize);
 
-        const name = this.add.text(0, 30, char.name, {
-          fontSize: '11px',
+        const name = this.add.text(0, Math.round(30 * uiScale), char.name, {
+          fontSize: nameSize,
           color: '#ffffff',
           fontStyle: 'bold',
           stroke: '#000000',

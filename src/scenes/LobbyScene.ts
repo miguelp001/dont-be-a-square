@@ -34,6 +34,8 @@ export default class LobbyScene extends Phaser.Scene {
   private bannerBg!: Phaser.GameObjects.Graphics;
   private bannerX: number = 0;
   private bannerY: number = 0;
+  private bannerW: number = 340;
+  private bannerH: number = 60;
   private padRepeatTimer: number = 0;
   private prevPadButtons: Map<number, boolean> = new Map();
   private globalKeydownHandler?: (e: KeyboardEvent) => void;
@@ -53,6 +55,7 @@ export default class LobbyScene extends Phaser.Scene {
   create(): void {
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
+    const uiScale = CuteUI.getUIScale(this);
 
     this.socketMgr = SocketManager.getInstance();
 
@@ -60,22 +63,22 @@ export default class LobbyScene extends Phaser.Scene {
     CuteUI.createCuteBackground(this);
 
     // Header Title
-    const title = this.add.text(width / 2, 48, 'ONLINE MULTIPLAYER', {
-      fontSize: '26px',
+    const title = this.add.text(width / 2, Math.round(44 * uiScale), 'ONLINE MULTIPLAYER', {
+      fontSize: Math.round(24 * uiScale) + 'px',
       color: '#ff69b4',
       fontStyle: 'bold',
       stroke: '#000000',
-      strokeThickness: 4
+      strokeThickness: Math.max(3, Math.round(4 * uiScale))
     });
     title.setOrigin(0.5);
 
     // Server connection indicator
     this.serverStatusText = this.add.text(
       width / 2,
-      78,
+      Math.round(76 * uiScale),
       this.socketMgr.isConnected ? '🟢 Server Connected' : '🟡 Connecting to Server...',
       {
-        fontSize: '11px',
+        fontSize: Math.round(11.5 * uiScale) + 'px',
         color: this.socketMgr.isConnected ? '#2ed573' : '#feca57',
         fontStyle: 'bold',
         stroke: '#000000',
@@ -100,16 +103,16 @@ export default class LobbyScene extends Phaser.Scene {
     });
 
     // Character Selection Banner
-    this.createCharacterBanner(width / 2, 126);
+    this.createCharacterBanner(width / 2, Math.round(130 * uiScale), uiScale);
 
     // Main Buttons: QUICK MATCH, CREATE PRIVATE ROOM, JOIN BY CODE, BACK TO MENU
-    this.createMainButtons(width / 2, 202);
+    this.createMainButtons(width / 2, Math.round(212 * uiScale), uiScale);
 
     // Waiting Room UI (hidden by default)
-    this.createWaitingRoomUI(width / 2, 280);
+    this.createWaitingRoomUI(width / 2, Math.round(300 * uiScale), uiScale);
 
     // Join Code Modal UI (hidden by default)
-    this.createJoinModalUI(width / 2, height / 2);
+    this.createJoinModalUI(width / 2, height / 2, uiScale);
 
     // Wire Socket Events
     this.setupSocketEvents();
@@ -119,7 +122,9 @@ export default class LobbyScene extends Phaser.Scene {
   }
 
   /** Character selector allowing quick switching before entering rooms */
-  private createCharacterBanner(x: number, y: number): void {
+  private createCharacterBanner(x: number, y: number, uiScale: number = 1.0): void {
+    this.bannerW = Math.round(340 * uiScale);
+    this.bannerH = Math.round(60 * uiScale);
     this.bannerX = x;
     this.bannerY = y;
     this.bannerBg = this.add.graphics();
@@ -128,8 +133,9 @@ export default class LobbyScene extends Phaser.Scene {
     const char = CHARACTERS[this.characterIndex];
 
     // Left Arrow
-    const leftArrow = this.add.text(x - 145, y, '◀', {
-      fontSize: '20px',
+    const arrowOffset = Math.round(145 * uiScale);
+    const leftArrow = this.add.text(x - arrowOffset, y, '◀', {
+      fontSize: Math.round(20 * uiScale) + 'px',
       color: '#54a0ff',
       fontStyle: 'bold'
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
@@ -138,28 +144,31 @@ export default class LobbyScene extends Phaser.Scene {
     leftArrow.on('pointerout', () => leftArrow.setColor('#54a0ff'));
 
     // Avatar Sprite
-    this.charAvatar = this.add.image(x - 90, y, char.id);
-    this.charAvatar.setDisplaySize(44, 44);
+    const avatarOffset = Math.round(90 * uiScale);
+    this.charAvatar = this.add.image(x - avatarOffset, y, char.id);
+    const avatarSize = Math.round(44 * uiScale);
+    this.charAvatar.setDisplaySize(avatarSize, avatarSize);
     this.charAvatar.setInteractive({ useHandCursor: true });
     this.charAvatar.on('pointerdown', () => this.cycleCharacter(1));
 
     // Name & Title
-    this.charNameText = this.add.text(x - 50, y - 10, `Fighter: ${char.name}`, {
-      fontSize: '15px',
+    const textOffset = Math.round(50 * uiScale);
+    this.charNameText = this.add.text(x - textOffset, y - Math.round(10 * uiScale), `Fighter: ${char.name}`, {
+      fontSize: Math.round(15 * uiScale) + 'px',
       color: '#ffffff',
       fontStyle: 'bold',
       stroke: '#000000',
       strokeThickness: 2
     });
 
-    const subText = this.add.text(x - 50, y + 10, `${char.species} (Click to switch)`, {
-      fontSize: '11px',
+    this.add.text(x - textOffset, y + Math.round(11 * uiScale), `${char.species} (Click to switch)`, {
+      fontSize: Math.round(11 * uiScale) + 'px',
       color: '#a4b0be'
     });
 
     // Right Arrow
-    const rightArrow = this.add.text(x + 145, y, '▶', {
-      fontSize: '20px',
+    const rightArrow = this.add.text(x + arrowOffset, y, '▶', {
+      fontSize: Math.round(20 * uiScale) + 'px',
       color: '#54a0ff',
       fontStyle: 'bold'
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
@@ -184,38 +193,40 @@ export default class LobbyScene extends Phaser.Scene {
     if (!this.bannerBg) return;
     this.bannerBg.clear();
     this.bannerBg.fillStyle(0x000000, 0.45);
-    this.bannerBg.fillRoundedRect(this.bannerX - 170, this.bannerY - 30, 340, 60, 10);
+    this.bannerBg.fillRoundedRect(this.bannerX - this.bannerW / 2, this.bannerY - this.bannerH / 2, this.bannerW, this.bannerH, 10);
     this.bannerBg.lineStyle(focused ? 2.5 : 1.5, focused ? 0xff69b4 : 0x54a0ff, focused ? 1.0 : 0.8);
-    this.bannerBg.strokeRoundedRect(this.bannerX - 170, this.bannerY - 30, 340, 60, 10);
+    this.bannerBg.strokeRoundedRect(this.bannerX - this.bannerW / 2, this.bannerY - this.bannerH / 2, this.bannerW, this.bannerH, 10);
   }
 
   /** The main navigation buttons under Online Multiplayer */
-  private createMainButtons(x: number, startY: number): void {
+  private createMainButtons(x: number, startY: number, uiScale: number = 1.0): void {
     this.mainButtonsContainer = this.add.container(0, 0);
 
-    const btnSpacing = 52;
-    const btnW = 220;
-    const btnH = 38;
+    const btnSpacing = Math.round(54 * uiScale);
+    const btnW = Math.round(240 * uiScale);
+    const btnH = Math.round(42 * uiScale);
+    const fontSize = Math.round(14 * uiScale) + 'px';
+    const subFontSize = Math.round(13 * uiScale) + 'px';
 
     // 1. QUICK MATCH
     const quickBtn = CuteUI.createPillButton(this, x, startY, 'QUICK MATCH ⚡', () => {
       this.handleQuickMatch();
-    }, { textureKey: 'pill_pink', fontSize: '14px', width: btnW, height: btnH });
+    }, { textureKey: 'pill_pink', fontSize, width: btnW, height: btnH, autoScale: false });
 
     // 2. CREATE PRIVATE ROOM
     const createBtn = CuteUI.createPillButton(this, x, startY + btnSpacing, 'CREATE PRIVATE ROOM 🔑', () => {
       this.handleCreateRoom();
-    }, { textureKey: 'pill_green', fontSize: '13px', width: btnW, height: btnH });
+    }, { textureKey: 'pill_green', fontSize: subFontSize, width: btnW, height: btnH, autoScale: false });
 
     // 3. JOIN BY CODE
     const joinBtn = CuteUI.createPillButton(this, x, startY + btnSpacing * 2, 'JOIN BY CODE 🚪', () => {
       this.openJoinModal();
-    }, { textureKey: 'pill_blue', fontSize: '14px', width: btnW, height: btnH });
+    }, { textureKey: 'pill_blue', fontSize, width: btnW, height: btnH, autoScale: false });
 
     // 4. BACK TO MENU
     const backBtn = CuteUI.createPillButton(this, x, startY + btnSpacing * 3, 'BACK TO MENU', () => {
       this.handleBackToMenu();
-    }, { textureKey: 'pill_grey', fontSize: '14px', width: btnW, height: btnH });
+    }, { textureKey: 'pill_grey', fontSize, width: btnW, height: btnH, autoScale: false });
 
     this.mainPillButtons = [quickBtn, createBtn, joinBtn, backBtn];
     this.mainPillButtons.forEach((btn, idx) => {
@@ -229,28 +240,31 @@ export default class LobbyScene extends Phaser.Scene {
   }
 
   /** Waiting Room card shown after clicking CREATE ROOM */
-  private createWaitingRoomUI(x: number, y: number): void {
+  private createWaitingRoomUI(x: number, y: number, uiScale: number = 1.0): void {
     this.waitingRoomContainer = this.add.container(x, y);
     this.waitingRoomContainer.setVisible(false);
+
+    const cardW = Math.round(360 * uiScale);
+    const cardH = Math.round(210 * uiScale);
 
     // Card background
     const cardBg = this.add.graphics();
     cardBg.fillStyle(0x0c2461, 0.95);
-    cardBg.fillRoundedRect(-180, -90, 360, 200, 14);
+    cardBg.fillRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 14);
     cardBg.lineStyle(2.5, 0xfeca57, 1);
-    cardBg.strokeRoundedRect(-180, -90, 360, 200, 14);
+    cardBg.strokeRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 14);
     this.waitingRoomContainer.add(cardBg);
 
     // Room Code Title
-    const label = this.add.text(0, -66, 'SHARE ROOM CODE', {
-      fontSize: '13px',
+    const label = this.add.text(0, -Math.round(70 * uiScale), 'SHARE ROOM CODE', {
+      fontSize: Math.round(13 * uiScale) + 'px',
       color: '#a4b0be',
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
     // Big Room Code Text
-    this.roomCodeDisplay = this.add.text(0, -32, '------', {
-      fontSize: '32px',
+    this.roomCodeDisplay = this.add.text(0, -Math.round(34 * uiScale), '------', {
+      fontSize: Math.round(34 * uiScale) + 'px',
       color: '#feca57',
       fontStyle: 'bold',
       stroke: '#000000',
@@ -258,7 +272,7 @@ export default class LobbyScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     // Copy Code Button
-    const copyBtn = this.createSmallButton(0, 8, '📋 COPY CODE', 0x1e90ff, () => {
+    const copyBtn = this.createSmallButton(0, Math.round(8 * uiScale), '📋 COPY CODE', 0x1e90ff, () => {
       if (this.currentRoomId && navigator.clipboard) {
         navigator.clipboard.writeText(this.currentRoomId).then(() => {
           this.copyFeedbackText.setText('Code copied to clipboard!').setColor('#2ed573');
@@ -267,17 +281,17 @@ export default class LobbyScene extends Phaser.Scene {
           });
         }).catch(() => {});
       }
-    });
+    }, uiScale);
 
-    this.copyFeedbackText = this.add.text(0, 34, '', {
-      fontSize: '11px',
+    this.copyFeedbackText = this.add.text(0, Math.round(36 * uiScale), '', {
+      fontSize: Math.round(11 * uiScale) + 'px',
       color: '#2ed573',
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
     // Waiting Status
-    this.waitingStatusText = this.add.text(0, 56, 'Waiting for opponent to connect...', {
-      fontSize: '13px',
+    this.waitingStatusText = this.add.text(0, Math.round(58 * uiScale), 'Waiting for opponent to connect...', {
+      fontSize: Math.round(13 * uiScale) + 'px',
       color: '#ffffff',
       fontStyle: 'bold'
     }).setOrigin(0.5);
@@ -293,9 +307,9 @@ export default class LobbyScene extends Phaser.Scene {
     });
 
     // Cancel Button
-    const cancelBtn = this.createSmallButton(0, 88, 'CANCEL', 0xff4757, () => {
+    const cancelBtn = this.createSmallButton(0, Math.round(88 * uiScale), 'CANCEL', 0xff4757, () => {
       this.cancelWaitingRoom();
-    });
+    }, uiScale);
 
     this.waitingRoomContainer.add([
       label,
@@ -308,7 +322,7 @@ export default class LobbyScene extends Phaser.Scene {
   }
 
   /** Modal for entering room code */
-  private createJoinModalUI(x: number, y: number): void {
+  private createJoinModalUI(x: number, y: number, uiScale: number = 1.0): void {
     this.joinModalContainer = this.add.container(x, y);
     this.joinModalContainer.setVisible(false);
     this.joinModalContainer.setDepth(50);
@@ -317,29 +331,32 @@ export default class LobbyScene extends Phaser.Scene {
     const backdrop = this.add.rectangle(0, 0, this.cameras.main.width, this.cameras.main.height, 0x000000, 0.7);
     backdrop.setInteractive(); // block background clicks
 
+    const modalW = Math.round(350 * uiScale);
+    const modalH = Math.round(240 * uiScale);
+
     // Modal Window Box
     const box = this.add.graphics();
     box.fillStyle(0x1e272e, 0.98);
-    box.fillRoundedRect(-170, -115, 340, 230, 14);
+    box.fillRoundedRect(-modalW / 2, -modalH / 2, modalW, modalH, 14);
     box.lineStyle(2.5, 0x54a0ff, 1);
-    box.strokeRoundedRect(-170, -115, 340, 230, 14);
+    box.strokeRoundedRect(-modalW / 2, -modalH / 2, modalW, modalH, 14);
 
-    const title = this.add.text(0, -88, 'JOIN ROOM BY CODE', {
-      fontSize: '18px',
+    const title = this.add.text(0, -Math.round(90 * uiScale), 'JOIN ROOM BY CODE', {
+      fontSize: Math.round(18 * uiScale) + 'px',
       color: '#54a0ff',
       fontStyle: 'bold',
       stroke: '#000000',
       strokeThickness: 3
     }).setOrigin(0.5);
 
-    const promptText = this.add.text(0, -60, 'Type 6-Letter Room Code:', {
-      fontSize: '12px',
+    const promptText = this.add.text(0, -Math.round(62 * uiScale), 'Type 6-Letter Room Code:', {
+      fontSize: Math.round(12 * uiScale) + 'px',
       color: '#d2dae2'
     }).setOrigin(0.5);
 
     // Code input slots display
-    this.codeSlotsText = this.add.text(0, -24, '_ _ _ _ _ _', {
-      fontSize: '28px',
+    this.codeSlotsText = this.add.text(0, -Math.round(24 * uiScale), '_ _ _ _ _ _', {
+      fontSize: Math.round(28 * uiScale) + 'px',
       color: '#feca57',
       fontStyle: 'bold',
       letterSpacing: 4,
@@ -348,16 +365,17 @@ export default class LobbyScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     // Error feedback text
-    this.joinErrorText = this.add.text(0, 12, '', {
-      fontSize: '12px',
+    this.joinErrorText = this.add.text(0, Math.round(12 * uiScale), '', {
+      fontSize: Math.round(12 * uiScale) + 'px',
       color: '#ff4757',
       fontStyle: 'bold',
       align: 'center',
-      wordWrap: { width: 300 }
+      wordWrap: { width: Math.round(310 * uiScale) }
     }).setOrigin(0.5);
 
     // Paste from clipboard button
-    const pasteBtn = this.createSmallButton(-95, 46, '📋 PASTE', 0x57606f, () => {
+    const btnOffset = Math.round(98 * uiScale);
+    const pasteBtn = this.createSmallButton(-btnOffset, Math.round(48 * uiScale), '📋 PASTE', 0x57606f, () => {
       if (navigator.clipboard) {
         navigator.clipboard.readText().then((clipText) => {
           const cleaned = clipText.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6);
@@ -367,10 +385,10 @@ export default class LobbyScene extends Phaser.Scene {
           }
         }).catch(() => {});
       }
-    });
+    }, uiScale);
 
     // Mobile on-screen typing trigger
-    const typeBtn = this.createSmallButton(0, 46, '⌨️ TYPE', 0x54a0ff, () => {
+    const typeBtn = this.createSmallButton(0, Math.round(48 * uiScale), '⌨️ TYPE', 0x54a0ff, () => {
       const code = window.prompt('Enter 6-Letter Room Code:', this.inputCode);
       if (code) {
         const cleaned = code.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6);
@@ -379,17 +397,17 @@ export default class LobbyScene extends Phaser.Scene {
           this.updateCodeSlotsDisplay();
         }
       }
-    });
+    }, uiScale);
 
     // Join Button
-    const submitBtn = this.createSmallButton(95, 46, 'JOIN', 0x2ed573, () => {
+    const submitBtn = this.createSmallButton(btnOffset, Math.round(48 * uiScale), 'JOIN', 0x2ed573, () => {
       this.submitJoinCode();
-    });
+    }, uiScale);
 
     // Cancel Button
-    const closeBtn = this.createSmallButton(0, 84, 'CANCEL', 0xff4757, () => {
+    const closeBtn = this.createSmallButton(0, Math.round(86 * uiScale), 'CANCEL', 0xff4757, () => {
       this.closeJoinModal();
-    });
+    }, uiScale);
 
     this.joinModalContainer.add([
       backdrop,
@@ -627,7 +645,8 @@ export default class LobbyScene extends Phaser.Scene {
     y: number,
     text: string,
     color: number,
-    callback: () => void
+    callback: () => void,
+    uiScale: number = 1.0
   ): Phaser.GameObjects.Container {
     // Map color to pill small texture
     let texture = 'pill_sm_grey';
@@ -637,9 +656,10 @@ export default class LobbyScene extends Phaser.Scene {
 
     return CuteUI.createPillButton(this, x, y, text, callback, {
       textureKey: texture,
-      fontSize: '11px',
-      width: 110,
-      height: 30
+      fontSize: Math.round(11 * uiScale) + 'px',
+      width: Math.round(110 * uiScale),
+      height: Math.round(30 * uiScale),
+      autoScale: false
     });
   }
 

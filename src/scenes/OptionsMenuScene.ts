@@ -37,36 +37,48 @@ export default class OptionsMenuScene extends Phaser.Scene {
   create(): void {
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
+    const uiScale = CuteUI.getUIScale(this);
 
     // Drifting cute background pattern
     CuteUI.createCuteBackground(this);
 
     // Title
-    const title = this.add.text(width / 2, 42, 'OPTIONS & GUIDE', {
-      fontSize: '24px',
+    const titleY = Math.round(42 * Math.min(1.3, uiScale));
+    const title = this.add.text(width / 2, titleY, 'OPTIONS & GUIDE', {
+      fontSize: `${Math.round(24 * uiScale)}px`,
       color: '#ff69b4',
       fontStyle: 'bold',
       stroke: '#000000',
-      strokeThickness: 4
+      strokeThickness: Math.round(4 * (uiScale > 1.3 ? 1.3 : 1.0))
     }).setOrigin(0.5);
 
     // Flanking sparkle stars
-    this.add.image(width / 2 - 150, 42, 'sparkle_star').setScale(1.2);
-    this.add.image(width / 2 + 150, 42, 'sparkle_star').setScale(1.2);
+    const starOffset = Math.round(160 * uiScale);
+    this.add.image(width / 2 - starOffset, titleY, 'sparkle_star').setScale(1.2 * uiScale);
+    this.add.image(width / 2 + starOffset, titleY, 'sparkle_star').setScale(1.2 * uiScale);
 
     // Navigation Tabs (4 tabs)
-    this.createTabs(width / 2, 82);
+    const tabY = Math.round(84 * Math.min(1.3, uiScale));
+    this.createTabs(width / 2, tabY, uiScale);
 
-    // Content Containers
-    this.createAudioTab(width / 2, 240);
-    this.createControlsTab(width / 2, 240);
-    this.createHowToPlayTab(width / 2, 240);
-    this.createAITab(width / 2, 240);
+    // Content Containers (scaled for desktop readability)
+    const cardY = Math.round(240 * Math.min(1.25, uiScale));
+    this.createAudioTab(width / 2, cardY);
+    this.createControlsTab(width / 2, cardY);
+    this.createHowToPlayTab(width / 2, cardY);
+    this.createAITab(width / 2, cardY);
+
+    if (uiScale > 1.0) {
+      this.audioTabContainer.setScale(uiScale);
+      this.controlsTabContainer.setScale(uiScale);
+      this.howToPlayTabContainer.setScale(uiScale);
+      this.aiTabContainer.setScale(uiScale);
+    }
 
     // Back Button (Bottom)
-    const cardBottom = 240 + 135; // 375
-    const safeBottom = height - 48;
-    const backBtnY = Math.min(safeBottom, Math.max(cardBottom + 45, 465));
+    const cardBottom = cardY + Math.round(135 * uiScale);
+    const safeBottom = height - Math.round(48 * Math.min(1.3, uiScale));
+    const backBtnY = Math.min(safeBottom, Math.max(cardBottom + Math.round(40 * uiScale), height * 0.88));
     const backBtnText = this.returnScene === 'GameScene' ? 'RESUME GAME' : 'BACK TO MENU';
     CuteUI.createPillButton(
       this,
@@ -76,7 +88,13 @@ export default class OptionsMenuScene extends Phaser.Scene {
       () => {
         this.goBack();
       },
-      { textureKey: 'pill_grey', fontSize: '15px', width: 220, height: 44 }
+      {
+        textureKey: 'pill_grey',
+        fontSize: `${Math.round(15 * uiScale)}px`,
+        width: Math.round(220 * uiScale),
+        height: Math.round(44 * uiScale),
+        autoScale: false
+      }
     );
 
     // Setup global keyboard & gamepad navigation for the options menu
@@ -99,7 +117,7 @@ export default class OptionsMenuScene extends Phaser.Scene {
     }
   }
 
-  private createTabs(centerX: number, y: number): void {
+  private createTabs(centerX: number, y: number, uiScale: number = 1.0): void {
     const tabs = [
       { id: 'audio', label: '🔊 AUDIO' },
       { id: 'controls', label: '🎮 CONTROLS' },
@@ -107,8 +125,10 @@ export default class OptionsMenuScene extends Phaser.Scene {
       { id: 'ai', label: '🤖 AI' }
     ];
 
-    const tabWidth = 106;
-    const spacing = 8;
+    const tabWidth = Math.round(108 * uiScale);
+    const tabHeight = Math.round(32 * uiScale);
+    const halfH = tabHeight / 2;
+    const spacing = Math.round(8 * uiScale);
     const totalW = tabs.length * tabWidth + (tabs.length - 1) * spacing;
     const startX = centerX - totalW / 2 + tabWidth / 2;
 
@@ -120,22 +140,22 @@ export default class OptionsMenuScene extends Phaser.Scene {
       const drawTab = (active: boolean) => {
         bg.clear();
         bg.fillStyle(active ? 0xff69b4 : 0x1e272e, active ? 0.95 : 0.75);
-        bg.fillRoundedRect(-tabWidth / 2, -16, tabWidth, 32, 16);
+        bg.fillRoundedRect(-tabWidth / 2, -halfH, tabWidth, tabHeight, halfH);
         bg.lineStyle(2, active ? 0xffffff : 0x54a0ff, active ? 1 : 0.6);
-        bg.strokeRoundedRect(-tabWidth / 2, -16, tabWidth, 32, 16);
+        bg.strokeRoundedRect(-tabWidth / 2, -halfH, tabWidth, tabHeight, halfH);
       };
 
       drawTab(tab.id === this.currentTab);
 
       const text = this.add.text(0, -1, tab.label, {
-        fontSize: '11px',
+        fontSize: `${Math.round(11 * uiScale)}px`,
         color: '#ffffff',
         fontStyle: 'bold',
         stroke: '#000000',
         strokeThickness: 2
       }).setOrigin(0.5);
 
-      const hit = this.add.rectangle(0, 0, tabWidth, 32, 0x000000, 0);
+      const hit = this.add.rectangle(0, 0, tabWidth, tabHeight, 0x000000, 0);
       hit.setInteractive({ useHandCursor: true });
       hit.on('pointerdown', () => {
         SoundFx.playCursor();

@@ -14,9 +14,25 @@ export interface PillButtonOptions {
   shadow?: boolean;
   shadowColor?: number;
   shadowOffset?: number;
+  autoScale?: boolean;
 }
 
 export class CuteUI {
+  /**
+   * Returns a dynamic UI scale multiplier for desktop and tablet displays,
+   * while maintaining 1.0 on mobile devices for exact touch-target sizing.
+   */
+  public static getUIScale(scene: Phaser.Scene): number {
+    const w = scene.cameras?.main?.width || GAME_WIDTH;
+    const h = scene.cameras?.main?.height || GAME_HEIGHT;
+    // Mobile phones (portrait, landscape, or narrow width)
+    if (w < 600 || h < 520 || h >= w * 1.05) {
+      return 1.0;
+    }
+    // Desktop and tablet widescreen: scale gracefully with viewport height
+    const scale = Math.max(1.0, Math.min(2.1, h / 620));
+    return Math.round(scale * 100) / 100;
+  }
   /**
    * Create a fairytale storybook forest landscape background with drifting breeze particles.
    * Seamlessly scales to cover any viewport ratio and supports 'meadow' and 'autumn' themes.
@@ -125,11 +141,16 @@ export class CuteUI {
     callback: () => void,
     options: PillButtonOptions = {}
   ): Phaser.GameObjects.Container {
+    const autoScale = options.autoScale ?? true;
+    const uiScale = autoScale ? CuteUI.getUIScale(scene) : 1.0;
+
     const textureKey = options.textureKey || 'button';
-    const fontSize = options.fontSize || '15px';
+    const rawFontSize = options.fontSize || '15px';
+    const parsedSize = parseInt(rawFontSize, 10) || 15;
+    const fontSize = `${Math.round(parsedSize * uiScale)}px`;
     const fontColor = options.fontColor || '#ffffff';
     const strokeColor = options.strokeColor || '#000000';
-    const strokeThickness = options.strokeThickness ?? 3;
+    const strokeThickness = Math.round((options.strokeThickness ?? 3) * (uiScale > 1.3 ? 1.35 : 1.0));
 
     const container = scene.add.container(x, y);
 
@@ -137,12 +158,24 @@ export class CuteUI {
     const nativeWidth = frame ? frame.width : 230;
     const nativeHeight = frame ? frame.height : 46;
 
-    const btnWidth = options.width ?? (options.height ? Math.round(nativeWidth * (options.height / nativeHeight)) : nativeWidth);
-    const btnHeight = options.height ?? (options.width ? Math.round(nativeHeight * (options.width / nativeWidth)) : nativeHeight);
+    let baseW = options.width;
+    let baseH = options.height;
+
+    if (!baseW && !baseH) {
+      baseW = nativeWidth;
+      baseH = nativeHeight;
+    } else if (baseW && !baseH) {
+      baseH = Math.round(nativeHeight * (baseW / nativeWidth));
+    } else if (!baseW && baseH) {
+      baseW = Math.round(nativeWidth * (baseH / nativeHeight));
+    }
+
+    const btnWidth = Math.round((baseW || nativeWidth) * uiScale);
+    const btnHeight = Math.round((baseH || nativeHeight) * uiScale);
 
     // Cast a distinct, soft diffused shadow on the background behind the pill button
     const hasShadow = options.shadow !== false;
-    const baseShadowOffset = options.shadowOffset ?? 7;
+    const baseShadowOffset = Math.round((options.shadowOffset ?? 7) * uiScale);
     let shadow: Phaser.GameObjects.Graphics | null = null;
 
     if (hasShadow) {

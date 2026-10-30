@@ -43,19 +43,20 @@ export default class CharacterProfileScene extends Phaser.Scene {
 
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
+    const uiScale = CuteUI.getUIScale(this);
 
     // Drifting fairytale meadow background
     CuteUI.createCuteBackground(this, 'meadow');
 
     // Header Title
     this.add
-      .text(width / 2, 38, 'SLIME CATCHER PROFILE', {
+      .text(width / 2, Math.round(38 * Math.min(1.3, uiScale)), 'SLIME CATCHER PROFILE', {
         fontFamily: CUTE_FONT,
-        fontSize: '22px',
+        fontSize: `${Math.round(22 * uiScale)}px`,
         color: '#ff69b4',
         fontStyle: 'bold',
         stroke: '#000000',
-        strokeThickness: 4
+        strokeThickness: Math.round(4 * (uiScale > 1.3 ? 1.3 : 1.0))
       })
       .setOrigin(0.5);
 
@@ -64,7 +65,7 @@ export default class CharacterProfileScene extends Phaser.Scene {
 
     // Bottom Action Buttons
     const isNarrow = width < 450;
-    const safeBottom = height - (isNarrow ? 22 : 42);
+    const safeBottom = height - (isNarrow ? 22 : Math.round(42 * Math.min(1.3, uiScale)));
 
     if (isNarrow) {
       const btnW = Math.min(width - 40, 240);
@@ -77,7 +78,7 @@ export default class CharacterProfileScene extends Phaser.Scene {
           const char = CHARACTERS[this.currentIndex];
           this.scene.start('ChallengeMapScene', { characterId: char.id, defeatedOpponents: [] });
         },
-        { textureKey: 'pill_pink', fontSize: '12px', width: btnW, height: 34 }
+        { textureKey: 'pill_pink', fontSize: '12px', width: btnW, height: 34, autoScale: false }
       );
 
       CuteUI.createPillButton(
@@ -89,7 +90,7 @@ export default class CharacterProfileScene extends Phaser.Scene {
           const char = CHARACTERS[this.currentIndex];
           this.scene.start('GameScene', { mode: 'endless', characterId: char.id });
         },
-        { textureKey: 'pill_green', fontSize: '12px', width: btnW, height: 34 }
+        { textureKey: 'pill_green', fontSize: '12px', width: btnW, height: 34, autoScale: false }
       );
 
       CuteUI.createPillButton(
@@ -101,33 +102,36 @@ export default class CharacterProfileScene extends Phaser.Scene {
           SoundFx.playCursor();
           this.scene.start(this.returnScene);
         },
-        { textureKey: 'pill_grey', fontSize: '12px', width: btnW, height: 34 }
+        { textureKey: 'pill_grey', fontSize: '12px', width: btnW, height: 34, autoScale: false }
       );
     } else {
-      const btnW = Math.min(width - 48, 200);
+      const btnW = Math.min(Math.round(width * 0.28), Math.round(210 * uiScale));
+      const btnH = Math.round(40 * uiScale);
+      const btnFont = `${Math.round(13 * uiScale)}px`;
+      const btnSpacing = Math.round(115 * uiScale);
 
       CuteUI.createPillButton(
         this,
-        width / 2 - 110,
-        safeBottom - 50,
+        width / 2 - btnSpacing,
+        safeBottom - Math.round(48 * uiScale),
         'PLAY CHALLENGE 🏆',
         () => {
           const char = CHARACTERS[this.currentIndex];
           this.scene.start('ChallengeMapScene', { characterId: char.id, defeatedOpponents: [] });
         },
-        { textureKey: 'pill_pink', fontSize: '12px', width: btnW, height: 38 }
+        { textureKey: 'pill_pink', fontSize: btnFont, width: btnW, height: btnH, autoScale: false }
       );
 
       CuteUI.createPillButton(
         this,
-        width / 2 + 110,
-        safeBottom - 50,
+        width / 2 + btnSpacing,
+        safeBottom - Math.round(48 * uiScale),
         'PLAY ENDLESS ⏳',
         () => {
           const char = CHARACTERS[this.currentIndex];
           this.scene.start('GameScene', { mode: 'endless', characterId: char.id });
         },
-        { textureKey: 'pill_green', fontSize: '12px', width: btnW, height: 38 }
+        { textureKey: 'pill_green', fontSize: btnFont, width: btnW, height: btnH, autoScale: false }
       );
 
       CuteUI.createPillButton(
@@ -139,7 +143,7 @@ export default class CharacterProfileScene extends Phaser.Scene {
           SoundFx.playCursor();
           this.scene.start(this.returnScene);
         },
-        { textureKey: 'pill_grey', fontSize: '13px', width: Math.min(width - 48, 220), height: 38 }
+        { textureKey: 'pill_grey', fontSize: `${Math.round(13.5 * uiScale)}px`, width: Math.min(width - 48, Math.round(240 * uiScale)), height: btnH, autoScale: false }
       );
     }
 
@@ -167,33 +171,35 @@ export default class CharacterProfileScene extends Phaser.Scene {
 
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
+    const uiScale = CuteUI.getUIScale(this);
     const char = CHARACTERS[this.currentIndex];
     const personality = AI_PERSONALITIES[char.id] || AI_PERSONALITIES['mizu'];
     const theme = THEME_COLORS[char.id] || { primary: 0xff69b4, hex: '#ff69b4', light: '#ff9ff3' };
 
-    const cardW = Math.min(width - 32, 430);
-    const cardH = Math.min(height - 180, 420);
-    const cardY = 66 + cardH / 2;
+    const cardW = Math.min(width - 32, Math.round(440 * uiScale));
+    const cardH = Math.min(height - Math.round(165 * Math.min(1.3, uiScale)), Math.round(425 * uiScale));
+    const cardY = Math.round(66 * Math.min(1.3, uiScale)) + cardH / 2;
 
     this.cardContainer = this.add.container(width / 2, cardY);
 
     // 1. Card Background
     const cardBg = this.add.graphics();
     cardBg.fillStyle(0x181028, 0.96);
-    cardBg.fillRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 20);
-    cardBg.lineStyle(3, theme.primary, 1);
-    cardBg.strokeRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 20);
+    cardBg.fillRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, Math.round(20 * uiScale));
+    cardBg.lineStyle(Math.round(3 * uiScale), theme.primary, 1);
+    cardBg.strokeRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, Math.round(20 * uiScale));
 
     // Card header dividing rule
+    const ruleY = -cardH / 2 + Math.round(106 * uiScale);
     cardBg.lineStyle(1.5, theme.primary, 0.35);
-    cardBg.strokeLineShape(new Phaser.Geom.Line(-cardW / 2 + 20, -cardH / 2 + 106, cardW / 2 - 20, -cardH / 2 + 106));
+    cardBg.strokeLineShape(new Phaser.Geom.Line(-cardW / 2 + Math.round(20 * uiScale), ruleY, cardW / 2 - Math.round(20 * uiScale), ruleY));
 
     // 2. Navigation Arrows (Left / Right)
-    const arrowY = -cardH / 2 + 48;
+    const arrowY = -cardH / 2 + Math.round(48 * uiScale);
     const prevArrow = this.add
-      .text(-cardW / 2 + 24, arrowY, '◀', {
+      .text(-cardW / 2 + Math.round(24 * uiScale), arrowY, '◀', {
         fontFamily: CUTE_FONT,
-        fontSize: '22px',
+        fontSize: `${Math.round(22 * uiScale)}px`,
         color: '#ffffff'
       })
       .setOrigin(0.5)
@@ -204,9 +210,9 @@ export default class CharacterProfileScene extends Phaser.Scene {
     prevArrow.on('pointerout', () => prevArrow.setScale(1.0).setColor('#ffffff'));
 
     const nextArrow = this.add
-      .text(cardW / 2 - 24, arrowY, '▶', {
+      .text(cardW / 2 - Math.round(24 * uiScale), arrowY, '▶', {
         fontFamily: CUTE_FONT,
-        fontSize: '22px',
+        fontSize: `${Math.round(22 * uiScale)}px`,
         color: '#ffffff'
       })
       .setOrigin(0.5)
@@ -218,28 +224,31 @@ export default class CharacterProfileScene extends Phaser.Scene {
 
     // Roster count badge
     const badgeText = this.add
-      .text(0, -cardH / 2 + 18, `RIVAL ${this.currentIndex + 1} OF ${CHARACTERS.length}`, {
+      .text(0, -cardH / 2 + Math.round(18 * uiScale), `RIVAL ${this.currentIndex + 1} OF ${CHARACTERS.length}`, {
         fontFamily: CUTE_FONT,
-        fontSize: '11px',
+        fontSize: `${Math.round(11 * uiScale)}px`,
         color: '#a4b0be',
         fontStyle: 'bold'
       })
       .setOrigin(0.5);
 
     // 3. Mascot Portrait
+    const avatarCenterX = -cardW / 2 + Math.round(76 * uiScale);
+    const avatarCenterY = -cardH / 2 + Math.round(62 * uiScale);
     const avatarHalo = this.add.graphics();
     avatarHalo.fillStyle(theme.primary, 0.2);
-    avatarHalo.fillCircle(-cardW / 2 + 76, -cardH / 2 + 62, 34);
+    avatarHalo.fillCircle(avatarCenterX, avatarCenterY, Math.round(34 * uiScale));
     avatarHalo.lineStyle(2, theme.primary, 0.8);
-    avatarHalo.strokeCircle(-cardW / 2 + 76, -cardH / 2 + 62, 34);
+    avatarHalo.strokeCircle(avatarCenterX, avatarCenterY, Math.round(34 * uiScale));
 
-    const mascot = this.add.sprite(-cardW / 2 + 76, -cardH / 2 + 62, char.id);
-    mascot.setDisplaySize(58, 58);
+    const mascotSize = Math.round(58 * uiScale);
+    const mascot = this.add.sprite(avatarCenterX, avatarCenterY, char.id);
+    mascot.setDisplaySize(mascotSize, mascotSize);
 
     // Gentle idle floating tween
     this.tweens.add({
       targets: mascot,
-      y: -cardH / 2 + 58,
+      y: avatarCenterY - 4,
       duration: 1200,
       yoyo: true,
       repeat: -1,
@@ -248,20 +257,20 @@ export default class CharacterProfileScene extends Phaser.Scene {
 
     // 4. Character Name & Species Title
     const nameText = this.add
-      .text(-cardW / 2 + 124, -cardH / 2 + 45, char.name, {
+      .text(-cardW / 2 + Math.round(124 * uiScale), -cardH / 2 + Math.round(45 * uiScale), char.name, {
         fontFamily: CUTE_FONT,
-        fontSize: '26px',
+        fontSize: `${Math.round(26 * uiScale)}px`,
         color: theme.hex,
         fontStyle: 'bold',
         stroke: '#000000',
-        strokeThickness: 4
+        strokeThickness: Math.round(4 * (uiScale > 1.3 ? 1.3 : 1.0))
       })
       .setOrigin(0, 0.5);
 
     const speciesText = this.add
-      .text(-cardW / 2 + 126, -cardH / 2 + 72, `${char.species} • ${personality.title}`, {
+      .text(-cardW / 2 + Math.round(126 * uiScale), -cardH / 2 + Math.round(72 * uiScale), `${char.species} • ${personality.title}`, {
         fontFamily: CUTE_FONT,
-        fontSize: '12px',
+        fontSize: `${Math.round(12 * uiScale)}px`,
         color: '#dfe4ea',
         fontStyle: 'bold'
       })
@@ -269,17 +278,17 @@ export default class CharacterProfileScene extends Phaser.Scene {
 
     // 5. Quotes Speech Capsule
     const quoteBox = this.add.graphics();
-    const quoteBoxY = -cardH / 2 + 118;
-    const quoteBoxH = 60;
+    const quoteBoxY = -cardH / 2 + Math.round(118 * uiScale);
+    const quoteBoxH = Math.round(60 * uiScale);
     quoteBox.fillStyle(0x0e081c, 0.88);
-    quoteBox.fillRoundedRect(-cardW / 2 + 18, quoteBoxY, cardW - 36, quoteBoxH, 12);
+    quoteBox.fillRoundedRect(-cardW / 2 + Math.round(18 * uiScale), quoteBoxY, cardW - Math.round(36 * uiScale), quoteBoxH, Math.round(12 * uiScale));
     quoteBox.lineStyle(1.2, theme.primary, 0.5);
-    quoteBox.strokeRoundedRect(-cardW / 2 + 18, quoteBoxY, cardW - 36, quoteBoxH, 12);
+    quoteBox.strokeRoundedRect(-cardW / 2 + Math.round(18 * uiScale), quoteBoxY, cardW - Math.round(36 * uiScale), quoteBoxH, Math.round(12 * uiScale));
 
     const quoteText = this.add
-      .text(0, quoteBoxY + 18, `💬 "${char.quote}"`, {
+      .text(0, quoteBoxY + Math.round(18 * uiScale), `💬 "${char.quote}"`, {
         fontFamily: CUTE_FONT,
-        fontSize: '13px',
+        fontSize: `${Math.round(13 * uiScale)}px`,
         color: '#fff3c4',
         fontStyle: 'italic bold',
         stroke: '#000000',
@@ -288,9 +297,9 @@ export default class CharacterProfileScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     const defeatText = this.add
-      .text(0, quoteBoxY + 42, `Defeat: "${char.defeatQuote}"`, {
+      .text(0, quoteBoxY + Math.round(42 * uiScale), `Defeat: "${char.defeatQuote}"`, {
         fontFamily: CUTE_FONT,
-        fontSize: '11px',
+        fontSize: `${Math.round(11 * uiScale)}px`,
         color: '#a4b0be',
         fontStyle: 'italic'
       })
@@ -298,9 +307,9 @@ export default class CharacterProfileScene extends Phaser.Scene {
 
     // 6. Bio Description & AI Combat Style
     const bioHeader = this.add
-      .text(-cardW / 2 + 22, -cardH / 2 + 196, 'ABOUT & BATTLE STRATEGY', {
+      .text(-cardW / 2 + Math.round(22 * uiScale), -cardH / 2 + Math.round(196 * uiScale), 'ABOUT & BATTLE STRATEGY', {
         fontFamily: CUTE_FONT,
-        fontSize: '11.5px',
+        fontSize: `${Math.round(11.5 * uiScale)}px`,
         color: theme.light,
         fontStyle: 'bold'
       })
@@ -308,22 +317,22 @@ export default class CharacterProfileScene extends Phaser.Scene {
 
     const bioBody = this.add
       .text(
-        -cardW / 2 + 22,
-        -cardH / 2 + 212,
+        -cardW / 2 + Math.round(22 * uiScale),
+        -cardH / 2 + Math.round(212 * uiScale),
         `${char.description}\n\n${personality.description}`,
         {
           fontFamily: CUTE_FONT,
-          fontSize: '11.5px',
+          fontSize: `${Math.round(11.5 * uiScale)}px`,
           color: '#ffffff',
-          lineSpacing: 4,
-          wordWrap: { width: cardW - 44 }
+          lineSpacing: Math.round(4 * uiScale),
+          wordWrap: { width: cardW - Math.round(44 * uiScale) }
         }
       )
       .setOrigin(0, 0);
 
     // 7. Combat Stats Display (Speed, Combo Mastery, Garbage Defense)
-    const statsY = Math.min(-cardH / 2 + 330, cardH / 2 - 50);
-    const statBoxW = (cardW - 44) / 3;
+    const statsY = Math.min(-cardH / 2 + Math.round(330 * uiScale), cardH / 2 - Math.round(50 * uiScale));
+    const statBoxW = (cardW - Math.round(44 * uiScale)) / 3;
 
     // Stat 1: Speed (derived from baseInterval: 120ms = 5★, 220ms = 1★)
     const speedRating = Math.max(1, Math.min(5, Math.round((240 - personality.baseInterval) / 24)));
@@ -336,23 +345,23 @@ export default class CharacterProfileScene extends Phaser.Scene {
       const starStr = '★'.repeat(stars) + '☆'.repeat(5 - stars);
       const cellBg = this.add.graphics();
       cellBg.fillStyle(0x0e081c, 0.85);
-      cellBg.fillRoundedRect(cx - statBoxW / 2 + 4, statsY, statBoxW - 8, 40, 8);
+      cellBg.fillRoundedRect(cx - statBoxW / 2 + 4, statsY, statBoxW - 8, Math.round(40 * uiScale), 8);
       cellBg.lineStyle(1, 0x57606f, 0.5);
-      cellBg.strokeRoundedRect(cx - statBoxW / 2 + 4, statsY, statBoxW - 8, 40, 8);
+      cellBg.strokeRoundedRect(cx - statBoxW / 2 + 4, statsY, statBoxW - 8, Math.round(40 * uiScale), 8);
 
       const l = this.add
-        .text(cx, statsY + 11, label, {
+        .text(cx, statsY + Math.round(11 * uiScale), label, {
           fontFamily: CUTE_FONT,
-          fontSize: '10px',
+          fontSize: `${Math.round(10 * uiScale)}px`,
           color: '#a4b0be',
           fontStyle: 'bold'
         })
         .setOrigin(0.5);
 
       const s = this.add
-        .text(cx, statsY + 27, starStr, {
+        .text(cx, statsY + Math.round(27 * uiScale), starStr, {
           fontFamily: CUTE_FONT,
-          fontSize: '11px',
+          fontSize: `${Math.round(11 * uiScale)}px`,
           color: '#feca57'
         })
         .setOrigin(0.5);
