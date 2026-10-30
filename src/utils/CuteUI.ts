@@ -141,13 +141,18 @@ export class CuteUI {
     callback: () => void,
     options: PillButtonOptions = {}
   ): Phaser.GameObjects.Container {
-    const autoScale = options.autoScale ?? true;
+    // If the caller explicitly specifies width or height, they have already chosen the layout dimensions.
+    // Default autoScale to false when explicit dimensions exist to prevent double-scaling and overlaps.
+    const hasExplicitDimensions = options.width !== undefined || options.height !== undefined;
+    const autoScale = options.autoScale ?? !hasExplicitDimensions;
     const uiScale = autoScale ? CuteUI.getUIScale(scene) : 1.0;
 
     const textureKey = options.textureKey || 'button';
     const rawFontSize = options.fontSize || '15px';
     const parsedSize = parseInt(rawFontSize, 10) || 15;
-    const fontSize = `${Math.round(parsedSize * uiScale)}px`;
+    const fontSize = options.fontSize
+      ? (autoScale ? `${Math.round(parsedSize * uiScale)}px` : options.fontSize)
+      : `${Math.round(15 * uiScale)}px`;
     const fontColor = options.fontColor || '#ffffff';
     const strokeColor = options.strokeColor || '#000000';
     const strokeThickness = Math.round((options.strokeThickness ?? 3) * (uiScale > 1.3 ? 1.35 : 1.0));
@@ -170,12 +175,12 @@ export class CuteUI {
       baseW = Math.round(nativeWidth * (baseH / nativeHeight));
     }
 
-    const btnWidth = Math.round((baseW || nativeWidth) * uiScale);
-    const btnHeight = Math.round((baseH || nativeHeight) * uiScale);
+    const btnWidth = autoScale ? Math.round((baseW || nativeWidth) * uiScale) : (baseW || nativeWidth);
+    const btnHeight = autoScale ? Math.round((baseH || nativeHeight) * uiScale) : (baseH || nativeHeight);
 
     // Cast a distinct, soft diffused shadow on the background behind the pill button
     const hasShadow = options.shadow !== false;
-    const baseShadowOffset = Math.round((options.shadowOffset ?? 7) * uiScale);
+    const baseShadowOffset = Math.round((options.shadowOffset ?? 4) * uiScale);
     let shadow: Phaser.GameObjects.Graphics | null = null;
 
     if (hasShadow) {
@@ -183,16 +188,12 @@ export class CuteUI {
       const shadowColor = options.shadowColor ?? 0x000000;
       const r = btnHeight / 2;
 
-      // Layer 1: Soft outer feathered bloom (visible around sides and below)
-      shadow.fillStyle(shadowColor, 0.28);
-      shadow.fillRoundedRect(-btnWidth / 2 - 5, -btnHeight / 2 - 2, btnWidth + 10, btnHeight + 8, r + 3);
+      // Layer 1: Soft outer feathered bloom
+      shadow.fillStyle(shadowColor, 0.20);
+      shadow.fillRoundedRect(-btnWidth / 2 - 2, -btnHeight / 2, btnWidth + 4, btnHeight + 4, r + 2);
 
-      // Layer 2: Intermediate penumbra
-      shadow.fillStyle(shadowColor, 0.45);
-      shadow.fillRoundedRect(-btnWidth / 2 - 2.5, -btnHeight / 2 - 1, btnWidth + 5, btnHeight + 6, r + 1.5);
-
-      // Layer 3: Deep rich direct contact shadow
-      shadow.fillStyle(shadowColor, 0.70);
+      // Layer 2: Deep rich contact shadow
+      shadow.fillStyle(shadowColor, 0.55);
       shadow.fillRoundedRect(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight + 2, r);
 
       shadow.setPosition(0, baseShadowOffset);

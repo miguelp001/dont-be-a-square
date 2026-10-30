@@ -11,6 +11,7 @@ export default class MenuScene extends Phaser.Scene {
   private padRepeatTimer: number = 0;
   private prevPadButtons: Map<number, boolean> = new Map();
   private cursorIndicator?: Phaser.GameObjects.Image;
+  private indicatorOffset: number = 140;
 
   constructor() {
     super({ key: 'MenuScene' });
@@ -72,15 +73,18 @@ export default class MenuScene extends Phaser.Scene {
     // Dynamically adapt button and showcase layout to available viewport height
     const safeBottom = height - Math.round(55 * Math.min(1.3, uiScale));
     const showcaseY = Math.min(safeBottom, Math.max(438, height * 0.88));
-    const charHeadingY = showcaseY - Math.round(52 * uiScale);
-    const availableSpace = charHeadingY - (titleY + Math.round(35 * uiScale));
-    const btnSpacing = Math.round(52 * uiScale);
-    const totalBtnSpan = btnSpacing * 3;
-    const startY = height > 530 ? Math.round(titleY + 40 + (availableSpace - totalBtnSpan) / 2) : 134;
+    const isNarrow = width < 500;
+    const charHeadingY = isNarrow ? showcaseY - 68 : showcaseY - Math.round(52 * uiScale);
 
     const btnW = Math.round(250 * uiScale);
-    const btnH = Math.round(44 * uiScale);
-    const btnFont = `${Math.round(15 * uiScale)}px`;
+    const btnH = Math.round(42 * uiScale);
+    const btnSpacing = Math.round(58 * uiScale);
+    const btnFont = `${Math.round(14.5 * uiScale)}px`;
+    const totalBtnSpan = btnSpacing * 3;
+
+    const titleBottom = titleY + Math.round(30 * (isMobile ? 1.0 : Math.min(1.3, uiScale)));
+    const availableSpace = charHeadingY - titleBottom;
+    const startY = Math.round(titleBottom + Math.max(16, (availableSpace - totalBtnSpan) / 2));
 
     const btn1 = CuteUI.createPillButton(
       this,
@@ -90,7 +94,7 @@ export default class MenuScene extends Phaser.Scene {
       () => {
         this.scene.start('CharacterSelectScene', { mode: 'challenge' });
       },
-      { textureKey: 'pill_pink', fontSize: btnFont, width: btnW, height: btnH }
+      { textureKey: 'pill_pink', fontSize: btnFont, width: btnW, height: btnH, autoScale: false }
     );
 
     const btn2 = CuteUI.createPillButton(
@@ -101,7 +105,7 @@ export default class MenuScene extends Phaser.Scene {
       () => {
         this.scene.start('CharacterSelectScene', { mode: 'endless' });
       },
-      { textureKey: 'pill_green', fontSize: btnFont, width: btnW, height: btnH }
+      { textureKey: 'pill_green', fontSize: btnFont, width: btnW, height: btnH, autoScale: false }
     );
 
     const btn3 = CuteUI.createPillButton(
@@ -112,7 +116,7 @@ export default class MenuScene extends Phaser.Scene {
       () => {
         this.scene.start('LobbyScene');
       },
-      { textureKey: 'pill_blue', fontSize: btnFont, width: btnW, height: btnH }
+      { textureKey: 'pill_blue', fontSize: btnFont, width: btnW, height: btnH, autoScale: false }
     );
 
     const btn4 = CuteUI.createPillButton(
@@ -123,7 +127,7 @@ export default class MenuScene extends Phaser.Scene {
       () => {
         this.scene.start('OptionsMenuScene', { returnScene: 'MenuScene' });
       },
-      { textureKey: 'pill_purple', fontSize: btnFont, width: btnW, height: btnH }
+      { textureKey: 'pill_purple', fontSize: btnFont, width: btnW, height: btnH, autoScale: false }
     );
 
     this.menuButtons = [btn1, btn2, btn3, btn4];
@@ -145,9 +149,9 @@ export default class MenuScene extends Phaser.Scene {
     });
 
     // Sparkling indicator next to active button
-    const indicatorOffset = Math.round(btnW / 2 + 20 * uiScale);
-    this.cursorIndicator = this.add.image(width / 2 - indicatorOffset, startY, 'sparkle_star');
-    this.cursorIndicator.setDisplaySize(16 * uiScale, 16 * uiScale);
+    this.indicatorOffset = Math.round(btnW / 2 + 18);
+    this.cursorIndicator = this.add.image(width / 2 - this.indicatorOffset, startY, 'sparkle_star');
+    this.cursorIndicator.setDisplaySize(Math.round(16 * uiScale), Math.round(16 * uiScale));
     this.cursorIndicator.setTint(0xfffa65);
     this.tweens.add({
       targets: this.cursorIndicator,
@@ -164,7 +168,6 @@ export default class MenuScene extends Phaser.Scene {
     this.setupKeyboardNavigation();
 
     // Character showcase section: "Meet the Slime catchers!"
-    const isNarrow = width < 500;
     const headingFont = isNarrow ? '12px' : `${Math.round(15 * uiScale)}px`;
     const charHeading = this.add.text(
       width / 2,
@@ -342,9 +345,9 @@ export default class MenuScene extends Phaser.Scene {
   private updateButtonSelection(): void {
     this.menuButtons.forEach((btn, idx) => {
       if (idx === this.selectedButtonIndex) {
-        btn.setScale(1.06);
+        btn.setScale(1.05);
         if (this.cursorIndicator) {
-          this.cursorIndicator.setPosition(btn.x - 118, btn.y);
+          this.cursorIndicator.setPosition(btn.x - this.indicatorOffset, btn.y);
           this.cursorIndicator.setVisible(true);
         }
       } else {
