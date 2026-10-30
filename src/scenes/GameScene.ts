@@ -201,95 +201,19 @@ export default class GameScene extends Phaser.Scene {
 
     if (isMobilePortrait) {
       // ===== MOBILE PORTRAIT ADAPTIVE BATTLE LAYOUT =====
-      // 1. Lift Bar at bottom (thumb-friendly target)
-      const liftBarH = 40;
+      // 1. Bottom Fast-Lift Bar (thumb-friendly target)
+      const liftBarH = 36;
       const liftBarY = height - liftBarH / 2 - 8;
+      const liftBarTop = liftBarY - liftBarH / 2;
 
-      // 2. Player 1 Board at the bottom - huge touchable slimes!
-      const availableP1W = width - 24;
-      const p1ScaleW = availableP1W / (BOARD_WIDTH * PANEL_SIZE);
-      const availableP1H = liftBarY - liftBarH / 2 - 14 - 235;
-      const p1ScaleH = availableP1H / (BOARD_VISIBLE_HEIGHT * PANEL_SIZE);
-      this.playerBoardScale = Math.min(2.1, Math.max(1.3, Math.min(p1ScaleW, p1ScaleH)));
-
-      const p1BoardW = Math.round(BOARD_WIDTH * PANEL_SIZE * this.playerBoardScale);
-      const p1BoardH = Math.round(BOARD_VISIBLE_HEIGHT * PANEL_SIZE * this.playerBoardScale);
-      const p1X = Math.round((width - p1BoardW) / 2);
-      const p1Y = liftBarY - liftBarH / 2 - 8 - p1BoardH;
-
-      this.boardP1X = p1X;
-      this.boardP1Y = p1Y;
-
-      // P1 Board Frame & Board
-      this.playerBorder = this.add.graphics();
-      this.playerBorder.setDepth(21);
-      this.drawBoardFrame(this.playerBorder, p1X, p1Y, p1BoardW, p1BoardH, 0xff69b4, true);
-      this.playerBoard = new Board(this, p1X, p1Y, this.playerBoardScale);
-      this.playerBoard.addInitialPanels(5);
-      this.playerCursor = new Cursor(this, this.playerBoard);
-
-      // P1 Header Plaque above board
-      const p1PlaqueW = Math.min(p1BoardW - 8, 250);
-      const p1Header = this.add.container(p1X + p1BoardW / 2, p1Y - 24);
-      p1Header.setDepth(24);
-      const p1Sign = this.add.image(0, 0, 'wood_plaque_sign');
-      p1Sign.setDisplaySize(p1PlaqueW, 36);
-
-      const p1Badge = CuteUI.createPillButton(this, -p1PlaqueW / 2 + 24, 0, 'P1', () => {}, {
-        textureKey: 'pill_pink',
-        fontSize: '11px',
-        width: 36,
-        height: 22,
-        shadow: false
-      });
-
-      const p1NameText = this.add.text(-p1PlaqueW / 2 + 48, -7, p1Char.name, {
-        fontSize: '12px',
-        color: '#fff3c4',
-        fontStyle: 'bold',
-        stroke: '#3e2415',
-        strokeThickness: 3
-      });
-
-      this.playerScoreText = this.add.text(-p1PlaqueW / 2 + 48, 6, 'SCORE: 0', {
-        fontSize: '10px',
-        color: '#ffffff',
-        fontStyle: 'bold',
-        stroke: '#3e2415',
-        strokeThickness: 2
-      });
-
-      p1Header.add([p1Sign, p1Badge, p1NameText, this.playerScoreText]);
-
-      this.playerChainText = this.add
-        .text(p1X + p1BoardW / 2, p1Y + p1BoardH / 2, '', {
-          fontSize: '22px',
-          color: '#ff9f43',
-          fontStyle: 'bold',
-          stroke: '#000000',
-          strokeThickness: 4
-        })
-        .setOrigin(0.5)
-        .setDepth(26);
-
-      this.playerDangerText = this.add
-        .text(p1X + p1BoardW / 2, p1Y - 42, '', {
-          fontSize: '13px',
-          color: '#ff4757',
-          fontStyle: 'bold',
-          stroke: '#000000',
-          strokeThickness: 3
-        })
-        .setOrigin(0.5)
-        .setDepth(26);
-
-      // 3. Opponent Battle Monitor at Top-Right
-      const opponentTargetW = Math.min(145, Math.max(105, width * 0.38));
+      // 2. Opponent Battle Monitor at Top-Right
+      // Keep opponent monitor compact so it never crowds or overlaps the player board
+      const opponentTargetW = Math.min(108, Math.max(80, Math.round(width * 0.26)));
       this.cpuBoardScale = opponentTargetW / (BOARD_WIDTH * PANEL_SIZE);
       const p2BoardW = Math.round(BOARD_WIDTH * PANEL_SIZE * this.cpuBoardScale);
       const p2BoardH = Math.round(BOARD_VISIBLE_HEIGHT * PANEL_SIZE * this.cpuBoardScale);
-      const p2X = width - p2BoardW - 12;
-      const p2Y = 32;
+      const p2X = width - p2BoardW - 8;
+      const p2Y = 14;
 
       this.boardP2X = p2X;
       this.boardP2Y = p2Y;
@@ -303,8 +227,8 @@ export default class GameScene extends Phaser.Scene {
       this.cpuCursor.setStrokeStyle(3 * this.cpuBoardScale, p2Color);
 
       this.cpuDangerText = this.add
-        .text(p2X + p2BoardW / 2, p2Y - 14, '', {
-          fontSize: '11px',
+        .text(p2X + p2BoardW / 2, p2Y - 8, '', {
+          fontSize: '10px',
           color: '#ff4757',
           fontStyle: 'bold',
           stroke: '#000000',
@@ -314,8 +238,8 @@ export default class GameScene extends Phaser.Scene {
         .setDepth(26);
 
       this.cpuChainText = this.add
-        .text(p2X + p2BoardW / 2, p2Y + p2BoardH + 12, '', {
-          fontSize: '14px',
+        .text(p2X + p2BoardW / 2, p2Y + p2BoardH + 10, '', {
+          fontSize: '12px',
           color: '#54a0ff',
           fontStyle: 'bold',
           stroke: '#000000',
@@ -324,32 +248,40 @@ export default class GameScene extends Phaser.Scene {
         .setOrigin(0.5)
         .setDepth(26);
 
-      // Top-Left Opponent Info Plaque & Mascot & Timer
-      const leftColCenterX = Math.round((p2X - 8) / 2);
-      const p2PlaqueW = Math.min(p2X - 24, 180);
+      const topSectionBottom = p2Y + p2BoardH;
+
+      // Left Column: Pause button (at x:24, y:22), Opponent Plaque, Mascot, and Timer
+      const leftColStartX = 50; // clears pause button!
+      const leftColEndX = p2X - 8;
+      const leftColW = Math.max(80, leftColEndX - leftColStartX);
+      const leftColCenterX = Math.round(leftColStartX + leftColW / 2);
+
+      // Opponent Info Plaque: right of pause button, top aligned with p2Y
+      const p2PlaqueW = Math.min(leftColW, 160);
       const p2Header = this.add.container(leftColCenterX, p2Y + 12);
       p2Header.setDepth(24);
       const p2Sign = this.add.image(0, 0, 'wood_plaque_sign');
-      p2Sign.setDisplaySize(p2PlaqueW, 36);
+      p2Sign.setDisplaySize(p2PlaqueW, 30);
 
-      const p2Badge = CuteUI.createPillButton(this, -p2PlaqueW / 2 + 24, 0, p2Label, () => {}, {
+      const p2Badge = CuteUI.createPillButton(this, -p2PlaqueW / 2 + 18, 0, p2Label, () => {}, {
         textureKey: 'pill_blue',
-        fontSize: '11px',
-        width: 38,
-        height: 22,
-        shadow: false
+        fontSize: '10px',
+        width: 32,
+        height: 20,
+        shadow: false,
+        autoScale: false
       });
 
-      const p2NameText = this.add.text(-p2PlaqueW / 2 + 48, -7, p2Char.name, {
-        fontSize: '12px',
+      const p2NameText = this.add.text(-p2PlaqueW / 2 + 38, -6, p2Char.name, {
+        fontSize: '11px',
         color: '#fff3c4',
         fontStyle: 'bold',
         stroke: '#3e2415',
-        strokeThickness: 3
+        strokeThickness: 2
       });
 
-      this.cpuScoreText = this.add.text(-p2PlaqueW / 2 + 48, 6, 'SCORE: 0', {
-        fontSize: '10px',
+      this.cpuScoreText = this.add.text(-p2PlaqueW / 2 + 38, 6, 'SCORE: 0', {
+        fontSize: '9.5px',
         color: '#ffffff',
         fontStyle: 'bold',
         stroke: '#3e2415',
@@ -358,67 +290,128 @@ export default class GameScene extends Phaser.Scene {
 
       p2Header.add([p2Sign, p2Badge, p2NameText, this.cpuScoreText]);
 
-      // Timer Plaque positioned in top-left block
-      const timerContainer = this.add.container(leftColCenterX, p2Y + p2BoardH - 14);
+      // Timer Plaque at bottom of top section
+      const timerContainer = this.add.container(leftColCenterX, topSectionBottom - 16);
       timerContainer.setDepth(30);
 
       const timerPlaque = this.add.image(0, 0, 'wood_plaque_sign');
-      timerPlaque.setDisplaySize(Math.min(p2PlaqueW, 110), 34);
+      timerPlaque.setDisplaySize(Math.min(leftColW, 105), 30);
 
-      const clockIcon = this.add.image(-26, 0, 'wood_clock_icon');
-      clockIcon.setDisplaySize(18, 18);
+      const clockIcon = this.add.image(-24, 0, 'wood_clock_icon');
+      clockIcon.setDisplaySize(16, 16);
 
-      this.timeText = this.add.text(10, -1, this.formatTime(this.gameTime), {
-        fontSize: '14px',
+      this.timeText = this.add.text(8, -1, this.formatTime(this.gameTime), {
+        fontSize: '13px',
         color: '#fff3c4',
         fontStyle: 'bold',
         stroke: '#3e2415',
-        strokeThickness: 3
+        strokeThickness: 2
       }).setOrigin(0.5);
 
       timerContainer.add([timerPlaque, clockIcon, this.timeText]);
 
-      // Opponent Mascot standing between plaque and timer
-      const cpuCharH = Math.min(84, Math.round(p2BoardH * 0.44));
+      // Opponent Mascot centered vertically between plaque and timer
+      const cpuCharY = Math.round((p2Y + 28 + (topSectionBottom - 30)) / 2);
+      const cpuCharH = Math.min(56, Math.max(38, Math.round((topSectionBottom - 30 - (p2Y + 28)) * 0.95)));
       const cpuCharW = cpuCharH;
-      const cpuCharX = leftColCenterX;
-      const cpuCharY = p2Y + Math.round(p2BoardH * 0.45);
 
-      const shadowG = this.add.graphics();
-      shadowG.fillStyle(0x1a3311, 0.38);
-      shadowG.fillEllipse(cpuCharX, cpuCharY + cpuCharH * 0.42, cpuCharW * 0.48, 12);
-      shadowG.setDepth(14);
-
-      this.cpuMascot = this.add.image(cpuCharX, cpuCharY, p2Char.id);
+      this.cpuMascot = this.add.image(leftColCenterX, cpuCharY, p2Char.id);
       this.cpuMascot.setDisplaySize(cpuCharW, cpuCharH);
       this.cpuMascot.setFlipX(true);
       this.cpuMascot.setDepth(15);
       this.tweens.add({
         targets: this.cpuMascot,
-        y: cpuCharY - 4,
+        y: cpuCharY - 3,
         duration: 1350,
         yoyo: true,
         repeat: -1,
         ease: 'Sine.easeInOut'
       });
 
-      // Player Mascot standing next to Player 1 header
-      const p1CharH = 64;
-      const p1CharW = p1CharH;
-      const p1CharX = Math.max(30, p1X - 22);
-      const p1CharY = p1Y - 14;
+      // 3. Player 1 Board at the bottom - calculated to fit with zero overlap
+      const p1TopAvailable = topSectionBottom + 40;
+      const p1BottomAvailable = liftBarTop - 8;
+      const availableP1H = Math.max(240, p1BottomAvailable - p1TopAvailable);
+      const availableP1W = width - 20;
 
-      this.playerMascot = this.add.image(p1CharX, p1CharY, p1Char.id);
-      this.playerMascot.setDisplaySize(p1CharW, p1CharH);
-      this.playerMascot.setDepth(25);
-      this.tweens.add({
-        targets: this.playerMascot,
-        y: p1CharY - 4,
-        duration: 1300,
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.easeInOut'
+      const scaleByH = availableP1H / (BOARD_VISIBLE_HEIGHT * PANEL_SIZE);
+      const scaleByW = availableP1W / (BOARD_WIDTH * PANEL_SIZE);
+      this.playerBoardScale = Math.max(0.75, Math.min(1.4, scaleByW, scaleByH));
+
+      const p1BoardW = Math.round(BOARD_WIDTH * PANEL_SIZE * this.playerBoardScale);
+      const p1BoardH = Math.round(BOARD_VISIBLE_HEIGHT * PANEL_SIZE * this.playerBoardScale);
+      const p1X = Math.round((width - p1BoardW) / 2);
+      const p1Y = p1BottomAvailable - p1BoardH;
+
+      this.boardP1X = p1X;
+      this.boardP1Y = p1Y;
+
+      // P1 Board Frame & Board
+      this.playerBorder = this.add.graphics();
+      this.playerBorder.setDepth(21);
+      this.drawBoardFrame(this.playerBorder, p1X, p1Y, p1BoardW, p1BoardH, 0xff69b4, true);
+      this.playerBoard = new Board(this, p1X, p1Y, this.playerBoardScale);
+      this.playerBoard.addInitialPanels(5);
+      this.playerCursor = new Cursor(this, this.playerBoard);
+
+      // P1 Header Plaque above board
+      const p1PlaqueW = Math.min(p1BoardW - 8, width - 24);
+      const p1Header = this.add.container(p1X + p1BoardW / 2, p1Y - 18);
+      p1Header.setDepth(24);
+      const p1Sign = this.add.image(0, 0, 'wood_plaque_sign');
+      p1Sign.setDisplaySize(p1PlaqueW, 32);
+
+      const p1Badge = CuteUI.createPillButton(this, -p1PlaqueW / 2 + 18, 0, 'P1', () => {}, {
+        textureKey: 'pill_pink',
+        fontSize: '11px',
+        width: 32,
+        height: 20,
+        shadow: false,
+        autoScale: false
       });
+
+      this.playerMascot = this.add.image(-p1PlaqueW / 2 + 46, 0, p1Char.id);
+      this.playerMascot.setDisplaySize(24, 24);
+
+      const p1NameText = this.add.text(-p1PlaqueW / 2 + 66, -6, p1Char.name, {
+        fontSize: '12px',
+        color: '#fff3c4',
+        fontStyle: 'bold',
+        stroke: '#3e2415',
+        strokeThickness: 3
+      });
+
+      this.playerScoreText = this.add.text(-p1PlaqueW / 2 + 66, 6, 'SCORE: 0', {
+        fontSize: '10px',
+        color: '#ffffff',
+        fontStyle: 'bold',
+        stroke: '#3e2415',
+        strokeThickness: 2
+      });
+
+      p1Header.add([p1Sign, p1Badge, this.playerMascot, p1NameText, this.playerScoreText]);
+
+      this.playerChainText = this.add
+        .text(p1X + p1BoardW / 2, p1Y + p1BoardH / 2, '', {
+          fontSize: '22px',
+          color: '#ff9f43',
+          fontStyle: 'bold',
+          stroke: '#000000',
+          strokeThickness: 4
+        })
+        .setOrigin(0.5)
+        .setDepth(26);
+
+      this.playerDangerText = this.add
+        .text(p1X + p1BoardW / 2, p1Y - 36, '', {
+          fontSize: '12px',
+          color: '#ff4757',
+          fontStyle: 'bold',
+          stroke: '#000000',
+          strokeThickness: 3
+        })
+        .setOrigin(0.5)
+        .setDepth(26);
 
     } else {
       // ===== DESKTOP / LANDSCAPE SIDE-BY-SIDE EXPANDED LAYOUT =====
@@ -764,11 +757,15 @@ export default class GameScene extends Phaser.Scene {
     this.isMobileLayout = isMobilePortrait;
 
     if (isMobilePortrait) {
-      const availableW = width - 24;
-      const scaleByW = Math.floor((availableW / (BOARD_WIDTH * PANEL_SIZE)) * 100) / 100;
-      const availableH = height - 170;
-      const scaleByH = Math.floor((availableH / (BOARD_VISIBLE_HEIGHT * PANEL_SIZE)) * 100) / 100;
-      this.playerBoardScale = Math.min(2.1, Math.max(1.3, Math.min(scaleByW, scaleByH)));
+      const liftBarH = 36;
+      const liftBarY = height - liftBarH / 2 - 8;
+      const liftBarTop = liftBarY - liftBarH / 2;
+
+      const availableW = width - 20;
+      const scaleByW = availableW / (BOARD_WIDTH * PANEL_SIZE);
+      const availableH = liftBarTop - 64;
+      const scaleByH = availableH / (BOARD_VISIBLE_HEIGHT * PANEL_SIZE);
+      this.playerBoardScale = Math.max(0.75, Math.min(1.4, Math.min(scaleByW, scaleByH)));
     } else {
       const availableW = width - 120;
       const scaleByW = Math.floor((availableW / (1.3 * BOARD_WIDTH * PANEL_SIZE)) * 100) / 100;
@@ -785,7 +782,7 @@ export default class GameScene extends Phaser.Scene {
 
     let boardY = 88;
     if (isMobilePortrait) {
-      const liftBarH = 40;
+      const liftBarH = 36;
       const liftBarY = height - liftBarH / 2 - 8;
       boardY = liftBarY - liftBarH / 2 - 8 - boardH;
     } else {
@@ -878,7 +875,7 @@ export default class GameScene extends Phaser.Scene {
     let mascotY: number;
 
     if (isMobilePortrait) {
-      mascotX = Math.max(30, boardX - 22);
+      mascotX = Math.max(24, boardX - 14);
       mascotY = boardY - 14;
     } else {
       mascotX = Math.min(width - 90, Math.round(boardX + boardW + 105));
@@ -893,7 +890,7 @@ export default class GameScene extends Phaser.Scene {
     }
 
     this.playerMascot = this.add.image(mascotX, mascotY, charData.id);
-    this.playerMascot.setDisplaySize(isMobilePortrait ? 64 : charW, isMobilePortrait ? 64 : charH);
+    this.playerMascot.setDisplaySize(isMobilePortrait ? 38 : charW, isMobilePortrait ? 38 : charH);
     this.playerMascot.setDepth(25);
     this.tweens.add({
       targets: this.playerMascot,
@@ -1684,8 +1681,18 @@ export default class GameScene extends Phaser.Scene {
 
   /** Display speech bubble above character */
   private showSpeechBubble(isPlayer1: boolean, text: string): void {
-    const x = isPlayer1 ? 64 : 448;
-    const y = 20;
+    const width = this.cameras.main.width;
+    const isMobile = this.isMobileLayout;
+    let x: number;
+    let y: number;
+
+    if (isMobile) {
+      x = width / 2;
+      y = isPlayer1 ? Math.max(60, this.boardP1Y - 26) : 38;
+    } else {
+      x = isPlayer1 ? Math.min(width * 0.25, 90) : Math.max(width * 0.75, width - 90);
+      y = 20;
+    }
 
     const bubble = this.add.text(x, y, `"${text}"`, {
       fontSize: '11px',
@@ -1694,7 +1701,8 @@ export default class GameScene extends Phaser.Scene {
       stroke: '#000000',
       strokeThickness: 3
     });
-    bubble.setOrigin(isPlayer1 ? 0 : 1, 0.5);
+    bubble.setOrigin(isMobile ? 0.5 : (isPlayer1 ? 0 : 1), 0.5);
+    bubble.setDepth(35);
 
     this.tweens.add({
       targets: bubble,

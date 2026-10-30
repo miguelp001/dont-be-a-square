@@ -34,10 +34,14 @@ export default class CharacterSelectScene extends Phaser.Scene {
     const height = this.cameras.main.height;
     const uiScale = CuteUI.getUIScale(this);
     
-    const titleText = this.mode === 'challenge' ? 'CHALLENGE: PICK YOUR SLIME CATCHER' : 'SELECT YOUR SLIME CATCHER';
-    const titleY = Math.round(48 * Math.min(1.3, uiScale));
+    const isMobile = width < 600 || (height >= width * 1.05 && width < 768);
+    const titleText = isMobile
+      ? (this.mode === 'challenge' ? 'PICK YOUR FIGHTER' : 'SELECT FIGHTER')
+      : (this.mode === 'challenge' ? 'CHALLENGE: PICK YOUR SLIME CATCHER' : 'SELECT YOUR SLIME CATCHER');
+    const titleY = Math.round((isMobile ? 36 : 48) * Math.min(1.3, uiScale));
+    const titleFontSize = isMobile ? '20px' : `${Math.round((this.mode === 'challenge' ? 19 : 23) * uiScale)}px`;
     const title = this.add.text(width / 2, titleY, titleText, {
-      fontSize: `${Math.round((this.mode === 'challenge' ? 19 : 23) * uiScale)}px`,
+      fontSize: titleFontSize,
       color: '#ff69b4',
       fontStyle: 'bold',
       stroke: '#000000',
@@ -46,14 +50,13 @@ export default class CharacterSelectScene extends Phaser.Scene {
     title.setOrigin(0.5);
     
     // Create character grid centered
-    const isMobile = width < 600 || (height >= width * 1.05 && width < 768);
     const colSpacing = isMobile
-      ? Math.min(96, Math.floor((width - 48) / 3))
+      ? Math.min(84, Math.floor((width - 32) / 3))
       : Math.min(150, Math.round(112 * uiScale));
     const gridStartX = Math.floor((width - 3 * colSpacing) / 2);
-    const startGridY = Math.round(135 * Math.min(1.3, uiScale));
-    const rowSpacing = Math.round(108 * Math.min(1.3, uiScale));
-    const baseSpriteSize = Math.round(58 * Math.min(1.4, uiScale));
+    const startGridY = Math.round((isMobile ? 105 : 135) * Math.min(1.3, uiScale));
+    const rowSpacing = isMobile ? 84 : Math.round(108 * Math.min(1.3, uiScale));
+    const baseSpriteSize = isMobile ? 48 : Math.round(58 * Math.min(1.4, uiScale));
 
     CHARACTERS.forEach((char, i) => {
       const x = gridStartX + (i % 4) * colSpacing;
@@ -63,8 +66,8 @@ export default class CharacterSelectScene extends Phaser.Scene {
       sprite.setDisplaySize(baseSpriteSize, baseSpriteSize);
       sprite.setInteractive({ useHandCursor: true });
       
-      const nameText = this.add.text(x, y + Math.round(44 * Math.min(1.35, uiScale)), char.name, {
-        fontSize: `${Math.round(12.5 * Math.min(1.35, uiScale))}px`,
+      const nameText = this.add.text(x, y + Math.round((isMobile ? 34 : 44) * Math.min(1.35, uiScale)), char.name, {
+        fontSize: `${Math.round((isMobile ? 11 : 12.5) * Math.min(1.35, uiScale))}px`,
         color: '#ffffff',
         stroke: '#000000',
         strokeThickness: 2
@@ -83,37 +86,37 @@ export default class CharacterSelectScene extends Phaser.Scene {
     });
     
     // Responsive button and info positioning
-    const safeBottom = height - Math.round(52 * Math.min(1.3, uiScale));
-    const backBtnY = Math.min(safeBottom, Math.max(464, height * 0.85));
-    const btnSpacing = Math.round(52 * uiScale);
+    const safeBottom = height - (isMobile ? 24 : Math.round(52 * Math.min(1.3, uiScale)));
+    const btnSpacing = isMobile ? 44 : Math.round(52 * uiScale);
+    const backBtnY = isMobile ? Math.min(safeBottom, height - 32) : Math.min(safeBottom, Math.max(464, height * 0.85));
     const startBtnY = backBtnY - btnSpacing;
-    const charTextY = Math.max(startGridY + rowSpacing + 45, startBtnY - Math.round(62 * uiScale));
+    const charTextY = Math.max(startGridY + rowSpacing + 42, startBtnY - (isMobile ? 48 : Math.round(62 * uiScale)));
 
     // Character info
     this.charText = this.add.text(width / 2, charTextY, '', {
-      fontSize: `${Math.round(13 * uiScale)}px`,
+      fontSize: `${Math.round((isMobile ? 12 : 13) * uiScale)}px`,
       color: '#ffffff',
       align: 'center',
       stroke: '#000000',
       strokeThickness: 2,
-      wordWrap: { width: Math.min(width - 40, Math.round(500 * uiScale)) }
+      wordWrap: { width: Math.min(width - 32, Math.round(500 * uiScale)) }
     });
     this.charText.setOrigin(0.5);
     
     this.selectCharacter(0);
     
     // Action buttons
-    const btnW = Math.round(240 * uiScale);
-    const btnH = Math.round(44 * uiScale);
-    const btnFont = `${Math.round(15 * uiScale)}px`;
+    const btnW = isMobile ? Math.min(220, width - 40) : Math.round(240 * uiScale);
+    const btnH = isMobile ? 38 : Math.round(44 * uiScale);
+    const btnFont = `${Math.round((isMobile ? 13 : 15) * uiScale)}px`;
 
     CuteUI.createPillButton(this, width / 2, startBtnY, 'START GAME', () => {
       this.startGame();
-    }, { textureKey: 'pill_pink', width: btnW, height: btnH, fontSize: btnFont });
+    }, { textureKey: 'pill_pink', width: btnW, height: btnH, fontSize: btnFont, autoScale: false });
 
     CuteUI.createPillButton(this, width / 2, backBtnY, 'BACK TO MENU', () => {
       this.scene.start('MenuScene');
-    }, { textureKey: 'pill_grey', width: btnW, height: btnH, fontSize: btnFont });
+    }, { textureKey: 'pill_grey', width: btnW, height: btnH, fontSize: btnFont, autoScale: false });
     
     // Keyboard controls
     const moveSelection = (dx: number, dy: number) => {

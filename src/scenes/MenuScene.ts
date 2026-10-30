@@ -30,9 +30,11 @@ export default class MenuScene extends Phaser.Scene {
     CuteUI.createCuteBackground(this);
 
     // Title with cute glow & kawaii stars
-    const titleY = Math.round(64 * Math.min(1.35, uiScale));
+    const isMobile = width < 600 || height >= width * 1.05;
+    const titleY = Math.round((isMobile ? 52 : 64) * Math.min(1.35, uiScale));
+    const titleFontSize = isMobile ? `${Math.min(26, Math.floor(width / 14))}px` : `${Math.round(30 * uiScale)}px`;
     const title = this.add.text(width / 2, titleY, "DON'T BE A SQUARE", {
-      fontSize: `${Math.round(30 * uiScale)}px`,
+      fontSize: titleFontSize,
       color: '#ff69b4',
       fontStyle: 'bold',
       stroke: '#000000',
@@ -41,9 +43,9 @@ export default class MenuScene extends Phaser.Scene {
     title.setOrigin(0.5);
 
     // Decorative sparkling stars around title
-    const starOffset = Math.round(195 * uiScale);
-    const leftStar = this.add.image(width / 2 - starOffset, titleY, 'sparkle_star').setScale(1.3 * uiScale);
-    const rightStar = this.add.image(width / 2 + starOffset, titleY, 'sparkle_star').setScale(1.3 * uiScale);
+    const starOffset = isMobile ? Math.min(width / 2 - 14, 150) : Math.round(195 * uiScale);
+    const leftStar = this.add.image(width / 2 - starOffset, titleY, 'sparkle_star').setScale((isMobile ? 1.0 : 1.3) * uiScale);
+    const rightStar = this.add.image(width / 2 + starOffset, titleY, 'sparkle_star').setScale((isMobile ? 1.0 : 1.3) * uiScale);
     this.tweens.add({
       targets: [leftStar, rightStar],
       angle: 360,
