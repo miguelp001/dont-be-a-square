@@ -63,44 +63,85 @@ export default class CharacterProfileScene extends Phaser.Scene {
     this.renderProfileCard();
 
     // Bottom Action Buttons
-    const safeBottom = height - 42;
-    const btnW = Math.min(width - 48, 200);
+    const isNarrow = width < 450;
+    const safeBottom = height - (isNarrow ? 22 : 42);
 
-    CuteUI.createPillButton(
-      this,
-      width / 2 - 110,
-      safeBottom - 50,
-      'PLAY CHALLENGE 🏆',
-      () => {
-        const char = CHARACTERS[this.currentIndex];
-        this.scene.start('ChallengeMapScene', { characterId: char.id, defeatedOpponents: [] });
-      },
-      { textureKey: 'pill_pink', fontSize: '12px', width: btnW, height: 38 }
-    );
+    if (isNarrow) {
+      const btnW = Math.min(width - 40, 240);
+      CuteUI.createPillButton(
+        this,
+        width / 2,
+        safeBottom - 84,
+        'PLAY CHALLENGE 🏆',
+        () => {
+          const char = CHARACTERS[this.currentIndex];
+          this.scene.start('ChallengeMapScene', { characterId: char.id, defeatedOpponents: [] });
+        },
+        { textureKey: 'pill_pink', fontSize: '12px', width: btnW, height: 34 }
+      );
 
-    CuteUI.createPillButton(
-      this,
-      width / 2 + 110,
-      safeBottom - 50,
-      'PLAY ENDLESS ⏳',
-      () => {
-        const char = CHARACTERS[this.currentIndex];
-        this.scene.start('GameScene', { mode: 'endless', characterId: char.id });
-      },
-      { textureKey: 'pill_green', fontSize: '12px', width: btnW, height: 38 }
-    );
+      CuteUI.createPillButton(
+        this,
+        width / 2,
+        safeBottom - 44,
+        'PLAY ENDLESS ⏳',
+        () => {
+          const char = CHARACTERS[this.currentIndex];
+          this.scene.start('GameScene', { mode: 'endless', characterId: char.id });
+        },
+        { textureKey: 'pill_green', fontSize: '12px', width: btnW, height: 34 }
+      );
 
-    CuteUI.createPillButton(
-      this,
-      width / 2,
-      safeBottom,
-      'BACK TO MENU',
-      () => {
-        SoundFx.playCursor();
-        this.scene.start(this.returnScene);
-      },
-      { textureKey: 'pill_grey', fontSize: '13px', width: Math.min(width - 48, 220), height: 38 }
-    );
+      CuteUI.createPillButton(
+        this,
+        width / 2,
+        safeBottom - 4,
+        'BACK TO MENU',
+        () => {
+          SoundFx.playCursor();
+          this.scene.start(this.returnScene);
+        },
+        { textureKey: 'pill_grey', fontSize: '12px', width: btnW, height: 34 }
+      );
+    } else {
+      const btnW = Math.min(width - 48, 200);
+
+      CuteUI.createPillButton(
+        this,
+        width / 2 - 110,
+        safeBottom - 50,
+        'PLAY CHALLENGE 🏆',
+        () => {
+          const char = CHARACTERS[this.currentIndex];
+          this.scene.start('ChallengeMapScene', { characterId: char.id, defeatedOpponents: [] });
+        },
+        { textureKey: 'pill_pink', fontSize: '12px', width: btnW, height: 38 }
+      );
+
+      CuteUI.createPillButton(
+        this,
+        width / 2 + 110,
+        safeBottom - 50,
+        'PLAY ENDLESS ⏳',
+        () => {
+          const char = CHARACTERS[this.currentIndex];
+          this.scene.start('GameScene', { mode: 'endless', characterId: char.id });
+        },
+        { textureKey: 'pill_green', fontSize: '12px', width: btnW, height: 38 }
+      );
+
+      CuteUI.createPillButton(
+        this,
+        width / 2,
+        safeBottom,
+        'BACK TO MENU',
+        () => {
+          SoundFx.playCursor();
+          this.scene.start(this.returnScene);
+        },
+        { textureKey: 'pill_grey', fontSize: '13px', width: Math.min(width - 48, 220), height: 38 }
+      );
+    }
 
     // Keyboard navigation
     this.input.keyboard?.on('keydown-LEFT', () => this.navigate(-1));

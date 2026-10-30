@@ -56,10 +56,10 @@ const config: Phaser.Types.Core.GameConfig = {
     CharacterProfileScene
   ],
   scale: {
-    mode: Phaser.Scale.EXPAND,
+    mode: Phaser.Scale.RESIZE,
     autoCenter: Phaser.Scale.CENTER_BOTH,
-    width: GAME_WIDTH,
-    height: GAME_HEIGHT,
+    width: '100%',
+    height: '100%',
     expandParent: true
   }
 };

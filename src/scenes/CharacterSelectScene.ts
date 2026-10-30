@@ -44,9 +44,10 @@ export default class CharacterSelectScene extends Phaser.Scene {
     title.setOrigin(0.5);
     
     // Create character grid centered
-    const gridStartX = Math.floor((width - 3 * 96) / 2);
+    const colSpacing = Math.min(96, Math.floor((width - 48) / 3));
+    const gridStartX = Math.floor((width - 3 * colSpacing) / 2);
     CHARACTERS.forEach((char, i) => {
-      const x = gridStartX + (i % 4) * 96;
+      const x = gridStartX + (i % 4) * colSpacing;
       const y = 140 + Math.floor(i / 4) * 105;
       
       const sprite = this.add.sprite(x, y, char.id);

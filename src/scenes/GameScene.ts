@@ -47,8 +47,27 @@ export default class GameScene extends Phaser.Scene {
   private cpuDangerText?: Phaser.GameObjects.Text;
 
   private boardP1X: number = 24;
+  private boardP1Y: number = 88;
   private boardP2X: number = 296;
-  private boardY: number = 88;
+  private boardP2Y: number = 88;
+
+  public playerBoardScale: number = 1.0;
+  public cpuBoardScale: number = 1.0;
+  public isMobileLayout: boolean = false;
+
+  public get boardScale(): number {
+    return this.playerBoardScale;
+  }
+  public set boardScale(val: number) {
+    this.playerBoardScale = val;
+  }
+
+  public get boardY(): number {
+    return this.boardP1Y;
+  }
+  public set boardY(val: number) {
+    this.boardP1Y = val;
+  }
 
   private socketMgr?: SocketManager;
   private gameTime: number = 180;
@@ -77,7 +96,7 @@ export default class GameScene extends Phaser.Scene {
   private keyupHandler?: (e: KeyboardEvent) => void;
 
   // Touch & Mobile Gesture State
-  private boardScale: number = 1.0;
+  private touchSwapped: boolean = false;
   private twoFingerLifting: boolean = false;
   private mouseRightLifting: boolean = false;
   private touchBoardActive: boolean = false;
@@ -172,250 +191,460 @@ export default class GameScene extends Phaser.Scene {
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
 
-    // Responsive board scaling for mobile/desktop (accounting for snug 1.2x frame border width)
-    const availableW = width - 44;
-    const maxScaleByW = Math.floor((availableW / (2.4 * BOARD_WIDTH * PANEL_SIZE + 18)) * 100) / 100;
-    const scaleByW = Math.min(1.05, Math.max(0.72, maxScaleByW));
-    const availableH = height - 160;
-    const scaleByH = Math.min(1.05, Math.max(0.72, Math.floor((availableH / (1.14 * BOARD_VISIBLE_HEIGHT * PANEL_SIZE)) * 100) / 100));
-    this.boardScale = Math.min(scaleByW, scaleByH);
-
-    const boardW = Math.round(BOARD_WIDTH * PANEL_SIZE * this.boardScale);
-    const boardH = Math.round(BOARD_VISIBLE_HEIGHT * PANEL_SIZE * this.boardScale);
-
-    // Adaptive vertical positioning on mobile / tall screens
-    const boardY = height > 550 ? Math.max(90, Math.round((height - boardH - 100) * 0.38)) : 88;
-
-    const centerX = width / 2;
-    const boardGap = Math.min(50, Math.max(14, width - boardW * 2 - 24));
-    const p1X = Math.round(centerX - boardW - boardGap / 2);
-    const p2X = Math.round(centerX + boardGap / 2);
-
-    this.boardP1X = p1X;
-    this.boardP2X = p2X;
-    this.boardY = boardY;
-
-    // Center Timer Sign between boards (Hanging Wood Plaque with Clock Icon)
-    const timerContainer = this.add.container(centerX, boardY + Math.round(boardH * 0.28));
-    timerContainer.setDepth(30);
-
-    const timerPlaque = this.add.image(0, 0, 'wood_plaque_sign');
-    timerPlaque.setDisplaySize(Math.min(boardGap + 44, 114), 38);
-
-    const clockIcon = this.add.image(-28, 0, 'wood_clock_icon');
-    clockIcon.setDisplaySize(20, 20);
-
-    this.timeText = this.add.text(12, -1, this.formatTime(this.gameTime), {
-      fontSize: '15px',
-      color: '#fff3c4',
-      fontStyle: 'bold',
-      stroke: '#3e2415',
-      strokeThickness: 3
-    }).setOrigin(0.5);
-
-    timerContainer.add([timerPlaque, clockIcon, this.timeText]);
-
-    // Setup Player 1 (Left)
-    this.playerBorder = this.add.graphics();
-    this.playerBorder.setDepth(21);
-    this.drawBoardFrame(this.playerBorder, p1X, boardY, boardW, boardH, 0xff69b4, true);
-    this.playerBoard = new Board(this, p1X, boardY, this.boardScale);
-    this.playerBoard.addInitialPanels(5);
-    this.playerCursor = new Cursor(this, this.playerBoard);
+    const isMobilePortrait = height >= width * 1.05 || width < 600;
+    this.isMobileLayout = isMobilePortrait;
 
     const p1Char = CHARACTERS.find((c) => c.id === this.characterId) || CHARACTERS[0];
-
-    // Player 1 Header Wooden Plaque
-    const p1PlaqueW = Math.min(boardW - 6, 210);
-    const p1Header = this.add.container(p1X + boardW / 2, boardY - 32);
-    p1Header.setDepth(24);
-    const p1Sign = this.add.image(0, 0, 'wood_plaque_sign');
-    p1Sign.setDisplaySize(p1PlaqueW, 38);
-
-    const p1Badge = CuteUI.createPillButton(this, -p1PlaqueW / 2 + 24, 0, 'P1', () => {}, {
-      textureKey: 'pill_pink',
-      fontSize: '11px',
-      width: 36,
-      height: 22,
-      shadow: false
-    });
-
-    const p1NameText = this.add.text(-p1PlaqueW / 2 + 48, -7, p1Char.name, {
-      fontSize: '12px',
-      color: '#fff3c4',
-      fontStyle: 'bold',
-      stroke: '#3e2415',
-      strokeThickness: 3
-    });
-
-    this.playerScoreText = this.add.text(-p1PlaqueW / 2 + 48, 6, 'SCORE: 0', {
-      fontSize: '10px',
-      color: '#ffffff',
-      fontStyle: 'bold',
-      stroke: '#3e2415',
-      strokeThickness: 2
-    });
-
-    p1Header.add([p1Sign, p1Badge, p1NameText, this.playerScoreText]);
-
-    this.playerChainText = this.add
-      .text(p1X + boardW / 2, boardY + boardH + 16, '', {
-        fontSize: '17px',
-        color: '#ff9f43',
-        fontStyle: 'bold',
-        stroke: '#000000',
-        strokeThickness: 3
-      })
-      .setOrigin(0.5);
-
-    this.playerDangerText = this.add
-      .text(p1X + boardW / 2, boardY - 50, '', {
-        fontSize: '12px',
-        color: '#ff4757',
-        fontStyle: 'bold',
-        stroke: '#000000',
-        strokeThickness: 3
-      })
-      .setOrigin(0.5);
-
-    // Setup Opponent (Right)
+    const p2Char = CHARACTERS.find((c) => c.id === this.opponentCharacterId) || CHARACTERS[1];
     const p2Label = this.gameMode === 'vs_online' ? 'P2' : 'CPU';
     const p2Color = 0x54a0ff;
-    this.cpuBorder = this.add.graphics();
-    this.cpuBorder.setDepth(21);
-    this.drawBoardFrame(this.cpuBorder, p2X, boardY, boardW, boardH, p2Color, false);
-    this.cpuBoard = new Board(this, p2X, boardY, this.boardScale);
-    this.cpuBoard.addInitialPanels(5);
-    this.cpuCursor = new Cursor(this, this.cpuBoard);
-    this.cpuCursor.setStrokeStyle(3 * this.boardScale, p2Color);
 
-    this.cpuDangerText = this.add
-      .text(p2X + boardW / 2, boardY - 50, '', {
+    if (isMobilePortrait) {
+      // ===== MOBILE PORTRAIT ADAPTIVE BATTLE LAYOUT =====
+      // 1. Lift Bar at bottom (thumb-friendly target)
+      const liftBarH = 40;
+      const liftBarY = height - liftBarH / 2 - 8;
+
+      // 2. Player 1 Board at the bottom - huge touchable slimes!
+      const availableP1W = width - 24;
+      const p1ScaleW = availableP1W / (BOARD_WIDTH * PANEL_SIZE);
+      const availableP1H = liftBarY - liftBarH / 2 - 14 - 235;
+      const p1ScaleH = availableP1H / (BOARD_VISIBLE_HEIGHT * PANEL_SIZE);
+      this.playerBoardScale = Math.min(2.1, Math.max(1.3, Math.min(p1ScaleW, p1ScaleH)));
+
+      const p1BoardW = Math.round(BOARD_WIDTH * PANEL_SIZE * this.playerBoardScale);
+      const p1BoardH = Math.round(BOARD_VISIBLE_HEIGHT * PANEL_SIZE * this.playerBoardScale);
+      const p1X = Math.round((width - p1BoardW) / 2);
+      const p1Y = liftBarY - liftBarH / 2 - 8 - p1BoardH;
+
+      this.boardP1X = p1X;
+      this.boardP1Y = p1Y;
+
+      // P1 Board Frame & Board
+      this.playerBorder = this.add.graphics();
+      this.playerBorder.setDepth(21);
+      this.drawBoardFrame(this.playerBorder, p1X, p1Y, p1BoardW, p1BoardH, 0xff69b4, true);
+      this.playerBoard = new Board(this, p1X, p1Y, this.playerBoardScale);
+      this.playerBoard.addInitialPanels(5);
+      this.playerCursor = new Cursor(this, this.playerBoard);
+
+      // P1 Header Plaque above board
+      const p1PlaqueW = Math.min(p1BoardW - 8, 250);
+      const p1Header = this.add.container(p1X + p1BoardW / 2, p1Y - 24);
+      p1Header.setDepth(24);
+      const p1Sign = this.add.image(0, 0, 'wood_plaque_sign');
+      p1Sign.setDisplaySize(p1PlaqueW, 36);
+
+      const p1Badge = CuteUI.createPillButton(this, -p1PlaqueW / 2 + 24, 0, 'P1', () => {}, {
+        textureKey: 'pill_pink',
+        fontSize: '11px',
+        width: 36,
+        height: 22,
+        shadow: false
+      });
+
+      const p1NameText = this.add.text(-p1PlaqueW / 2 + 48, -7, p1Char.name, {
         fontSize: '12px',
-        color: '#ff4757',
+        color: '#fff3c4',
         fontStyle: 'bold',
-        stroke: '#000000',
+        stroke: '#3e2415',
         strokeThickness: 3
-      })
-      .setOrigin(0.5);
+      });
+
+      this.playerScoreText = this.add.text(-p1PlaqueW / 2 + 48, 6, 'SCORE: 0', {
+        fontSize: '10px',
+        color: '#ffffff',
+        fontStyle: 'bold',
+        stroke: '#3e2415',
+        strokeThickness: 2
+      });
+
+      p1Header.add([p1Sign, p1Badge, p1NameText, this.playerScoreText]);
+
+      this.playerChainText = this.add
+        .text(p1X + p1BoardW / 2, p1Y + p1BoardH / 2, '', {
+          fontSize: '22px',
+          color: '#ff9f43',
+          fontStyle: 'bold',
+          stroke: '#000000',
+          strokeThickness: 4
+        })
+        .setOrigin(0.5)
+        .setDepth(26);
+
+      this.playerDangerText = this.add
+        .text(p1X + p1BoardW / 2, p1Y - 42, '', {
+          fontSize: '13px',
+          color: '#ff4757',
+          fontStyle: 'bold',
+          stroke: '#000000',
+          strokeThickness: 3
+        })
+        .setOrigin(0.5)
+        .setDepth(26);
+
+      // 3. Opponent Battle Monitor at Top-Right
+      const opponentTargetW = Math.min(145, Math.max(105, width * 0.38));
+      this.cpuBoardScale = opponentTargetW / (BOARD_WIDTH * PANEL_SIZE);
+      const p2BoardW = Math.round(BOARD_WIDTH * PANEL_SIZE * this.cpuBoardScale);
+      const p2BoardH = Math.round(BOARD_VISIBLE_HEIGHT * PANEL_SIZE * this.cpuBoardScale);
+      const p2X = width - p2BoardW - 12;
+      const p2Y = 32;
+
+      this.boardP2X = p2X;
+      this.boardP2Y = p2Y;
+
+      this.cpuBorder = this.add.graphics();
+      this.cpuBorder.setDepth(21);
+      this.drawBoardFrame(this.cpuBorder, p2X, p2Y, p2BoardW, p2BoardH, p2Color, false);
+      this.cpuBoard = new Board(this, p2X, p2Y, this.cpuBoardScale);
+      this.cpuBoard.addInitialPanels(5);
+      this.cpuCursor = new Cursor(this, this.cpuBoard);
+      this.cpuCursor.setStrokeStyle(3 * this.cpuBoardScale, p2Color);
+
+      this.cpuDangerText = this.add
+        .text(p2X + p2BoardW / 2, p2Y - 14, '', {
+          fontSize: '11px',
+          color: '#ff4757',
+          fontStyle: 'bold',
+          stroke: '#000000',
+          strokeThickness: 2
+        })
+        .setOrigin(0.5)
+        .setDepth(26);
+
+      this.cpuChainText = this.add
+        .text(p2X + p2BoardW / 2, p2Y + p2BoardH + 12, '', {
+          fontSize: '14px',
+          color: '#54a0ff',
+          fontStyle: 'bold',
+          stroke: '#000000',
+          strokeThickness: 3
+        })
+        .setOrigin(0.5)
+        .setDepth(26);
+
+      // Top-Left Opponent Info Plaque & Mascot & Timer
+      const leftColCenterX = Math.round((p2X - 8) / 2);
+      const p2PlaqueW = Math.min(p2X - 24, 180);
+      const p2Header = this.add.container(leftColCenterX, p2Y + 12);
+      p2Header.setDepth(24);
+      const p2Sign = this.add.image(0, 0, 'wood_plaque_sign');
+      p2Sign.setDisplaySize(p2PlaqueW, 36);
+
+      const p2Badge = CuteUI.createPillButton(this, -p2PlaqueW / 2 + 24, 0, p2Label, () => {}, {
+        textureKey: 'pill_blue',
+        fontSize: '11px',
+        width: 38,
+        height: 22,
+        shadow: false
+      });
+
+      const p2NameText = this.add.text(-p2PlaqueW / 2 + 48, -7, p2Char.name, {
+        fontSize: '12px',
+        color: '#fff3c4',
+        fontStyle: 'bold',
+        stroke: '#3e2415',
+        strokeThickness: 3
+      });
+
+      this.cpuScoreText = this.add.text(-p2PlaqueW / 2 + 48, 6, 'SCORE: 0', {
+        fontSize: '10px',
+        color: '#ffffff',
+        fontStyle: 'bold',
+        stroke: '#3e2415',
+        strokeThickness: 2
+      });
+
+      p2Header.add([p2Sign, p2Badge, p2NameText, this.cpuScoreText]);
+
+      // Timer Plaque positioned in top-left block
+      const timerContainer = this.add.container(leftColCenterX, p2Y + p2BoardH - 14);
+      timerContainer.setDepth(30);
+
+      const timerPlaque = this.add.image(0, 0, 'wood_plaque_sign');
+      timerPlaque.setDisplaySize(Math.min(p2PlaqueW, 110), 34);
+
+      const clockIcon = this.add.image(-26, 0, 'wood_clock_icon');
+      clockIcon.setDisplaySize(18, 18);
+
+      this.timeText = this.add.text(10, -1, this.formatTime(this.gameTime), {
+        fontSize: '14px',
+        color: '#fff3c4',
+        fontStyle: 'bold',
+        stroke: '#3e2415',
+        strokeThickness: 3
+      }).setOrigin(0.5);
+
+      timerContainer.add([timerPlaque, clockIcon, this.timeText]);
+
+      // Opponent Mascot standing between plaque and timer
+      const cpuCharH = Math.min(84, Math.round(p2BoardH * 0.44));
+      const cpuCharW = cpuCharH;
+      const cpuCharX = leftColCenterX;
+      const cpuCharY = p2Y + Math.round(p2BoardH * 0.45);
+
+      const shadowG = this.add.graphics();
+      shadowG.fillStyle(0x1a3311, 0.38);
+      shadowG.fillEllipse(cpuCharX, cpuCharY + cpuCharH * 0.42, cpuCharW * 0.48, 12);
+      shadowG.setDepth(14);
+
+      this.cpuMascot = this.add.image(cpuCharX, cpuCharY, p2Char.id);
+      this.cpuMascot.setDisplaySize(cpuCharW, cpuCharH);
+      this.cpuMascot.setFlipX(true);
+      this.cpuMascot.setDepth(15);
+      this.tweens.add({
+        targets: this.cpuMascot,
+        y: cpuCharY - 4,
+        duration: 1350,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut'
+      });
+
+      // Player Mascot standing next to Player 1 header
+      const p1CharH = 64;
+      const p1CharW = p1CharH;
+      const p1CharX = Math.max(30, p1X - 22);
+      const p1CharY = p1Y - 14;
+
+      this.playerMascot = this.add.image(p1CharX, p1CharY, p1Char.id);
+      this.playerMascot.setDisplaySize(p1CharW, p1CharH);
+      this.playerMascot.setDepth(25);
+      this.tweens.add({
+        targets: this.playerMascot,
+        y: p1CharY - 4,
+        duration: 1300,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut'
+      });
+
+    } else {
+      // ===== DESKTOP / LANDSCAPE SIDE-BY-SIDE EXPANDED LAYOUT =====
+      const availableW = width - 80;
+      const maxScaleByW = Math.floor((availableW / (2.4 * BOARD_WIDTH * PANEL_SIZE + 24)) * 100) / 100;
+      const availableH = height - 160;
+      const maxScaleByH = Math.floor((availableH / (1.14 * BOARD_VISIBLE_HEIGHT * PANEL_SIZE)) * 100) / 100;
+      this.playerBoardScale = Math.min(1.85, Math.max(0.85, Math.min(maxScaleByW, maxScaleByH)));
+      this.cpuBoardScale = this.playerBoardScale;
+
+      const boardW = Math.round(BOARD_WIDTH * PANEL_SIZE * this.playerBoardScale);
+      const boardH = Math.round(BOARD_VISIBLE_HEIGHT * PANEL_SIZE * this.playerBoardScale);
+
+      const boardY = height > 550 ? Math.max(90, Math.round((height - boardH - 100) * 0.38)) : 88;
+      this.boardP1Y = boardY;
+      this.boardP2Y = boardY;
+
+      const centerX = width / 2;
+      const boardGap = Math.min(65, Math.max(16, width - boardW * 2 - 32));
+      const p1X = Math.round(centerX - boardW - boardGap / 2);
+      const p2X = Math.round(centerX + boardGap / 2);
+
+      this.boardP1X = p1X;
+      this.boardP2X = p2X;
+
+      // Center Timer Sign between boards
+      const timerContainer = this.add.container(centerX, boardY + Math.round(boardH * 0.28));
+      timerContainer.setDepth(30);
+
+      const timerPlaque = this.add.image(0, 0, 'wood_plaque_sign');
+      timerPlaque.setDisplaySize(Math.min(boardGap + 44, 114), 38);
+
+      const clockIcon = this.add.image(-28, 0, 'wood_clock_icon');
+      clockIcon.setDisplaySize(20, 20);
+
+      this.timeText = this.add.text(12, -1, this.formatTime(this.gameTime), {
+        fontSize: '15px',
+        color: '#fff3c4',
+        fontStyle: 'bold',
+        stroke: '#3e2415',
+        strokeThickness: 3
+      }).setOrigin(0.5);
+
+      timerContainer.add([timerPlaque, clockIcon, this.timeText]);
+
+      // Setup Player 1 (Left)
+      this.playerBorder = this.add.graphics();
+      this.playerBorder.setDepth(21);
+      this.drawBoardFrame(this.playerBorder, p1X, boardY, boardW, boardH, 0xff69b4, true);
+      this.playerBoard = new Board(this, p1X, boardY, this.playerBoardScale);
+      this.playerBoard.addInitialPanels(5);
+      this.playerCursor = new Cursor(this, this.playerBoard);
+
+      const p1PlaqueW = Math.min(boardW - 6, 210);
+      const p1Header = this.add.container(p1X + boardW / 2, boardY - 32);
+      p1Header.setDepth(24);
+      const p1Sign = this.add.image(0, 0, 'wood_plaque_sign');
+      p1Sign.setDisplaySize(p1PlaqueW, 38);
+
+      const p1Badge = CuteUI.createPillButton(this, -p1PlaqueW / 2 + 24, 0, 'P1', () => {}, {
+        textureKey: 'pill_pink',
+        fontSize: '11px',
+        width: 36,
+        height: 22,
+        shadow: false
+      });
+
+      const p1NameText = this.add.text(-p1PlaqueW / 2 + 48, -7, p1Char.name, {
+        fontSize: '12px',
+        color: '#fff3c4',
+        fontStyle: 'bold',
+        stroke: '#3e2415',
+        strokeThickness: 3
+      });
+
+      this.playerScoreText = this.add.text(-p1PlaqueW / 2 + 48, 6, 'SCORE: 0', {
+        fontSize: '10px',
+        color: '#ffffff',
+        fontStyle: 'bold',
+        stroke: '#3e2415',
+        strokeThickness: 2
+      });
+
+      p1Header.add([p1Sign, p1Badge, p1NameText, this.playerScoreText]);
+
+      this.playerChainText = this.add
+        .text(p1X + boardW / 2, boardY + boardH + 16, '', {
+          fontSize: '17px',
+          color: '#ff9f43',
+          fontStyle: 'bold',
+          stroke: '#000000',
+          strokeThickness: 3
+        })
+        .setOrigin(0.5);
+
+      this.playerDangerText = this.add
+        .text(p1X + boardW / 2, boardY - 50, '', {
+          fontSize: '12px',
+          color: '#ff4757',
+          fontStyle: 'bold',
+          stroke: '#000000',
+          strokeThickness: 3
+        })
+        .setOrigin(0.5);
+
+      // Setup Opponent (Right)
+      this.cpuBorder = this.add.graphics();
+      this.cpuBorder.setDepth(21);
+      this.drawBoardFrame(this.cpuBorder, p2X, boardY, boardW, boardH, p2Color, false);
+      this.cpuBoard = new Board(this, p2X, boardY, this.cpuBoardScale);
+      this.cpuBoard.addInitialPanels(5);
+      this.cpuCursor = new Cursor(this, this.cpuBoard);
+      this.cpuCursor.setStrokeStyle(3 * this.cpuBoardScale, p2Color);
+
+      this.cpuDangerText = this.add
+        .text(p2X + boardW / 2, boardY - 50, '', {
+          fontSize: '12px',
+          color: '#ff4757',
+          fontStyle: 'bold',
+          stroke: '#000000',
+          strokeThickness: 3
+        })
+        .setOrigin(0.5);
+
+      const p2PlaqueW = Math.min(boardW - 6, 210);
+      const p2Header = this.add.container(p2X + boardW / 2, boardY - 32);
+      p2Header.setDepth(24);
+      const p2Sign = this.add.image(0, 0, 'wood_plaque_sign');
+      p2Sign.setDisplaySize(p2PlaqueW, 38);
+
+      const p2Badge = CuteUI.createPillButton(this, -p2PlaqueW / 2 + 26, 0, p2Label, () => {}, {
+        textureKey: 'pill_blue',
+        fontSize: '11px',
+        width: 40,
+        height: 22,
+        shadow: false
+      });
+
+      const p2NameText = this.add.text(-p2PlaqueW / 2 + 52, -7, p2Char.name, {
+        fontSize: '12px',
+        color: '#fff3c4',
+        fontStyle: 'bold',
+        stroke: '#3e2415',
+        strokeThickness: 3
+      });
+
+      this.cpuScoreText = this.add.text(-p2PlaqueW / 2 + 52, 6, 'SCORE: 0', {
+        fontSize: '10px',
+        color: '#ffffff',
+        fontStyle: 'bold',
+        stroke: '#3e2415',
+        strokeThickness: 2
+      });
+
+      p2Header.add([p2Sign, p2Badge, p2NameText, this.cpuScoreText]);
+
+      this.cpuChainText = this.add
+        .text(p2X + boardW / 2, boardY + boardH + 16, '', {
+          fontSize: '17px',
+          color: '#54a0ff',
+          fontStyle: 'bold',
+          stroke: '#000000',
+          strokeThickness: 3
+        })
+        .setOrigin(0.5);
+
+      // Full-Body Mascots on Flanks
+      const charH = Math.round(180 * Math.min(1.15, this.playerBoardScale));
+      const charW = charH;
+      const p1CharX = Math.max(70, Math.round(p1X - 75));
+      const p1CharY = Math.round(boardY + boardH - 45);
+      const cpuCharX = Math.min(width - 70, Math.round(p2X + boardW + 75));
+      const cpuCharY = Math.round(boardY + boardH - 45);
+
+      const shadowG = this.add.graphics();
+      shadowG.fillStyle(0x1a3311, 0.38);
+      shadowG.fillEllipse(p1CharX, p1CharY + charH * 0.42, charW * 0.48, 14);
+      shadowG.fillEllipse(cpuCharX, cpuCharY + charH * 0.42, charW * 0.48, 14);
+      shadowG.setDepth(14);
+
+      this.playerMascot = this.add.image(p1CharX, p1CharY, p1Char.id);
+      this.playerMascot.setDisplaySize(charW, charH);
+      this.playerMascot.setDepth(15);
+      this.tweens.add({
+        targets: this.playerMascot,
+        y: p1CharY - 5,
+        duration: 1300,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut'
+      });
+
+      this.cpuMascot = this.add.image(cpuCharX, cpuCharY, p2Char.id);
+      this.cpuMascot.setDisplaySize(charW, charH);
+      this.cpuMascot.setFlipX(true);
+      this.cpuMascot.setDepth(15);
+      this.tweens.add({
+        targets: this.cpuMascot,
+        y: cpuCharY - 5,
+        duration: 1350,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut'
+      });
+    }
 
     if (this.gameMode === 'vs_cpu' || this.gameMode === 'challenge') {
       this.cpuBot = new AIBot(
-        this.cpuBoard,
-        this.cpuCursor,
+        this.cpuBoard!,
+        this.cpuCursor!,
         AIDifficulty.NORMAL,
         this.opponentCharacterId,
         this.playerBoard
       );
     }
 
-    const p2Char = CHARACTERS.find((c) => c.id === this.opponentCharacterId) || CHARACTERS[1];
-
-    // CPU / Opponent Header Wooden Plaque
-    const p2PlaqueW = Math.min(boardW - 6, 210);
-    const p2Header = this.add.container(p2X + boardW / 2, boardY - 32);
-    p2Header.setDepth(24);
-    const p2Sign = this.add.image(0, 0, 'wood_plaque_sign');
-    p2Sign.setDisplaySize(p2PlaqueW, 38);
-
-    const p2Badge = CuteUI.createPillButton(this, -p2PlaqueW / 2 + 26, 0, p2Label, () => {}, {
-      textureKey: 'pill_blue',
-      fontSize: '11px',
-      width: 40,
-      height: 22,
-      shadow: false
-    });
-
-    const p2NameText = this.add.text(-p2PlaqueW / 2 + 52, -7, p2Char.name, {
-      fontSize: '12px',
-      color: '#fff3c4',
-      fontStyle: 'bold',
-      stroke: '#3e2415',
-      strokeThickness: 3
-    });
-
-    this.cpuScoreText = this.add.text(-p2PlaqueW / 2 + 52, 6, 'SCORE: 0', {
-      fontSize: '10px',
-      color: '#ffffff',
-      fontStyle: 'bold',
-      stroke: '#3e2415',
-      strokeThickness: 2
-    });
-
-    p2Header.add([p2Sign, p2Badge, p2NameText, this.cpuScoreText]);
-
-    this.cpuChainText = this.add
-      .text(p2X + boardW / 2, boardY + boardH + 16, '', {
-        fontSize: '17px',
-        color: '#54a0ff',
-        fontStyle: 'bold',
-        stroke: '#000000',
-        strokeThickness: 3
-      })
-      .setOrigin(0.5);
-
-    // Full-Body Mascot Characters Standing on the Meadow (Storybook Animal Crossing / Ghibli Style)
-    const charH = Math.round(180 * Math.min(1.15, this.boardScale));
-    const charW = charH;
-    const isMobilePortrait = height > 600 && width <= 540;
-
-    let p1CharX: number;
-    let p1CharY: number;
-    let cpuCharX: number;
-    let cpuCharY: number;
-
-    if (isMobilePortrait) {
-      p1CharX = Math.round(p1X + 44);
-      p1CharY = Math.round(boardY + boardH + 105);
-      cpuCharX = Math.round(p2X + boardW - 44);
-      cpuCharY = Math.round(boardY + boardH + 105);
-    } else {
-      p1CharX = Math.max(70, Math.round(p1X - 75));
-      p1CharY = Math.round(boardY + boardH - 45);
-      cpuCharX = Math.min(width - 70, Math.round(p2X + boardW + 75));
-      cpuCharY = Math.round(boardY + boardH - 45);
-    }
-
-    // Ground Contact Shadows
-    const shadowG = this.add.graphics();
-    shadowG.fillStyle(0x1a3311, 0.38);
-    shadowG.fillEllipse(p1CharX, p1CharY + charH * 0.42, charW * 0.48, 14);
-    shadowG.fillEllipse(cpuCharX, cpuCharY + charH * 0.42, charW * 0.48, 14);
-    shadowG.setDepth(14);
-
-    // Player 1 Mascot
-    this.playerMascot = this.add.image(p1CharX, p1CharY, p1Char.id);
-    this.playerMascot.setDisplaySize(charW, charH);
-    this.playerMascot.setDepth(15);
-    this.tweens.add({
-      targets: this.playerMascot,
-      y: p1CharY - 5,
-      duration: 1300,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut'
-    });
-
-    // Opponent Mascot (facing inwards towards battle)
-    this.cpuMascot = this.add.image(cpuCharX, cpuCharY, p2Char.id);
-    this.cpuMascot.setDisplaySize(charW, charH);
-    this.cpuMascot.setFlipX(true);
-    this.cpuMascot.setDepth(15);
-    this.tweens.add({
-      targets: this.cpuMascot,
-      y: cpuCharY - 5,
-      duration: 1350,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut'
-    });
-
     // Wire Player Events
     this.playerBoard.on('stackRise', (e: { offset: number }) => this.playerCursor.setStackOffset(e.offset));
     this.playerBoard.on('rowShift', (e: { offset: number }) => this.playerCursor.shiftWithStack(e?.offset));
     this.playerBoard.on('match', (e: MatchEvent) => this.handlePlayerMatch(e));
     this.playerBoard.on('panelPop', (e: { x: number; y: number; color: number }) => {
-      this.spawnPopParticles(p1X + (e.x * PANEL_SIZE + PANEL_SIZE / 2) * this.boardScale, boardY + (e.y * PANEL_SIZE - this.playerBoard.stackOffsetPixels + PANEL_SIZE / 2) * this.boardScale, e.color);
+      this.spawnPopParticles(
+        this.boardP1X + (e.x * PANEL_SIZE + PANEL_SIZE / 2) * this.playerBoardScale,
+        this.boardP1Y + (e.y * PANEL_SIZE - this.playerBoard.stackOffsetPixels + PANEL_SIZE / 2) * this.playerBoardScale,
+        e.color
+      );
     });
     this.playerBoard.on('chainEnd', () => this.playerChainText.setText(''));
     this.playerBoard.on('dangerStart', () => {
@@ -441,7 +670,11 @@ export default class GameScene extends Phaser.Scene {
       this.cpuBoard.on('rowShift', (e: { offset: number }) => this.cpuCursor?.shiftWithStack(e?.offset));
       this.cpuBoard.on('match', (e: MatchEvent) => this.handleCpuMatch(e));
       this.cpuBoard.on('panelPop', (e: { x: number; y: number; color: number }) => {
-        this.spawnPopParticles(p2X + (e.x * PANEL_SIZE + PANEL_SIZE / 2) * this.boardScale, boardY + (e.y * PANEL_SIZE - this.cpuBoard!.stackOffsetPixels + PANEL_SIZE / 2) * this.boardScale, e.color);
+        this.spawnPopParticles(
+          this.boardP2X + (e.x * PANEL_SIZE + PANEL_SIZE / 2) * this.cpuBoardScale,
+          this.boardP2Y + (e.y * PANEL_SIZE - this.cpuBoard!.stackOffsetPixels + PANEL_SIZE / 2) * this.cpuBoardScale,
+          e.color
+        );
       });
       this.cpuBoard.on('chainEnd', () => this.cpuChainText?.setText(''));
       this.cpuBoard.on('dangerStart', () => {
@@ -518,25 +751,47 @@ export default class GameScene extends Phaser.Scene {
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
 
-    // Single-board scaling: comfortable arcade sizing without oversized tiles
-    const availableW = width - 48;
-    const scaleByW = Math.min(1.2, Math.max(0.85, Math.floor((availableW / (1.2 * BOARD_WIDTH * PANEL_SIZE)) * 100) / 100));
-    const availableH = height - 160;
-    const scaleByH = Math.min(1.2, Math.max(0.85, Math.floor((availableH / (1.14 * BOARD_VISIBLE_HEIGHT * PANEL_SIZE)) * 100) / 100));
-    this.boardScale = Math.min(scaleByW, scaleByH);
+    const isMobilePortrait = height >= width * 1.05 || width < 600;
+    this.isMobileLayout = isMobilePortrait;
 
-    const boardW = Math.round(BOARD_WIDTH * PANEL_SIZE * this.boardScale);
-    const boardH = Math.round(BOARD_VISIBLE_HEIGHT * PANEL_SIZE * this.boardScale);
+    if (isMobilePortrait) {
+      const availableW = width - 24;
+      const scaleByW = Math.floor((availableW / (BOARD_WIDTH * PANEL_SIZE)) * 100) / 100;
+      const availableH = height - 170;
+      const scaleByH = Math.floor((availableH / (BOARD_VISIBLE_HEIGHT * PANEL_SIZE)) * 100) / 100;
+      this.playerBoardScale = Math.min(2.1, Math.max(1.3, Math.min(scaleByW, scaleByH)));
+    } else {
+      const availableW = width - 120;
+      const scaleByW = Math.floor((availableW / (1.3 * BOARD_WIDTH * PANEL_SIZE)) * 100) / 100;
+      const availableH = height - 160;
+      const scaleByH = Math.floor((availableH / (1.14 * BOARD_VISIBLE_HEIGHT * PANEL_SIZE)) * 100) / 100;
+      this.playerBoardScale = Math.min(1.85, Math.max(1.0, Math.min(scaleByW, scaleByH)));
+    }
+    this.cpuBoardScale = this.playerBoardScale;
+
+    const boardW = Math.round(BOARD_WIDTH * PANEL_SIZE * this.playerBoardScale);
+    const boardH = Math.round(BOARD_VISIBLE_HEIGHT * PANEL_SIZE * this.playerBoardScale);
     const boardX = Math.round((width - boardW) / 2);
-    const boardY = height > 550 ? Math.max(88, Math.round((height - boardH - 100) * 0.38)) : 88;
+
+    let boardY = 88;
+    if (isMobilePortrait) {
+      const liftBarH = 40;
+      const liftBarY = height - liftBarH / 2 - 8;
+      boardY = liftBarY - liftBarH / 2 - 8 - boardH;
+    } else {
+      boardY = height > 550 ? Math.max(88, Math.round((height - boardH - 100) * 0.38)) : 88;
+    }
+
     this.boardP1X = boardX;
-    this.boardY = boardY;
+    this.boardP1Y = boardY;
+    this.boardP2X = boardX;
+    this.boardP2Y = boardY;
 
     this.playerBorder = this.add.graphics();
     this.playerBorder.setDepth(21);
     this.drawBoardFrame(this.playerBorder, boardX, boardY, boardW, boardH, 0xff69b4, true);
 
-    this.playerBoard = new Board(this, boardX, boardY, this.boardScale);
+    this.playerBoard = new Board(this, boardX, boardY, this.playerBoardScale);
     this.playerBoard.addInitialPanels(6);
     this.playerCursor = new Cursor(this, this.playerBoard);
 
@@ -580,52 +835,55 @@ export default class GameScene extends Phaser.Scene {
     header.add([sign, charBadge, this.playerScoreText, clockIcon, this.timeText]);
 
     this.playerChainText = this.add
-      .text(boardX + boardW / 2, boardY + boardH + 18, '', {
-        fontSize: '20px',
+      .text(boardX + boardW / 2, boardY + boardH / 2, '', {
+        fontSize: '22px',
         color: '#ff9f43',
         fontStyle: 'bold',
         stroke: '#000000',
         strokeThickness: 4
       })
-      .setOrigin(0.5);
+      .setOrigin(0.5)
+      .setDepth(26);
 
     this.playerDangerText = this.add
       .text(boardX + boardW / 2, boardY - 50, '', {
-        fontSize: '12px',
+        fontSize: '13px',
         color: '#ff4757',
         fontStyle: 'bold',
         stroke: '#000000',
         strokeThickness: 3
       })
-      .setOrigin(0.5);
+      .setOrigin(0.5)
+      .setDepth(26);
 
-    // Full-Body Mascot Standing on the Meadow (matching Reference 2)
-    const charH = Math.round(200 * Math.min(1.2, this.boardScale));
+    // Mascot
+    const charH = Math.round(180 * Math.min(1.2, this.playerBoardScale));
     const charW = charH;
-    const isMobilePortrait = height > 600 && width <= 540;
 
     let mascotX: number;
     let mascotY: number;
 
     if (isMobilePortrait) {
-      mascotX = Math.round(width / 2 + boardW * 0.32);
-      mascotY = Math.round(boardY + boardH + 90);
+      mascotX = Math.max(30, boardX - 22);
+      mascotY = boardY - 14;
     } else {
       mascotX = Math.min(width - 90, Math.round(boardX + boardW + 105));
       mascotY = Math.round(boardY + boardH - 60);
     }
 
-    const shadowG = this.add.graphics();
-    shadowG.fillStyle(0x1a3311, 0.38);
-    shadowG.fillEllipse(mascotX, mascotY + charH * 0.42, charW * 0.48, 15);
-    shadowG.setDepth(14);
+    if (!isMobilePortrait) {
+      const shadowG = this.add.graphics();
+      shadowG.fillStyle(0x1a3311, 0.38);
+      shadowG.fillEllipse(mascotX, mascotY + charH * 0.42, charW * 0.48, 15);
+      shadowG.setDepth(14);
+    }
 
     this.playerMascot = this.add.image(mascotX, mascotY, charData.id);
-    this.playerMascot.setDisplaySize(charW, charH);
-    this.playerMascot.setDepth(15);
+    this.playerMascot.setDisplaySize(isMobilePortrait ? 64 : charW, isMobilePortrait ? 64 : charH);
+    this.playerMascot.setDepth(25);
     this.tweens.add({
       targets: this.playerMascot,
-      y: mascotY - 6,
+      y: mascotY - 5,
       duration: 1300,
       yoyo: true,
       repeat: -1,
@@ -636,7 +894,11 @@ export default class GameScene extends Phaser.Scene {
     this.playerBoard.on('rowShift', (e: { offset: number }) => this.playerCursor.shiftWithStack(e?.offset));
     this.playerBoard.on('match', (e: MatchEvent) => this.handlePlayerMatch(e));
     this.playerBoard.on('panelPop', (e: { x: number; y: number; color: number }) => {
-      this.spawnPopParticles(boardX + (e.x * PANEL_SIZE + PANEL_SIZE / 2) * this.boardScale, boardY + (e.y * PANEL_SIZE - this.playerBoard.stackOffsetPixels + PANEL_SIZE / 2) * this.boardScale, e.color);
+      this.spawnPopParticles(
+        this.boardP1X + (e.x * PANEL_SIZE + PANEL_SIZE / 2) * this.playerBoardScale,
+        this.boardP1Y + (e.y * PANEL_SIZE - this.playerBoard.stackOffsetPixels + PANEL_SIZE / 2) * this.playerBoardScale,
+        e.color
+      );
     });
     this.playerBoard.on('chainEnd', () => this.playerChainText.setText(''));
     this.playerBoard.on('dangerStart', () => {
@@ -680,18 +942,22 @@ export default class GameScene extends Phaser.Scene {
 
     // 1. Dark warm wood backdrop behind board grid
     const backdropKey = isPlayer ? 'p1_wood_backdrop' : 'cpu_wood_backdrop';
-    if (!this.children.getByName(backdropKey) && this.textures.exists('board_wood_backdrop')) {
-      const backdrop = this.add.image(x, y, 'board_wood_backdrop');
+    let backdrop = this.children.getByName(backdropKey) as Phaser.GameObjects.Image;
+    if (!backdrop && this.textures.exists('board_wood_backdrop')) {
+      backdrop = this.add.image(x, y, 'board_wood_backdrop');
       backdrop.setName(backdropKey);
       backdrop.setOrigin(0, 0);
       backdrop.setDisplaySize(w, h);
       backdrop.setDepth(1); // Behind board container (depth 10)
+    } else if (backdrop) {
+      backdrop.setPosition(x, y);
+      backdrop.setDisplaySize(w, h);
     }
 
     // 2. High-res carved timber frame with leaves and flowers on top
     const frameKey = isPlayer ? 'p1_wood_frame' : 'cpu_wood_frame';
     let frameImg = this.children.getByName(frameKey) as Phaser.GameObjects.Image;
-    if (!frameImg && this.textures.exists('board_wood_frame')) {
+    if (this.textures.exists('board_wood_frame')) {
       const tex = this.textures.get('board_wood_frame');
       const srcImg = tex?.getSourceImage() as (HTMLImageElement | undefined);
       const srcW = srcImg ? srcImg.width : 720;
@@ -709,14 +975,19 @@ export default class GameScene extends Phaser.Scene {
       const frameX = x - borderLeft * frameScale;
       const frameY = y - borderTop * frameScale;
 
-      frameImg = this.add.image(frameX, frameY, 'board_wood_frame');
-      frameImg.setName(frameKey);
-      frameImg.setOrigin(0, 0);
-      frameImg.setScale(frameScale);
-      frameImg.setDepth(5); // Render behind slimes (depth 10) so the slimes are ALWAYS 100% visible!
+      if (!frameImg) {
+        frameImg = this.add.image(frameX, frameY, 'board_wood_frame');
+        frameImg.setName(frameKey);
+        frameImg.setOrigin(0, 0);
+        frameImg.setScale(frameScale);
+        frameImg.setDepth(5); // Render behind slimes (depth 10) so the slimes are ALWAYS 100% visible!
 
-      if (isPlayer) this.playerWoodFrame = frameImg;
-      else this.cpuWoodFrame = frameImg;
+        if (isPlayer) this.playerWoodFrame = frameImg;
+        else this.cpuWoodFrame = frameImg;
+      } else {
+        frameImg.setPosition(frameX, frameY);
+        frameImg.setScale(frameScale);
+      }
     }
 
     // 3. Danger border indicator
@@ -735,10 +1006,11 @@ export default class GameScene extends Phaser.Scene {
     const textObj = isPlayer ? this.playerDangerText : this.cpuDangerText;
     const borderObj = isPlayer ? this.playerBorder : this.cpuBorder;
     const defaultColor = isPlayer ? 0xff69b4 : 0x54a0ff;
-    const boardW = Math.round(BOARD_WIDTH * PANEL_SIZE * this.boardScale);
-    const boardH = Math.round(BOARD_VISIBLE_HEIGHT * PANEL_SIZE * this.boardScale);
+    const scale = isPlayer ? this.playerBoardScale : this.cpuBoardScale;
+    const boardW = Math.round(BOARD_WIDTH * PANEL_SIZE * scale);
+    const boardH = Math.round(BOARD_VISIBLE_HEIGHT * PANEL_SIZE * scale);
     const boardX = isPlayer ? this.boardP1X : this.boardP2X;
-    const boardY = this.boardY;
+    const boardY = isPlayer ? this.boardP1Y : this.boardP2Y;
 
     if (!borderObj) return;
 
@@ -926,8 +1198,9 @@ export default class GameScene extends Phaser.Scene {
       window.removeEventListener('contextmenu', onContextMenu);
     });
 
-    // 1. Mobile & Desktop Pause Button (Top-Right)
-    const pauseBtn = this.add.container(width - 24, 22);
+    // 1. Mobile & Desktop Pause Button (Top-Left on Mobile, Top-Right on Desktop)
+    const pauseBtnX = this.isMobileLayout ? 24 : width - 24;
+    const pauseBtn = this.add.container(pauseBtnX, 22);
     pauseBtn.setDepth(45);
     const pauseBg = this.add.graphics();
     pauseBg.fillStyle(0x1e272e, 0.85);
@@ -960,7 +1233,7 @@ export default class GameScene extends Phaser.Scene {
 
     // 3. Pointer Down: Left-Click / Tap to swap, Right-Click to fast-lift
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      if (this.isMatchOver || this.isPaused) return;
+      if (this.isMatchOver || this.isPaused || !this.playerBoard || !this.playerCursor) return;
 
       // Method 1 for mouse-only lift: RIGHT-CLICK or Middle Click to fast lift!
       if (pointer.rightButtonDown() || pointer.button === 2 || pointer.button === 1) {
@@ -972,10 +1245,10 @@ export default class GameScene extends Phaser.Scene {
       // Left Click or Touch on the Player Board
       const bX = this.playerBoard.boardOffsetX;
       const bY = this.playerBoard.boardOffsetY;
-      const bW = BOARD_WIDTH * PANEL_SIZE * this.boardScale;
-      const bH = BOARD_VISIBLE_HEIGHT * PANEL_SIZE * this.boardScale;
-      const padX = 24 * this.boardScale;
-      const padY = 36 * this.boardScale;
+      const bW = BOARD_WIDTH * PANEL_SIZE * this.playerBoardScale;
+      const bH = BOARD_VISIBLE_HEIGHT * PANEL_SIZE * this.playerBoardScale;
+      const padX = 24 * this.playerBoardScale;
+      const padY = 36 * this.playerBoardScale;
 
       if (
         pointer.x >= bX - padX &&
@@ -983,8 +1256,8 @@ export default class GameScene extends Phaser.Scene {
         pointer.y >= bY - padY &&
         pointer.y <= bY + bH + padY
       ) {
-        const localX = (pointer.x - bX) / this.boardScale;
-        const localY = (pointer.y - (bY - this.playerBoard.stackOffsetPixels * this.boardScale)) / this.boardScale;
+        const localX = (pointer.x - bX) / this.playerBoardScale;
+        const localY = (pointer.y - (bY - this.playerBoard.stackOffsetPixels * this.playerBoardScale)) / this.playerBoardScale;
 
         const rawGx = Math.floor((localX - PANEL_SIZE / 2) / PANEL_SIZE + 0.5);
         const gx = Math.max(0, Math.min(rawGx, BOARD_WIDTH - 2));
@@ -993,51 +1266,57 @@ export default class GameScene extends Phaser.Scene {
         const gy = Math.max(0, Math.min(rawGy, BOARD_VISIBLE_HEIGHT - 1));
 
         this.touchBoardActive = true;
+        this.touchSwapped = false;
         this.touchStartX = pointer.x;
         this.touchStartY = pointer.y;
         this.touchStartGridX = gx;
         this.touchStartGridY = gy;
 
-        // Align cursor with clicked slime pair
+        // Snap cursor to touched slime pair
         this.playerCursor.setGridPosition(gx, gy);
         this.broadcastCursor();
 
-        // Direct click-to-swap on desktop & immediate responsive touch
-        this.triggerPlayerSwap(gx, gy);
+        // For desktop mouse click, trigger immediate swap on pointerdown
+        const isMouse = !pointer.wasTouch && pointer.button === 0;
+        if (isMouse) {
+          this.triggerPlayerSwap(gx, gy);
+          this.touchSwapped = true;
+        }
       }
     });
 
     // 4. Pointer Move: Selection rectangle smoothly follows mouse + drag/flick gestures
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
-      if (this.isMatchOver || this.isPaused) return;
+      if (this.isMatchOver || this.isPaused || !this.playerBoard || !this.playerCursor) return;
 
       // Selection rectangle directly tracks mouse on hover or drag
       this.updateMouseCursorTracking(pointer);
 
       // Drag / Flick handling
-      if (!this.touchBoardActive) return;
+      if (!this.touchBoardActive || this.touchSwapped) return;
 
       const dx = pointer.x - this.touchStartX;
       const dy = pointer.y - this.touchStartY;
-      const threshold = 18 * this.boardScale;
+      const threshold = 16 * this.playerBoardScale;
 
       // Horizontal flick to swap
       if (Math.abs(dx) > threshold && Math.abs(dx) > Math.abs(dy)) {
         if (dx > 0) {
-          // Flick Right
+          // Flick Right: swap current panel with the one to its right
           const swapCol = Math.min(this.touchStartGridX, BOARD_WIDTH - 2);
           this.playerCursor.setGridPosition(swapCol, this.touchStartGridY);
           this.broadcastCursor();
           this.triggerPlayerSwap(swapCol, this.touchStartGridY);
         } else {
-          // Flick Left
+          // Flick Left: swap current panel with the one to its left
           const swapCol = Math.max(0, this.touchStartGridX - 1);
           this.playerCursor.setGridPosition(swapCol, this.touchStartGridY);
           this.broadcastCursor();
           this.triggerPlayerSwap(swapCol, this.touchStartGridY);
         }
+        this.touchSwapped = true;
         this.touchBoardActive = false;
-      } else if (dy < -24 * this.boardScale && Math.abs(dy) > Math.abs(dx)) {
+      } else if (dy < -22 * this.playerBoardScale && Math.abs(dy) > Math.abs(dx)) {
         // Upward flick: quick fast-lift impulse
         this.setPlayerLifting(true);
         this.time.delayedCall(220, () => {
@@ -1045,11 +1324,12 @@ export default class GameScene extends Phaser.Scene {
             this.setPlayerLifting(false);
           }
         });
+        this.touchSwapped = true;
         this.touchBoardActive = false;
       }
     });
 
-    // 5. Pointer Up: Release Right-Click fast lift & reset gesture
+    // 5. Pointer Up: Tap swap execution, release fast lift & reset gesture
     this.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
       if (this.mouseRightLifting && (pointer.button === 2 || pointer.button === 1 || !pointer.rightButtonDown())) {
         this.mouseRightLifting = false;
@@ -1057,26 +1337,39 @@ export default class GameScene extends Phaser.Scene {
           this.setPlayerLifting(false);
         }
       }
+
+      if (this.touchBoardActive && !this.touchSwapped) {
+        // Clean tap swap on mobile touch release
+        const dist = Math.hypot(pointer.x - this.touchStartX, pointer.y - this.touchStartY);
+        if (dist < 14 * this.playerBoardScale) {
+          this.triggerPlayerSwap(this.touchStartGridX, this.touchStartGridY);
+        }
+      }
       this.touchBoardActive = false;
+      this.touchSwapped = false;
     });
 
-    // 6. Sleek Fast-Lift Bar anchored directly below player board (Clickable with mouse or thumb)
-    const bW = Math.round(BOARD_WIDTH * PANEL_SIZE * this.boardScale);
-    const bH = Math.round(BOARD_VISIBLE_HEIGHT * PANEL_SIZE * this.boardScale);
-    const liftBarW = Math.min(bW, 260);
-    const liftBarX = this.boardP1X + bW / 2;
-    const liftBarY = Math.min(height - 48, this.boardY + bH + 42);
+    // 6. Sleek Fast-Lift Bar (Clickable with mouse or thumb)
+    const bW = Math.round(BOARD_WIDTH * PANEL_SIZE * this.playerBoardScale);
+    const bH = Math.round(BOARD_VISIBLE_HEIGHT * PANEL_SIZE * this.playerBoardScale);
+    const isMobile = this.isMobileLayout;
+    const liftBarW = isMobile ? Math.min(bW, width - 24) : Math.min(bW, 260);
+    const liftBarH = isMobile ? 38 : 34;
+    const liftBarX = isMobile ? width / 2 : this.boardP1X + bW / 2;
+    const liftBarY = isMobile ? height - liftBarH / 2 - 8 : Math.min(height - 48, this.boardP1Y + bH + 42);
 
-    this.createMobileLiftBar(liftBarX, liftBarY, liftBarW, 34);
+    this.createMobileLiftBar(liftBarX, liftBarY, liftBarW, liftBarH);
 
-    // Dynamic control hint
-    const hintY = Math.min(height - 14, liftBarY + 28);
-    this.add.text(width / 2, hintY, 'CLICK / TAP: Swap • RIGHT-CLICK / SCROLL / BAR: Fast Lift', {
-      fontSize: '10px',
-      color: '#a4b0be',
-      stroke: '#000000',
-      strokeThickness: 1
-    }).setOrigin(0.5).setDepth(35);
+    // Dynamic control hint for desktop
+    if (!isMobile) {
+      const hintY = Math.min(height - 14, liftBarY + 28);
+      this.add.text(width / 2, hintY, 'CLICK / TAP: Swap • RIGHT-CLICK / SCROLL / BAR: Fast Lift', {
+        fontSize: '10px',
+        color: '#a4b0be',
+        stroke: '#000000',
+        strokeThickness: 1
+      }).setOrigin(0.5).setDepth(35);
+    }
   }
 
   private createMobileLiftBar(x: number, y: number, w: number, h: number = 34): Phaser.GameObjects.Container {
@@ -1137,12 +1430,12 @@ export default class GameScene extends Phaser.Scene {
 
     const bX = this.playerBoard.boardOffsetX;
     const bY = this.playerBoard.boardOffsetY;
-    const bW = BOARD_WIDTH * PANEL_SIZE * this.boardScale;
-    const bH = BOARD_VISIBLE_HEIGHT * PANEL_SIZE * this.boardScale;
+    const bW = BOARD_WIDTH * PANEL_SIZE * this.playerBoardScale;
+    const bH = BOARD_VISIBLE_HEIGHT * PANEL_SIZE * this.playerBoardScale;
 
     // Generous bounding box covering the entire board, wood frame, and rising stack
-    const padX = 28 * this.boardScale;
-    const padY = 40 * this.boardScale;
+    const padX = 28 * this.playerBoardScale;
+    const padY = 40 * this.playerBoardScale;
 
     if (
       pointer.x >= bX - padX &&
@@ -1150,9 +1443,9 @@ export default class GameScene extends Phaser.Scene {
       pointer.y >= bY - padY &&
       pointer.y <= bY + bH + padY
     ) {
-      const localX = (pointer.x - bX) / this.boardScale;
+      const localX = (pointer.x - bX) / this.playerBoardScale;
       // Account for sub-pixel stack rising offset
-      const localY = (pointer.y - (bY - this.playerBoard.stackOffsetPixels * this.boardScale)) / this.boardScale;
+      const localY = (pointer.y - (bY - this.playerBoard.stackOffsetPixels * this.playerBoardScale)) / this.playerBoardScale;
 
       // Natural centering: cursor centers under the mouse pointer
       const rawGx = Math.floor((localX - PANEL_SIZE / 2) / PANEL_SIZE + 0.5);

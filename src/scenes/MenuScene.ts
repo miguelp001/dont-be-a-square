@@ -154,77 +154,151 @@ export default class MenuScene extends Phaser.Scene {
     this.setupKeyboardNavigation();
 
     // Character showcase section: "Meet the Slime catchers!"
-    const charHeading = this.add.text(width / 2, charHeadingY, 'Meet the Slime Catchers! (Click to View Profile)', {
-      fontSize: '14.5px',
-      color: '#ff9ff3',
-      fontStyle: 'bold',
-      stroke: '#000000',
-      strokeThickness: 3
-    });
-    charHeading.setOrigin(0.5);
-
-    // Show all 8 characters along bottom with gentle floating idle bobs
-    const showStartX = Math.floor((width - (CHARACTERS.length - 1) * 58) / 2);
-    CHARACTERS.forEach((char, i) => {
-      const x = showStartX + i * 58;
-      const baseY = showcaseY;
-
-      const charContainer = this.add.container(x, baseY);
-
-      // Interactive hit area covering both the sprite and name
-      const hitArea = this.add.rectangle(0, 10, 52, 60, 0x000000, 0);
-      hitArea.setInteractive({ useHandCursor: true });
-
-      const sprite = this.add.sprite(0, 0, char.id);
-      sprite.setDisplaySize(42, 42);
-
-      const name = this.add.text(0, 30, char.name, {
-        fontSize: '11px',
-        color: '#ffffff',
+    const isNarrow = width < 500;
+    const charHeading = this.add.text(
+      width / 2,
+      isNarrow ? showcaseY - 68 : charHeadingY,
+      isNarrow ? 'Meet the Slime Catchers! (Tap for Profile)' : 'Meet the Slime Catchers! (Click to View Profile)',
+      {
+        fontSize: isNarrow ? '12px' : '14.5px',
+        color: '#ff9ff3',
         fontStyle: 'bold',
         stroke: '#000000',
-        strokeThickness: 2
-      }).setOrigin(0.5);
+        strokeThickness: 3
+      }
+    );
+    charHeading.setOrigin(0.5);
 
-      charContainer.add([hitArea, sprite, name]);
+    if (isNarrow) {
+      // 2 rows of 4 characters for compact mobile portrait screens
+      const cols = 4;
+      const colW = Math.min(74, Math.floor((width - 24) / cols));
+      const startX = Math.floor((width - (cols - 1) * colW) / 2);
+      const rowH = 64;
 
-      hitArea.on('pointerover', () => {
-        SoundFx.playCursor();
+      CHARACTERS.forEach((char, i) => {
+        const col = i % cols;
+        const row = Math.floor(i / cols);
+        const x = startX + col * colW;
+        const baseY = showcaseY - 24 + row * rowH;
+
+        const charContainer = this.add.container(x, baseY);
+        const hitArea = this.add.rectangle(0, 8, colW - 4, 56, 0x000000, 0);
+        hitArea.setInteractive({ useHandCursor: true });
+
+        const sprite = this.add.sprite(0, 0, char.id);
+        sprite.setDisplaySize(38, 38);
+
+        const name = this.add.text(0, 26, char.name, {
+          fontSize: '10.5px',
+          color: '#ffffff',
+          fontStyle: 'bold',
+          stroke: '#000000',
+          strokeThickness: 2
+        }).setOrigin(0.5);
+
+        charContainer.add([hitArea, sprite, name]);
+
+        hitArea.on('pointerover', () => {
+          SoundFx.playCursor();
+          this.tweens.add({
+            targets: charContainer,
+            scale: 1.15,
+            duration: 120,
+            ease: 'Back.easeOut'
+          });
+          name.setColor('#feca57');
+        });
+
+        hitArea.on('pointerout', () => {
+          this.tweens.add({
+            targets: charContainer,
+            scale: 1.0,
+            duration: 120,
+            ease: 'Sine.easeOut'
+          });
+          name.setColor('#ffffff');
+        });
+
+        hitArea.on('pointerdown', () => {
+          SoundFx.playDecide();
+          this.scene.start('CharacterProfileScene', { characterId: char.id, returnScene: 'MenuScene' });
+        });
+
         this.tweens.add({
           targets: charContainer,
-          scale: 1.18,
-          duration: 120,
-          ease: 'Back.easeOut'
+          y: baseY - 5,
+          duration: 1100 + (i % 3) * 150,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut',
+          delay: i * 120
         });
-        name.setColor('#feca57');
       });
+    } else {
+      // Show all 8 characters along bottom with gentle floating idle bobs
+      const showStartX = Math.floor((width - (CHARACTERS.length - 1) * 58) / 2);
+      CHARACTERS.forEach((char, i) => {
+        const x = showStartX + i * 58;
+        const baseY = showcaseY;
 
-      hitArea.on('pointerout', () => {
+        const charContainer = this.add.container(x, baseY);
+
+        // Interactive hit area covering both the sprite and name
+        const hitArea = this.add.rectangle(0, 10, 52, 60, 0x000000, 0);
+        hitArea.setInteractive({ useHandCursor: true });
+
+        const sprite = this.add.sprite(0, 0, char.id);
+        sprite.setDisplaySize(42, 42);
+
+        const name = this.add.text(0, 30, char.name, {
+          fontSize: '11px',
+          color: '#ffffff',
+          fontStyle: 'bold',
+          stroke: '#000000',
+          strokeThickness: 2
+        }).setOrigin(0.5);
+
+        charContainer.add([hitArea, sprite, name]);
+
+        hitArea.on('pointerover', () => {
+          SoundFx.playCursor();
+          this.tweens.add({
+            targets: charContainer,
+            scale: 1.18,
+            duration: 120,
+            ease: 'Back.easeOut'
+          });
+          name.setColor('#feca57');
+        });
+
+        hitArea.on('pointerout', () => {
+          this.tweens.add({
+            targets: charContainer,
+            scale: 1.0,
+            duration: 120,
+            ease: 'Sine.easeOut'
+          });
+          name.setColor('#ffffff');
+        });
+
+        hitArea.on('pointerdown', () => {
+          SoundFx.playDecide();
+          this.scene.start('CharacterProfileScene', { characterId: char.id, returnScene: 'MenuScene' });
+        });
+
+        // Staggered cute sinusoidal bobbing animation
         this.tweens.add({
           targets: charContainer,
-          scale: 1.0,
-          duration: 120,
-          ease: 'Sine.easeOut'
+          y: baseY - 6,
+          duration: 1100 + (i % 3) * 150,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut',
+          delay: i * 140
         });
-        name.setColor('#ffffff');
       });
-
-      hitArea.on('pointerdown', () => {
-        SoundFx.playDecide();
-        this.scene.start('CharacterProfileScene', { characterId: char.id, returnScene: 'MenuScene' });
-      });
-
-      // Staggered cute sinusoidal bobbing animation
-      this.tweens.add({
-        targets: charContainer,
-        y: baseY - 6,
-        duration: 1100 + (i % 3) * 150,
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.easeInOut',
-        delay: i * 140
-      });
-    });
+    }
   }
 
   private setupKeyboardNavigation(): void {
