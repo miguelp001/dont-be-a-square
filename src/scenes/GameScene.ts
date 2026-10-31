@@ -70,7 +70,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private socketMgr?: SocketManager;
-  private gameTime: number = 180;
+  private gameTime: number = 240;
   private timeText!: Phaser.GameObjects.Text;
   private timerEvent!: Phaser.Time.TimerEvent;
   private isMatchOver: boolean = false;
@@ -141,7 +141,7 @@ export default class GameScene extends Phaser.Scene {
 
     this.playerScore = 0;
     this.cpuScore = 0;
-    this.gameTime = 180;
+    this.gameTime = 240;
     this.isMatchOver = false;
     this.gameOverModalContainer = undefined;
     this.gameOverButtons = [];
@@ -222,7 +222,7 @@ export default class GameScene extends Phaser.Scene {
       this.cpuBorder.setDepth(21);
       this.drawBoardFrame(this.cpuBorder, p2X, p2Y, p2BoardW, p2BoardH, p2Color, false);
       this.cpuBoard = new Board(this, p2X, p2Y, this.cpuBoardScale);
-      this.cpuBoard.addInitialPanels(5);
+      this.cpuBoard.addInitialPanels(4);
       this.cpuCursor = new Cursor(this, this.cpuBoard);
       this.cpuCursor.setStrokeStyle(3 * this.cpuBoardScale, p2Color);
 
@@ -351,7 +351,7 @@ export default class GameScene extends Phaser.Scene {
       this.playerBorder.setDepth(21);
       this.drawBoardFrame(this.playerBorder, p1X, p1Y, p1BoardW, p1BoardH, 0xff69b4, true);
       this.playerBoard = new Board(this, p1X, p1Y, this.playerBoardScale);
-      this.playerBoard.addInitialPanels(5);
+      this.playerBoard.addInitialPanels(4);
       this.playerCursor = new Cursor(this, this.playerBoard);
 
       // P1 Header Plaque above board
@@ -465,7 +465,7 @@ export default class GameScene extends Phaser.Scene {
       this.playerBorder.setDepth(21);
       this.drawBoardFrame(this.playerBorder, p1X, boardY, boardW, boardH, 0xff69b4, true);
       this.playerBoard = new Board(this, p1X, boardY, this.playerBoardScale);
-      this.playerBoard.addInitialPanels(5);
+      this.playerBoard.addInitialPanels(4);
       this.playerCursor = new Cursor(this, this.playerBoard);
 
       const p1PlaqueW = Math.min(boardW - 6, Math.round(280 * boardScaleRatio));
@@ -529,7 +529,7 @@ export default class GameScene extends Phaser.Scene {
       this.cpuBorder.setDepth(21);
       this.drawBoardFrame(this.cpuBorder, p2X, boardY, boardW, boardH, p2Color, false);
       this.cpuBoard = new Board(this, p2X, boardY, this.cpuBoardScale);
-      this.cpuBoard.addInitialPanels(5);
+      this.cpuBoard.addInitialPanels(4);
       this.cpuCursor = new Cursor(this, this.cpuBoard);
       this.cpuCursor.setStrokeStyle(3 * this.cpuBoardScale, p2Color);
 
@@ -799,7 +799,7 @@ export default class GameScene extends Phaser.Scene {
     this.drawBoardFrame(this.playerBorder, boardX, boardY, boardW, boardH, 0xff69b4, true);
 
     this.playerBoard = new Board(this, boardX, boardY, this.playerBoardScale);
-    this.playerBoard.addInitialPanels(6);
+    this.playerBoard.addInitialPanels(5);
     this.playerCursor = new Cursor(this, this.playerBoard);
 
     const charData = CHARACTERS.find((c) => c.id === this.characterId) || CHARACTERS[0];

@@ -33,14 +33,14 @@ export const AI_PERSONALITIES: Record<string, AIPersonality> = {
     name: 'Kiri',
     title: 'Precision Mechanic',
     description: 'Methodical and precise. Dismantles garbage blocks like clockwork with zero hesitation.',
-    baseInterval: 145,
+    baseInterval: 360,
     indecisiveness: 0.02,
     jitterChance: 0.04,
     comboBias: 1.25,
     garbageBias: 2.6, // High focus on dismantling garbage slabs
     chainBias: 1.3,
     liftThreshold: 7,
-    liftFrequency: 15000,
+    liftFrequency: 24000,
     liftDuration: 750,
     burstSteps: 1,
     burstCooldown: 0,
@@ -51,14 +51,14 @@ export const AI_PERSONALITIES: Record<string, AIPersonality> = {
     name: 'Mizu',
     title: 'Fluid Counter-Blade',
     description: 'Calm and patient. Specializes in cascading chain reactions and deadly counter-attacks.',
-    baseInterval: 165,
+    baseInterval: 400,
     indecisiveness: 0.05,
     jitterChance: 0.05,
     comboBias: 1.1,
     garbageBias: 1.5,
     chainBias: 2.6, // Master of multi-tier chain reactions
     liftThreshold: 8,
-    liftFrequency: 22000,
+    liftFrequency: 30000,
     liftDuration: 600,
     burstSteps: 1,
     burstCooldown: 0,
@@ -68,51 +68,51 @@ export const AI_PERSONALITIES: Record<string, AIPersonality> = {
     id: 'riff',
     name: 'Riff',
     title: 'Hyper Shredder',
-    description: 'Blazing speed and loud 4+ combos! Constantly fast-lifts the stack to keep the tempo rockin\'.',
-    baseInterval: 80, // Blistering fast!
+    description: 'Blazing speed and loud 4+ combos! Fast-lifts the stack to keep the tempo rockin\'.',
+    baseInterval: 220, // Fast shredder!
     indecisiveness: 0.12,
     jitterChance: 0.18,
     comboBias: 2.2, // Loves loud 4+ combos
     garbageBias: 0.85, // Reckless; ignores garbage until forced
     chainBias: 1.2,
     liftThreshold: 4, // Keeps stack towering high
-    liftFrequency: 6000, // Frequent offensive fast lifts
-    liftDuration: 1200,
+    liftFrequency: 14000, // Fast lifts
+    liftDuration: 900,
     burstSteps: 1,
     burstCooldown: 0,
-    panicSpeedup: 1.4
+    panicSpeedup: 1.25
   },
   mocha: {
     id: 'mocha',
     name: 'Mocha',
     title: 'Indecisive Alchemist',
-    description: 'Switches tiles at lightning speed, but frequently changes her mind mid-route like mixing chaotic potions!',
-    baseInterval: 90, // Fast switcher!
+    description: 'Switches tiles at lively speed, but frequently changes her mind mid-route like mixing chaotic potions!',
+    baseInterval: 260,
     indecisiveness: 0.42, // Highly indecisive! Frequently re-routes mid-move
     jitterChance: 0.38, // Randomly stirs and swaps panels
     comboBias: 1.35,
     garbageBias: 1.2,
     chainBias: 1.5,
     liftThreshold: 6,
-    liftFrequency: 12000,
+    liftFrequency: 20000,
     liftDuration: 800,
     burstSteps: 2,
-    burstCooldown: 120,
-    panicSpeedup: 1.35
+    burstCooldown: 250,
+    panicSpeedup: 1.25
   },
   ember: {
     id: 'ember',
     name: 'Ember',
     title: 'Fireworks Fanatic',
     description: 'Refuses to settle for simple 3-matches! Obsessively sets up massive 4+ and 5-in-a-row fireworks.',
-    baseInterval: 130,
+    baseInterval: 330,
     indecisiveness: 0.06,
     jitterChance: 0.08,
     comboBias: 3.2, // Extreme focus on 4+ and 5+ combos and cross clears
     garbageBias: 1.3,
     chainBias: 1.1,
     liftThreshold: 5,
-    liftFrequency: 9000,
+    liftFrequency: 18000,
     liftDuration: 1000,
     burstSteps: 1,
     burstCooldown: 0,
@@ -122,34 +122,34 @@ export const AI_PERSONALITIES: Record<string, AIPersonality> = {
     id: 'volt',
     name: 'Volt',
     title: 'Twitchy Glitch Genius',
-    description: 'Moves in rapid 4-step bursts then freezes to recalculate. Circuits overdrive into hyper-speed when in danger.',
-    baseInterval: 55, // Hyper-fast during burst
+    description: 'Moves in rapid bursts then freezes to recalculate. Circuits overdrive into hyper-speed when in danger.',
+    baseInterval: 170, // Fast during burst
     indecisiveness: 0.18,
     jitterChance: 0.24,
     comboBias: 1.3,
     garbageBias: 1.5,
     chainBias: 1.4,
     liftThreshold: 6,
-    liftFrequency: 11000,
+    liftFrequency: 20000,
     liftDuration: 700,
-    burstSteps: 4, // Moves 4 steps in a flash!
-    burstCooldown: 360, // Then pauses to recalculate
-    panicSpeedup: 1.75 // Overclocked speed in danger!
+    burstSteps: 3, // Moves 3 steps in a burst
+    burstCooldown: 500, // Pauses to recalculate
+    panicSpeedup: 1.35
   },
   salty: {
     id: 'salty',
     name: 'Salty',
     title: 'Relentless Raider',
     description: 'Aggressive buccaneer. Sends heavy slabs and goes full pirate raid when he sees you in danger!',
-    baseInterval: 110,
+    baseInterval: 290,
     indecisiveness: 0.05,
     jitterChance: 0.06,
     comboBias: 1.6,
     garbageBias: 1.4,
     chainBias: 1.3,
     liftThreshold: 5,
-    liftFrequency: 7500,
-    liftDuration: 1100,
+    liftFrequency: 16000,
+    liftDuration: 850,
     burstSteps: 1,
     burstCooldown: 0,
     panicSpeedup: 1.25
@@ -159,18 +159,18 @@ export const AI_PERSONALITIES: Record<string, AIPersonality> = {
     name: 'Poppy',
     title: 'Rhythm Idol',
     description: 'Dances across the board with rhythmic flair, orchestrating cascading multi-tier chain performances.',
-    baseInterval: 125,
+    baseInterval: 320,
     indecisiveness: 0.15,
     jitterChance: 0.16,
     comboBias: 1.4,
     garbageBias: 1.3,
     chainBias: 2.5, // High idol cascade focus
     liftThreshold: 6,
-    liftFrequency: 13000,
+    liftFrequency: 22000,
     liftDuration: 900,
     burstSteps: 2,
-    burstCooldown: 110,
-    panicSpeedup: 1.3
+    burstCooldown: 240,
+    panicSpeedup: 1.2
   }
 };
 
@@ -230,7 +230,7 @@ export default class AIBot {
       interval /= this.personality.panicSpeedup;
     }
 
-    this.actionInterval = Math.max(35, interval);
+    this.actionInterval = Math.max(90, interval);
   }
 
   public update(delta: number): void {

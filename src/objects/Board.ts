@@ -34,6 +34,7 @@ export default class Board extends Phaser.Events.EventEmitter {
   public stackOffsetPixels: number = 0;
   public riseSpeed: number = BASE_RISE_SPEED;
   public isLifting: boolean = false;
+  public elapsedPlayTime: number = 0;
 
   /** Current active chain counter (1 = standard clear, 2+ = chain) */
   public activeChain: number = 1;
@@ -381,6 +382,10 @@ export default class Board extends Phaser.Events.EventEmitter {
   public update(time: number, delta: number): void {
     if (this.isTopOut) return;
 
+    this.elapsedPlayTime += delta;
+    // Gradually ramp up rise speed over time (+0.75 px/s every 30 seconds, up to +6 px/s max)
+    this.riseSpeed = BASE_RISE_SPEED + Math.min(6, (this.elapsedPlayTime / 30000) * 0.75);
+
     if (this.stopTime > 0) {
       this.stopTime = Math.max(0, this.stopTime - delta);
     }
@@ -545,7 +550,7 @@ export default class Board extends Phaser.Events.EventEmitter {
 
   public setLifting(lifting: boolean): void {
     if (this.isLifting && !lifting) {
-      this.stopTime = Math.max(this.stopTime, 120);
+      this.stopTime = Math.max(this.stopTime, 280);
     }
     this.isLifting = lifting;
   }
@@ -764,12 +769,12 @@ export default class Board extends Phaser.Events.EventEmitter {
     const chainBonus = this.activeChain > 1 ? (this.activeChain - 1) * 200 : 0;
     const totalScore = baseScore + comboBonus + chainBonus;
 
-    this.stopTime = 600 + Math.min(comboSize * 150, 1500) + (this.activeChain > 1 ? 800 : 0);
+    this.stopTime = 1800 + Math.min(comboSize * 250, 2500) + (this.activeChain > 1 ? 1400 : 0);
 
     if (this.isDanger) {
       // Matching while in danger awards bonus grace time and pauses danger!
-      this.dangerGraceTimer = Math.min(DANGER_GRACE_TIME, this.dangerGraceTimer + 1800);
-      this.stopTime = Math.max(this.stopTime, 1400);
+      this.dangerGraceTimer = Math.min(DANGER_GRACE_TIME, this.dangerGraceTimer + 2500);
+      this.stopTime = Math.max(this.stopTime, 2200);
     }
 
     if (this.activeChain > 1 || comboSize >= 4) {
@@ -825,8 +830,8 @@ export default class Board extends Phaser.Events.EventEmitter {
 
     if (blocksToTransform.size > 0 && this.isDanger) {
       // De-transforming garbage grants major survival recovery bonus!
-      this.dangerGraceTimer = Math.min(DANGER_GRACE_TIME, this.dangerGraceTimer + 2500);
-      this.stopTime = Math.max(this.stopTime, 1600);
+      this.dangerGraceTimer = Math.min(DANGER_GRACE_TIME, this.dangerGraceTimer + 3500);
+      this.stopTime = Math.max(this.stopTime, 2400);
     }
 
     for (const block of blocksToTransform) {

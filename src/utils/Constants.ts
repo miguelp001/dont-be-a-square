@@ -43,10 +43,10 @@ export const MATCH_DELAY = 150;
 export const COMBO_DELAY = 200;
 export const CURSOR_SPEED = 150;
 
-export const BASE_RISE_SPEED = 14; // pixels per second
+export const BASE_RISE_SPEED = 6; // pixels per second (relaxed pace for thoughtful play)
 export const FAST_LIFT_SPEED = 200; // pixels per second when holding lift
 export const DANGER_ROW = 1; // Top ceiling row
-export const DANGER_GRACE_TIME = 6500; // ms grace before top-out game over (6.5s generous survival time)
+export const DANGER_GRACE_TIME = 10500; // ms grace before top-out game over (10.5s generous survival time)
 
 export const CHARACTERS = [
   {
