@@ -6,6 +6,7 @@ import { CuteUI } from '../utils/CuteUI';
 import { Settings } from '../utils/Settings';
 import { GameDifficulty, getDifficultyInfo } from '../utils/Difficulty';
 import { RecordManager } from '../utils/DifficultyRecords';
+import { LeaderboardClient } from '../utils/LeaderboardClient';
 
 export default class ChallengeMapScene extends Phaser.Scene {
   public characterId: string = 'kiri';
@@ -851,6 +852,9 @@ export default class ChallengeMapScene extends Phaser.Scene {
 
     const diffInfo = getDifficultyInfo(this.difficulty);
     RecordManager.recordChallengeClear(this.difficulty, playerChar.id, 0, this.challengeScore);
+    if (this.challengeScore > 0) {
+      LeaderboardClient.submitScore('challenge', this.difficulty, playerChar.id, this.challengeScore, 1).catch(() => {});
+    }
 
     const bannerMsg = hasDefeatedNanoBanana
       ? '🍌👑 NANO BANANA CONQUERED • REALITY RESTORED! 👑🍌'

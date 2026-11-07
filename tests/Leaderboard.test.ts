@@ -21,11 +21,10 @@ describe('Server-Side Accountless Leaderboard System', () => {
     }
   });
 
-  it('1. Initializes with default baseline rival records', () => {
+  it('1. Initializes cleanly with empty records', () => {
     const endlessAdept = mgr.getLeaderboard('endless', 'adept');
-    expect(endlessAdept.top.length).toBeGreaterThan(0);
-    expect(endlessAdept.top[0].mode).toBe('endless');
-    expect(endlessAdept.top[0].difficulty).toBe('adept');
+    expect(endlessAdept.top.length).toBe(0);
+    expect(endlessAdept.totalCount).toBe(0);
   });
 
   it('2. Submits Endless score and ranks in descending order', () => {
@@ -98,32 +97,32 @@ describe('Server-Side Accountless Leaderboard System', () => {
     expect(playerEntries[0].score).toBe(75000);
   });
 
-  it('4. Orders Challenge Speedrun scores in ascending order (fastest time wins)', () => {
+  it('4. Orders Challenge High Scores in descending order (highest points wins)', () => {
     mgr.submitScore({
       playerId: 'runner_1',
       playerSecret: 'sec_1',
-      displayName: 'FAST',
+      displayName: 'CHAMP1',
       characterId: 'volt',
       mode: 'challenge',
       difficulty: 'grandmaster',
-      score: 140 // 140 seconds
+      score: 140000
     });
 
     mgr.submitScore({
       playerId: 'runner_2',
       playerSecret: 'sec_2',
-      displayName: 'FLASH',
+      displayName: 'CHAMP2',
       characterId: 'nano_banana',
       mode: 'challenge',
       difficulty: 'grandmaster',
-      score: 95 // 95 seconds (faster!)
+      score: 195000 // 195,000 points (higher!)
     });
 
     const board = mgr.getLeaderboard('challenge', 'grandmaster');
-    expect(board.top[0].playerId).toBe('runner_2'); // 95s is rank 1 (faster than seed bot_nano at 135s)
-    expect(board.top[0].score).toBe(95);
-    expect(board.top[1].playerId).toBe('bot_nano'); // 135s baseline rival is rank 2
-    expect(board.top[2].playerId).toBe('runner_1'); // 140s is rank 3
+    expect(board.top[0].playerId).toBe('runner_2'); // 195,000 is rank 1
+    expect(board.top[0].score).toBe(195000);
+    expect(board.top[1].playerId).toBe('runner_1'); // 140,000 is rank 2
+    expect(board.top[1].score).toBe(140000);
   });
 
   it('5. Protects player records with secret token verification', () => {

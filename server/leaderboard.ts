@@ -9,7 +9,7 @@ export interface LeaderboardEntry {
   characterId: string;
   mode: 'endless' | 'challenge';
   difficulty: string;
-  score: number; // Endless: points; Challenge: clear time in seconds
+  score: number; // High score in points for both Endless and Challenge
   maxChain: number;
   submittedAt: string;
 }
@@ -41,21 +41,7 @@ interface StoredData {
   playerSecrets: Record<string, string>; // playerId -> SHA-256 hash
 }
 
-const DEFAULT_RIVALS: Omit<LeaderboardEntry, 'id' | 'submittedAt'>[] = [
-  // Endless baseline records
-  { playerId: 'bot_kiri', displayName: 'KIRI', characterId: 'kiri', mode: 'endless', difficulty: 'novice', score: 32400, maxChain: 4 },
-  { playerId: 'bot_mizu', displayName: 'MIZU', characterId: 'mizu', mode: 'endless', difficulty: 'adept', score: 58900, maxChain: 6 },
-  { playerId: 'bot_riff', displayName: 'RIFF', characterId: 'riff', mode: 'endless', difficulty: 'expert', score: 78500, maxChain: 8 },
-  { playerId: 'bot_void', displayName: 'VOID_SLIME', characterId: 'void_slime', mode: 'endless', difficulty: 'master', score: 104200, maxChain: 11 },
-  { playerId: 'bot_nano', displayName: 'NANO_B', characterId: 'nano_banana', mode: 'endless', difficulty: 'grandmaster', score: 148800, maxChain: 14 },
-
-  // Challenge speedrun baseline records (seconds)
-  { playerId: 'bot_kiri', displayName: 'KIRI', characterId: 'kiri', mode: 'challenge', difficulty: 'novice', score: 260, maxChain: 4 },
-  { playerId: 'bot_mizu', displayName: 'MIZU', characterId: 'mizu', mode: 'challenge', difficulty: 'adept', score: 225, maxChain: 6 },
-  { playerId: 'bot_volt', displayName: 'VOLT', characterId: 'volt', mode: 'challenge', difficulty: 'expert', score: 195, maxChain: 7 },
-  { playerId: 'bot_void', displayName: 'VOID_SLIME', characterId: 'void_slime', mode: 'challenge', difficulty: 'master', score: 170, maxChain: 9 },
-  { playerId: 'bot_nano', displayName: 'NANO_B', characterId: 'nano_banana', mode: 'challenge', difficulty: 'grandmaster', score: 135, maxChain: 12 }
-];
+const DEFAULT_RIVALS: Omit<LeaderboardEntry, 'id' | 'submittedAt'>[] = [];
 
 export class LeaderboardManager {
   private filePath: string;
@@ -101,12 +87,13 @@ export class LeaderboardManager {
       console.warn('Failed to read leaderboard file, initializing fresh:', err);
     }
 
-    // Seed default rivals if empty
-    this.entries = DEFAULT_RIVALS.map((r, i) => ({
-      ...r,
-      id: `seed_${i}`,
-      submittedAt: new Date(Date.now() - (10 - i) * 3600000).toISOString()
-    }));
+    this.entries = [];
+    this.playerSecrets = {};
+    this.saveToDiskSync();
+  }
+
+  public clearAll(): void {
+    this.entries = [];
     this.playerSecrets = {};
     this.saveToDiskSync();
   }
@@ -161,12 +148,9 @@ export class LeaderboardManager {
       return { success: false, error: 'Invalid score', isNewBest: false, rank: -1 };
     }
 
-    // Plausibility limits
-    if (mode === 'endless' && score > 50000000) {
+    // Plausibility limits (both endless and challenge mode high score points)
+    if (score > 50000000) {
       return { success: false, error: 'Score exceeds maximum threshold', isNewBest: false, rank: -1 };
-    }
-    if (mode === 'challenge' && (score < 10 || score > 3600)) {
-      return { success: false, error: 'Clear time out of plausible range', isNewBest: false, rank: -1 };
     }
 
     // Authenticate playerSecret
@@ -194,9 +178,8 @@ export class LeaderboardManager {
 
     if (existingIndex >= 0) {
       const existing = this.entries[existingIndex];
-      // For endless, higher score is better. For challenge, lower clear time is better.
-      const isImprovement =
-        mode === 'endless' ? score > existing.score : score < existing.score;
+      // For both endless and challenge, higher score is better
+      const isImprovement = score > existing.score;
 
       if (isImprovement) {
         isNewBest = true;
@@ -250,12 +233,8 @@ export class LeaderboardManager {
     );
 
     filtered.sort((a, b) => {
-      if (mode === 'endless') {
-        if (b.score !== a.score) return b.score - a.score;
-      } else {
-        // Challenge mode: faster time (lower score) wins
-        if (a.score !== b.score) return a.score - b.score;
-      }
+      // Descending points (highest score first)
+      if (b.score !== a.score) return b.score - a.score;
       return new Date(a.submittedAt).getTime() - new Date(b.submittedAt).getTime();
     });
 

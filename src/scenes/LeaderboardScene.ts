@@ -90,7 +90,7 @@ export default class LeaderboardScene extends Phaser.Scene {
       this,
       width / 2 + modeBtnW / 2 + 6,
       modeY,
-      'CHALLENGE SPEEDRUN',
+      'CHALLENGE MODE',
       () => this.setMode('challenge'),
       { textureKey: this.selectedMode === 'challenge' ? 'pill_pink' : 'pill_grey', width: modeBtnW, height: modeBtnH, fontSize: `${Math.round((isMobile ? 10 : 11.5) * uiScale)}px`, autoScale: false }
     );
@@ -261,7 +261,7 @@ export default class LeaderboardScene extends Phaser.Scene {
     // Table Header
     const rowH = Math.min(28, Math.floor((cardH - 42) / 10));
     const headerY = cardTopY + 16;
-    const header = this.add.text(-cardW / 2 + 16, headerY, '#   FIGHTER   PLAYER          SCORE / TIME       CHAIN', {
+    const header = this.add.text(-cardW / 2 + 16, headerY, '#   FIGHTER   PLAYER          HIGH SCORE         CHAIN', {
       fontSize: `${Math.round(8.5 * uiScale)}px`,
       color: '#747d8c',
       fontStyle: 'bold'
@@ -313,14 +313,12 @@ export default class LeaderboardScene extends Phaser.Scene {
       }).setOrigin(0, 0.5);
       this.tableContainer?.add(nameText);
 
-      // Score / Clear Time
-      const scoreLabel = this.selectedMode === 'endless'
-        ? `${row.score.toLocaleString()} pts`
-        : `${Math.floor(row.score / 60)}m ${String(Math.floor(row.score % 60)).padStart(2, '0')}s`;
+      // High Score Points
+      const scoreLabel = `${row.score.toLocaleString()} pts`;
 
       const scoreText = this.add.text(cardW / 2 - Math.round(65 * uiScale), y, scoreLabel, {
         fontSize: `${Math.round(10.5 * uiScale)}px`,
-        color: this.selectedMode === 'endless' ? '#2ed573' : '#00d2d3',
+        color: this.selectedMode === 'endless' ? '#2ed573' : '#feca57',
         fontStyle: 'bold',
         stroke: '#000000',
         strokeThickness: 1

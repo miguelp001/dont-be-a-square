@@ -2290,22 +2290,26 @@ export default class GameScene extends Phaser.Scene {
         this.playerScore,
         this.playerBoard.maxChain
       ).catch(() => {});
-    } else if (isChampion) {
-      const elapsedSeconds = Math.max(1, 240 - this.gameTime);
-      RecordManager.recordChallengeClear(this.difficulty, this.characterId, elapsedSeconds, this.playerScore);
-      if (this.opponentCharacterId === 'void_slime' || this.defeatedOpponents.includes('void_slime')) {
-        RecordManager.recordVoidSlimeDefeat();
+    } else if (this.gameMode === 'challenge') {
+      if (isChampion) {
+        const elapsedSeconds = Math.max(1, 240 - this.gameTime);
+        RecordManager.recordChallengeClear(this.difficulty, this.characterId, elapsedSeconds, this.playerScore);
+        if (this.opponentCharacterId === 'void_slime' || this.defeatedOpponents.includes('void_slime')) {
+          RecordManager.recordVoidSlimeDefeat();
+        }
+        if (this.opponentCharacterId === 'nano_banana' || this.defeatedOpponents.includes('nano_banana')) {
+          RecordManager.recordNanoBananaDefeat();
+        }
       }
-      if (this.opponentCharacterId === 'nano_banana' || this.defeatedOpponents.includes('nano_banana')) {
-        RecordManager.recordNanoBananaDefeat();
+      if (this.playerScore > 0) {
+        LeaderboardClient.submitScore(
+          'challenge',
+          this.difficulty,
+          this.characterId,
+          this.playerScore,
+          this.playerBoard.maxChain
+        ).catch(() => {});
       }
-      LeaderboardClient.submitScore(
-        'challenge',
-        this.difficulty,
-        this.characterId,
-        elapsedSeconds,
-        this.playerBoard.maxChain
-      ).catch(() => {});
     }
 
     const finalBanner = isChampion
