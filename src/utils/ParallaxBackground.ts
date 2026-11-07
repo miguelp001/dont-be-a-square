@@ -24,10 +24,11 @@ export class ParallaxBackground {
   private maxPixelShiftX: number = 38;
   private maxPixelShiftY: number = 24;
 
-  // Gyroscope listener handle
+  // Gyroscope & Event listener handles
   private orientationHandler?: (e: DeviceOrientationEvent) => void;
   private updateHandler?: (time: number, delta: number) => void;
   private resizeHandler?: (gameSize: Phaser.Structs.Size) => void;
+  private pointerHandler?: (pointer: Phaser.Input.Pointer) => void;
   private isUsingGyro: boolean = false;
   private lastInputTime: number = 0;
 
@@ -63,14 +64,25 @@ export class ParallaxBackground {
     const cleanup = () => {
       if (this.orientationHandler && typeof window !== 'undefined') {
         window.removeEventListener('deviceorientation', this.orientationHandler);
+        this.orientationHandler = undefined;
       }
-      if (this.updateHandler) {
+      if (this.updateHandler && this.scene?.events) {
         this.scene.events.off(Phaser.Scenes.Events.UPDATE, this.updateHandler);
+        this.updateHandler = undefined;
       }
-      if (this.resizeHandler) {
+      if (this.resizeHandler && this.scene?.scale) {
         this.scene.scale.off('resize', this.resizeHandler);
+        this.resizeHandler = undefined;
       }
-      this.container.destroy();
+      if (this.pointerHandler && this.scene?.input) {
+        this.scene.input.off('pointermove', this.pointerHandler);
+        this.pointerHandler = undefined;
+      }
+      if (this.container && this.container.scene && this.container.active) {
+        this.container.destroy();
+      }
+      this.layers = [];
+      this.particles = [];
     };
 
     this.scene.events.once(Phaser.Scenes.Events.SHUTDOWN, cleanup);
@@ -145,17 +157,16 @@ export class ParallaxBackground {
   }
 
   private setupPointerListeners(): void {
-    const width = this.scene.cameras.main.width;
-    const height = this.scene.cameras.main.height;
-
-    this.scene.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
-      if (this.isUsingGyro) return;
+    this.pointerHandler = (pointer: Phaser.Input.Pointer) => {
+      if (this.isUsingGyro || !this.scene?.cameras?.main) return;
       this.lastInputTime = Date.now();
-      const halfW = width / 2;
-      const halfH = height / 2;
+      const halfW = this.scene.cameras.main.width / 2;
+      const halfH = this.scene.cameras.main.height / 2;
       this.targetNormX = Phaser.Math.Clamp((pointer.x - halfW) / halfW, -1, 1);
       this.targetNormY = Phaser.Math.Clamp((pointer.y - halfH) / halfH, -1, 1);
-    });
+    };
+
+    this.scene.input.on('pointermove', this.pointerHandler);
   }
 
   private setupGyroListeners(): void {
@@ -186,6 +197,9 @@ export class ParallaxBackground {
 
 
   public update(time: number, _delta: number): void {
+    if (!this.scene?.sys?.isActive() || !this.scene?.cameras?.main) {
+      return;
+    }
     const width = this.scene.cameras.main.width;
     const height = this.scene.cameras.main.height;
     const centerX = width / 2;

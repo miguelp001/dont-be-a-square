@@ -41,6 +41,7 @@ export default class CharacterProfileScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.prevPadButtons.clear();
     if (this.cache.audio.exists('char_select') && !this.sound.get('char_select')?.isPlaying) {
       this.sound.stopAll();
       this.sound.play('char_select', { loop: true, volume: Settings.musicVolume });

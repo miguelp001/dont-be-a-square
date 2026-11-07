@@ -31,6 +31,10 @@ export default class ChallengeMapScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.selectableItems = [];
+    this.selectedIndex = 0;
+    this.prevPadButtons.clear();
+
     if (this.cache.audio.exists('menu') && !this.sound.get('menu')?.isPlaying) {
       this.sound.stopAll();
       this.sound.play('menu', { loop: true, volume: Settings.musicVolume });

@@ -28,6 +28,10 @@ export default class CharacterSelectScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.charSprites = [];
+    this.selectedIndex = 0;
+    this.prevPadButtons.clear();
+
     if (this.cache.audio.exists('char_select') && !this.sound.get('char_select')?.isPlaying) {
       this.sound.stopAll();
       this.sound.play('char_select', { loop: true, volume: Settings.musicVolume });

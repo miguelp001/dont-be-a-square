@@ -35,6 +35,8 @@ export default class LeaderboardScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.prevPadButtons.clear();
+
     if (this.cache.audio.exists('menu') && !this.sound.get('menu')?.isPlaying) {
       this.sound.stopAll();
       this.sound.play('menu', { loop: true, volume: Settings.musicVolume });
