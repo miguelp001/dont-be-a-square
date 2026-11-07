@@ -82,7 +82,7 @@ export default class CharacterProfileScene extends Phaser.Scene {
         'PLAY CHALLENGE 🏆',
         () => {
           const char = this.availableCharacters[this.currentIndex];
-          this.scene.start('ChallengeMapScene', { characterId: char.id, defeatedOpponents: [] });
+          this.scene.start('ChallengeMapScene', { characterId: char.id, defeatedOpponents: [], challengeScore: 0 });
         },
         { textureKey: 'pill_pink', fontSize: '12px', width: btnW, height: 34, autoScale: false }
       );
@@ -123,7 +123,7 @@ export default class CharacterProfileScene extends Phaser.Scene {
         'PLAY CHALLENGE 🏆',
         () => {
           const char = this.availableCharacters[this.currentIndex];
-          this.scene.start('ChallengeMapScene', { characterId: char.id, defeatedOpponents: [] });
+          this.scene.start('ChallengeMapScene', { characterId: char.id, defeatedOpponents: [], challengeScore: 0 });
         },
         { textureKey: 'pill_pink', fontSize: btnFont, width: btnW, height: btnH, autoScale: false }
       );

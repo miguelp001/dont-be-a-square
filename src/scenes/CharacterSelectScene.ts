@@ -350,7 +350,8 @@ export default class CharacterSelectScene extends Phaser.Scene {
       this.scene.start('ChallengeMapScene', {
         characterId: selectedChar.id,
         defeatedOpponents: [],
-        difficulty: this.selectedDifficulty
+        difficulty: this.selectedDifficulty,
+        challengeScore: 0
       });
     }
   }

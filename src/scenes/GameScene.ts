@@ -24,6 +24,8 @@ export default class GameScene extends Phaser.Scene {
   public opponentCharacterId: string = 'mizu';
   public defeatedOpponents: string[] = [];
   public difficulty: GameDifficulty = GameDifficulty.ADEPT;
+  public initialChallengeScore: number = 0;
+  public roundScore: number = 0;
   private endlessBestText?: Phaser.GameObjects.Text;
 
   // Player 1
@@ -156,7 +158,9 @@ export default class GameScene extends Phaser.Scene {
       this.opponentCharacterId = otherChars[Math.floor(Math.random() * otherChars.length)].id;
     }
 
-    this.playerScore = 0;
+    this.initialChallengeScore = (this.gameMode === 'challenge') ? (Number(data?.challengeScore) || 0) : 0;
+    this.roundScore = 0;
+    this.playerScore = this.initialChallengeScore;
     this.cpuScore = 0;
     this.gameTime = 240;
     this.isMatchOver = false;
@@ -397,7 +401,7 @@ export default class GameScene extends Phaser.Scene {
         strokeThickness: 3
       });
 
-      this.playerScoreText = this.add.text(-p1PlaqueW / 2 + 66, 6, 'SCORE: 0', {
+      this.playerScoreText = this.add.text(-p1PlaqueW / 2 + 66, 6, `SCORE: ${this.playerScore.toLocaleString()}`, {
         fontSize: '10px',
         color: '#ffffff',
         fontStyle: 'bold',
@@ -519,7 +523,7 @@ export default class GameScene extends Phaser.Scene {
         strokeThickness: Math.round(3 * (boardScaleRatio > 1.3 ? 1.3 : 1.0))
       });
 
-      this.playerScoreText = this.add.text(-p1PlaqueW / 2 + Math.round(50 * boardScaleRatio), Math.round(7 * boardScaleRatio), 'SCORE: 0', {
+      this.playerScoreText = this.add.text(-p1PlaqueW / 2 + Math.round(50 * boardScaleRatio), Math.round(7 * boardScaleRatio), `SCORE: ${this.playerScore.toLocaleString()}`, {
         fontSize: `${Math.round(11 * boardScaleRatio)}px`,
         color: '#ffffff',
         fontStyle: 'bold',
@@ -903,7 +907,7 @@ export default class GameScene extends Phaser.Scene {
       autoScale: false
     });
 
-    this.playerScoreText = this.add.text(-plaqueW / 2 + Math.round(78 * boardScaleRatio), -Math.round(8 * boardScaleRatio), 'SCORE: 0', {
+    this.playerScoreText = this.add.text(-plaqueW / 2 + Math.round(78 * boardScaleRatio), -Math.round(8 * boardScaleRatio), `SCORE: ${this.playerScore.toLocaleString()}`, {
       fontSize: `${Math.round(12 * boardScaleRatio)}px`,
       color: '#ffffff',
       fontStyle: 'bold',
@@ -1828,7 +1832,8 @@ export default class GameScene extends Phaser.Scene {
 
   private handlePlayerMatch(event: MatchEvent): void {
     this.playerScore += event.scoreGained;
-    this.playerScoreText.setText(`SCORE: ${this.playerScore}`);
+    this.roundScore += event.scoreGained;
+    this.playerScoreText.setText(`SCORE: ${this.playerScore.toLocaleString()}`);
 
     if (this.gameMode === 'endless' && this.endlessBestText) {
       const best = Math.max(RecordManager.getEndlessHighScore(this.difficulty), this.playerScore);
@@ -1975,7 +1980,7 @@ export default class GameScene extends Phaser.Scene {
 
     if (this.gameTime <= 0) {
       this.timerEvent.remove();
-      const p1Wins = this.playerScore >= this.cpuScore;
+      const p1Wins = (this.gameMode === 'challenge' ? this.roundScore : this.playerScore) >= this.cpuScore;
       this.endMatch(p1Wins ? 'VICTORY!' : 'TIME UP!', p1Wins);
     }
   }
@@ -2287,7 +2292,7 @@ export default class GameScene extends Phaser.Scene {
       ).catch(() => {});
     } else if (isChampion) {
       const elapsedSeconds = Math.max(1, 240 - this.gameTime);
-      RecordManager.recordChallengeClear(this.difficulty, this.characterId, elapsedSeconds);
+      RecordManager.recordChallengeClear(this.difficulty, this.characterId, elapsedSeconds, this.playerScore);
       if (this.opponentCharacterId === 'void_slime' || this.defeatedOpponents.includes('void_slime')) {
         RecordManager.recordVoidSlimeDefeat();
       }
@@ -2388,6 +2393,8 @@ export default class GameScene extends Phaser.Scene {
         const best = RecordManager.getEndlessHighScore(this.difficulty);
         scoreSummary = `[${diffInfo.badgeText}] Score: ${this.playerScore.toLocaleString()}  |  Best: ${best.toLocaleString()}`;
       }
+    } else if (this.gameMode === 'challenge') {
+      scoreSummary = `[${diffInfo.badgeText}]  Round: +${this.roundScore.toLocaleString()}  |  Total: ${this.playerScore.toLocaleString()}`;
     } else {
       scoreSummary = `[${diffInfo.badgeText}]  You: ${this.playerScore.toLocaleString()}  |  Opponent: ${this.cpuScore.toLocaleString()}`;
     }
@@ -2422,7 +2429,8 @@ export default class GameScene extends Phaser.Scene {
           this.scene.start('ChallengeMapScene', {
             characterId: this.characterId,
             defeatedOpponents: this.defeatedOpponents,
-            difficulty: this.difficulty
+            difficulty: this.difficulty,
+            challengeScore: this.playerScore
           });
         }, { textureKey: 'pill_pink', fontSize: btnFont, width: btnW, height: btnH, autoScale: false });
 
@@ -2440,7 +2448,12 @@ export default class GameScene extends Phaser.Scene {
 
         this.gameOverButtons = [claimBtn, lbBtn, menuBtn];
         this.gameOverActions = [
-          () => this.scene.start('ChallengeMapScene', { characterId: this.characterId, defeatedOpponents: this.defeatedOpponents, difficulty: this.difficulty }),
+          () => this.scene.start('ChallengeMapScene', {
+            characterId: this.characterId,
+            defeatedOpponents: this.defeatedOpponents,
+            difficulty: this.difficulty,
+            challengeScore: this.playerScore
+          }),
           () => this.scene.start('LeaderboardScene', { returnScene: 'MenuScene', initialMode: 'challenge', initialDifficulty: this.difficulty }),
           () => this.scene.start('MenuScene')
         ];
@@ -2452,7 +2465,8 @@ export default class GameScene extends Phaser.Scene {
           this.scene.start('ChallengeMapScene', {
             characterId: this.characterId,
             defeatedOpponents: this.defeatedOpponents,
-            difficulty: this.difficulty
+            difficulty: this.difficulty,
+            challengeScore: this.playerScore
           });
         }, { textureKey: 'pill_green', fontSize: btnFont, width: btnW, height: btnH, autoScale: false });
 
@@ -2462,7 +2476,12 @@ export default class GameScene extends Phaser.Scene {
 
         this.gameOverButtons = [nextBtn, menuBtn];
         this.gameOverActions = [
-          () => this.scene.start('ChallengeMapScene', { characterId: this.characterId, defeatedOpponents: this.defeatedOpponents, difficulty: this.difficulty }),
+          () => this.scene.start('ChallengeMapScene', {
+            characterId: this.characterId,
+            defeatedOpponents: this.defeatedOpponents,
+            difficulty: this.difficulty,
+            challengeScore: this.playerScore
+          }),
           () => this.scene.start('MenuScene')
         ];
       } else {
@@ -2472,7 +2491,8 @@ export default class GameScene extends Phaser.Scene {
             characterId: this.characterId,
             opponentCharacterId: this.opponentCharacterId,
             defeatedOpponents: this.defeatedOpponents,
-            difficulty: this.difficulty
+            difficulty: this.difficulty,
+            challengeScore: this.initialChallengeScore
           });
         }, { textureKey: 'pill_blue', fontSize: btnFont, width: btnW, height: btnH, autoScale: false });
 
@@ -2480,7 +2500,8 @@ export default class GameScene extends Phaser.Scene {
           this.scene.start('ChallengeMapScene', {
             characterId: this.characterId,
             defeatedOpponents: this.defeatedOpponents,
-            difficulty: this.difficulty
+            difficulty: this.difficulty,
+            challengeScore: this.initialChallengeScore
           });
         }, { textureKey: 'pill_pink', fontSize: btnFont, width: btnW, height: btnH, autoScale: false });
 
@@ -2495,9 +2516,15 @@ export default class GameScene extends Phaser.Scene {
             characterId: this.characterId,
             opponentCharacterId: this.opponentCharacterId,
             defeatedOpponents: this.defeatedOpponents,
-            difficulty: this.difficulty
+            difficulty: this.difficulty,
+            challengeScore: this.initialChallengeScore
           }),
-          () => this.scene.start('ChallengeMapScene', { characterId: this.characterId, defeatedOpponents: this.defeatedOpponents, difficulty: this.difficulty }),
+          () => this.scene.start('ChallengeMapScene', {
+            characterId: this.characterId,
+            defeatedOpponents: this.defeatedOpponents,
+            difficulty: this.difficulty,
+            challengeScore: this.initialChallengeScore
+          }),
           () => this.scene.start('MenuScene')
         ];
       }

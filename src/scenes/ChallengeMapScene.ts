@@ -11,6 +11,7 @@ export default class ChallengeMapScene extends Phaser.Scene {
   public characterId: string = 'kiri';
   public defeatedOpponents: string[] = [];
   public difficulty: GameDifficulty = GameDifficulty.ADEPT;
+  public challengeScore: number = 0;
 
   private selectedIndex: number = 0;
   private selectableItems: {
@@ -28,6 +29,7 @@ export default class ChallengeMapScene extends Phaser.Scene {
     this.characterId = data?.characterId || 'kiri';
     this.defeatedOpponents = data?.defeatedOpponents || [];
     this.difficulty = data?.difficulty || Settings.difficulty || GameDifficulty.ADEPT;
+    this.challengeScore = Number(data?.challengeScore) || 0;
   }
 
   create(): void {
@@ -117,13 +119,20 @@ export default class ChallengeMapScene extends Phaser.Scene {
     pAvatar.setDisplaySize(pAvatarSize, pAvatarSize);
 
     if (isMobile) {
-      this.add.text(barX + 38, barY + barH / 2, `Fighter: ${playerChar.name}`, {
-        fontSize: '11.5px',
+      this.add.text(barX + 38, barY + barH / 2 - 7, `${playerChar.name}`, {
+        fontSize: '11px',
         color: '#ff69b4',
         fontStyle: 'bold',
         stroke: '#000000',
         strokeThickness: 2
-      }).setOrigin(0, 0.5);
+      });
+      this.add.text(barX + 38, barY + barH / 2 + 7, `⭐ ${this.challengeScore.toLocaleString()} PTS`, {
+        fontSize: '10px',
+        color: '#2ed573',
+        fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 2
+      });
     } else {
       this.add.text(barX + Math.round(50 * uiScale), barY + barH / 2 - Math.round(10 * uiScale), `Fighter: ${playerChar.name}`, {
         fontSize: Math.round(13 * uiScale) + 'px',
@@ -139,6 +148,19 @@ export default class ChallengeMapScene extends Phaser.Scene {
         stroke: '#000000',
         strokeThickness: 1
       });
+
+      this.add.text(
+        barX + barW / 2,
+        barY + barH / 2,
+        `⭐ TOTAL SCORE: ${this.challengeScore.toLocaleString()}`,
+        {
+          fontSize: Math.round(13 * uiScale) + 'px',
+          color: '#2ed573',
+          fontStyle: 'bold',
+          stroke: '#000000',
+          strokeThickness: 2
+        }
+      ).setOrigin(0.5);
     }
 
     // Progress counter on right
@@ -488,7 +510,8 @@ export default class ChallengeMapScene extends Phaser.Scene {
         characterId: this.characterId,
         opponentCharacterId: char.id,
         defeatedOpponents: this.defeatedOpponents,
-        difficulty: this.difficulty
+        difficulty: this.difficulty,
+        challengeScore: this.challengeScore
       });
     };
 
@@ -715,7 +738,8 @@ export default class ChallengeMapScene extends Phaser.Scene {
         characterId: this.characterId,
         opponentCharacterId: bossId,
         defeatedOpponents: this.defeatedOpponents,
-        difficulty: this.difficulty
+        difficulty: this.difficulty,
+        challengeScore: this.challengeScore
       });
     };
 
@@ -826,7 +850,7 @@ export default class ChallengeMapScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     const diffInfo = getDifficultyInfo(this.difficulty);
-    RecordManager.recordChallengeClear(this.difficulty, playerChar.id, 0);
+    RecordManager.recordChallengeClear(this.difficulty, playerChar.id, 0, this.challengeScore);
 
     const bannerMsg = hasDefeatedNanoBanana
       ? '🍌👑 NANO BANANA CONQUERED • REALITY RESTORED! 👑🍌'
@@ -885,18 +909,30 @@ export default class ChallengeMapScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
+    // Final Combined Score Display
+    this.add
+      .text(width / 2, isMobile ? 298 : Math.round(365 * uiScale), `✨ FINAL SCORE: ${this.challengeScore.toLocaleString()} PTS ✨`, {
+        fontSize: isMobile ? '12.5px' : `${Math.round(15 * uiScale)}px`,
+        color: '#2ed573',
+        fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 3
+      })
+      .setOrigin(0.5);
+
     // Action buttons
     const btnW = isMobile ? Math.min(108, Math.floor((width - 32) / 3)) : Math.round(135 * uiScale);
     const btnH = isMobile ? 32 : Math.round(34 * uiScale);
     const totalW = btnW * 3 + (isMobile ? 12 : 24);
     const startX = width / 2 - totalW / 2 + btnW / 2;
     const btnGap = btnW + (isMobile ? 6 : 12);
-    const btnY = isMobile ? 320 : Math.round(410 * uiScale);
+    const btnY = isMobile ? 336 : Math.round(416 * uiScale);
 
     this.createFooterButton(startX, btnY, 'PLAY AGAIN', () => {
       this.scene.start('ChallengeMapScene', {
         characterId: this.characterId,
-        defeatedOpponents: []
+        defeatedOpponents: [],
+        challengeScore: 0
       });
     }, uiScale, btnW, btnH);
 

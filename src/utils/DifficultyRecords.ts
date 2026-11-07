@@ -3,6 +3,7 @@ import { GameDifficulty, DIFFICULTY_ORDER } from './Difficulty';
 export interface ChallengeClearRecord {
   cleared: boolean;
   bestTimeSeconds: number;
+  bestScore?: number;
   characterId: string;
   clearedAt: string;
 }
@@ -29,6 +30,7 @@ function getDefaultRecords(): PlayerRecordsData {
     challengeClears[diff] = {
       cleared: false,
       bestTimeSeconds: 0,
+      bestScore: 0,
       characterId: '',
       clearedAt: ''
     };
@@ -67,6 +69,7 @@ export class RecordManager {
                 defaults.challengeClears[diff] = {
                   cleared: true,
                   bestTimeSeconds: Number(parsed.challengeClears[diff].bestTimeSeconds) || 0,
+                  bestScore: Number(parsed.challengeClears[diff].bestScore) || 0,
                   characterId: String(parsed.challengeClears[diff].characterId || 'kiri'),
                   clearedAt: String(parsed.challengeClears[diff].clearedAt || '')
                 };
@@ -151,20 +154,25 @@ export class RecordManager {
   public static recordChallengeClear(
     diff: GameDifficulty,
     characterId: string,
-    elapsedSeconds: number
-  ): { isFirstClear: boolean; isFastestTime: boolean; bestTimeSeconds: number } {
+    elapsedSeconds: number,
+    score: number = 0
+  ): { isFirstClear: boolean; isFastestTime: boolean; isHighestScore: boolean; bestTimeSeconds: number; bestScore: number } {
     const data = this.load();
     const current = data.challengeClears[diff];
     const isFirstClear = !current?.cleared;
-    const isFastestTime = isFirstClear || elapsedSeconds < (current?.bestTimeSeconds || Infinity);
+    const isFastestTime = elapsedSeconds > 0 && (isFirstClear || !current?.bestTimeSeconds || elapsedSeconds < current.bestTimeSeconds);
+    const isHighestScore = isFirstClear || score > (current?.bestScore || 0);
 
     const bestTimeSeconds = isFastestTime
       ? elapsedSeconds
-      : (current?.bestTimeSeconds || elapsedSeconds);
+      : (current?.bestTimeSeconds || (elapsedSeconds > 0 ? elapsedSeconds : 0));
+
+    const bestScore = Math.max(score, current?.bestScore || 0);
 
     data.challengeClears[diff] = {
       cleared: true,
       bestTimeSeconds,
+      bestScore,
       characterId,
       clearedAt: new Date().toISOString()
     };
@@ -174,7 +182,9 @@ export class RecordManager {
     return {
       isFirstClear,
       isFastestTime,
-      bestTimeSeconds
+      isHighestScore,
+      bestTimeSeconds,
+      bestScore
     };
   }
 

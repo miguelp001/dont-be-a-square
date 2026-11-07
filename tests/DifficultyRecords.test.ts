@@ -60,15 +60,17 @@ describe('Phase 3: RecordManager & Tier-Specific Progression Tracking', () => {
     expect(clear2.isFastestTime).toBe(false);
     expect(clear2.bestTimeSeconds).toBe(240);
 
-    // Faster speedrun clear of Expert (185 seconds) updates best
-    const clear3 = RecordManager.recordChallengeClear(GameDifficulty.EXPERT, 'sparky', 185);
+    // Faster speedrun clear of Expert (185 seconds) with 125,000 points updates best
+    const clear3 = RecordManager.recordChallengeClear(GameDifficulty.EXPERT, 'sparky', 185, 125000);
     expect(clear3.isFirstClear).toBe(false);
     expect(clear3.isFastestTime).toBe(true);
     expect(clear3.bestTimeSeconds).toBe(185);
+    expect(clear3.bestScore).toBe(125000);
 
     const expertRec = RecordManager.getChallengeClear(GameDifficulty.EXPERT);
     expect(expertRec.cleared).toBe(true);
     expect(expertRec.bestTimeSeconds).toBe(185);
+    expect(expertRec.bestScore).toBe(125000);
     expect(expertRec.characterId).toBe('sparky');
   });
 
