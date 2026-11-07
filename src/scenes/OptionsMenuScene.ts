@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { CuteUI } from '../utils/CuteUI';
 import { Settings, KeyBindings, DEFAULT_KEYBINDINGS } from '../utils/Settings';
 import { SoundFx } from '../utils/SoundFx';
+import { computeOptionsMenuLayout, OptionsMenuLayout } from '../ui/OptionsMenuLayout';
 
 export default class OptionsMenuScene extends Phaser.Scene {
   private returnScene: string = 'MenuScene';
@@ -12,6 +13,16 @@ export default class OptionsMenuScene extends Phaser.Scene {
   private controlsTabContainer!: Phaser.GameObjects.Container;
   private howToPlayTabContainer!: Phaser.GameObjects.Container;
   private aiTabContainer!: Phaser.GameObjects.Container;
+
+  // Responsive card & layout metrics
+  private cardW: number = 450;
+  private cardH: number = 270;
+  private barWidth: number = 240;
+  private mobileControlsSubTab: 'keys' | 'gamepad' = 'keys';
+  private mobileKeysContainer?: Phaser.GameObjects.Container;
+  private mobileGamepadContainer?: Phaser.GameObjects.Container;
+  private mobileSubTabButtons: Phaser.GameObjects.Container[] = [];
+  private onResizeListener?: () => void;
 
   // Audio tab text refs
   private musicVolumeText!: Phaser.GameObjects.Text;
@@ -37,68 +48,73 @@ export default class OptionsMenuScene extends Phaser.Scene {
   create(): void {
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
-    const uiScale = CuteUI.getUIScale(this);
+    const rawUiScale = CuteUI.getUIScale(this);
+    const layout = computeOptionsMenuLayout(width, height, rawUiScale);
+
+    this.cardW = layout.cardW;
+    this.cardH = layout.cardH;
+    this.barWidth = layout.barWidth;
 
     // Drifting cute background pattern
     CuteUI.createCuteBackground(this);
 
     // Title
-    const titleY = Math.round(42 * Math.min(1.3, uiScale));
-    const title = this.add.text(width / 2, titleY, 'OPTIONS & GUIDE', {
-      fontSize: `${Math.round(24 * uiScale)}px`,
+    this.add.text(width / 2, layout.titleY, 'OPTIONS & GUIDE', {
+      fontSize: `${layout.titleSize}px`,
       color: '#ff69b4',
       fontStyle: 'bold',
       stroke: '#000000',
-      strokeThickness: Math.round(4 * (uiScale > 1.3 ? 1.3 : 1.0))
+      strokeThickness: Math.round(4 * (layout.uiScale > 1.3 ? 1.3 : 1.0))
     }).setOrigin(0.5);
 
     // Flanking sparkle stars
-    const starOffset = Math.round(160 * uiScale);
-    this.add.image(width / 2 - starOffset, titleY, 'sparkle_star').setScale(1.2 * uiScale);
-    this.add.image(width / 2 + starOffset, titleY, 'sparkle_star').setScale(1.2 * uiScale);
+    this.add.image(width / 2 - layout.starOffset, layout.titleY, 'sparkle_star').setScale(layout.starScale);
+    this.add.image(width / 2 + layout.starOffset, layout.titleY, 'sparkle_star').setScale(layout.starScale);
 
     // Navigation Tabs (4 tabs)
-    const tabY = Math.round(84 * Math.min(1.3, uiScale));
-    this.createTabs(width / 2, tabY, uiScale);
+    this.createTabs(width / 2, layout);
 
-    // Content Containers (scaled for desktop readability)
-    const cardY = Math.round(240 * Math.min(1.25, uiScale));
-    this.createAudioTab(width / 2, cardY);
-    this.createControlsTab(width / 2, cardY);
-    this.createHowToPlayTab(width / 2, cardY);
-    this.createAITab(width / 2, cardY);
+    // Content Containers (guaranteed strictly below tabs to prevent any overlap)
+    this.createAudioTab(width / 2, layout.cardY, layout.cardW, layout.cardH, layout.isMobile);
+    this.createControlsTab(width / 2, layout.cardY, layout.cardW, layout.cardH, layout.isMobile, layout.useMobileControlsSubTabs);
+    this.createHowToPlayTab(width / 2, layout.cardY, layout.cardW, layout.cardH, layout.isMobile);
+    this.createAITab(width / 2, layout.cardY, layout.cardW, layout.cardH, layout.isMobile);
 
-    if (uiScale > 1.0) {
-      this.audioTabContainer.setScale(uiScale);
-      this.controlsTabContainer.setScale(uiScale);
-      this.howToPlayTabContainer.setScale(uiScale);
-      this.aiTabContainer.setScale(uiScale);
+    if (layout.cardScale > 1.0) {
+      this.audioTabContainer.setScale(layout.cardScale);
+      this.controlsTabContainer.setScale(layout.cardScale);
+      this.howToPlayTabContainer.setScale(layout.cardScale);
+      this.aiTabContainer.setScale(layout.cardScale);
     }
 
     // Back Button (Bottom)
-    const cardBottom = cardY + Math.round(135 * uiScale);
-    const safeBottom = height - Math.round(48 * Math.min(1.3, uiScale));
-    const backBtnY = Math.min(safeBottom, Math.max(cardBottom + Math.round(40 * uiScale), height * 0.88));
     const backBtnText = this.returnScene === 'GameScene' ? 'RESUME GAME' : 'BACK TO MENU';
     CuteUI.createPillButton(
       this,
       width / 2,
-      backBtnY,
+      layout.backBtnY,
       backBtnText,
       () => {
         this.goBack();
       },
       {
         textureKey: 'pill_grey',
-        fontSize: `${Math.round(15 * uiScale)}px`,
-        width: Math.round(220 * uiScale),
-        height: Math.round(44 * uiScale),
+        fontSize: `${Math.round(15 * (layout.isMobile ? 1.0 : Math.min(1.2, layout.uiScale)))}px`,
+        width: layout.backBtnWidth,
+        height: Math.round(42 * (layout.isMobile ? 1.0 : Math.min(1.2, layout.uiScale))),
         autoScale: false
       }
     );
 
     // Setup global keyboard & gamepad navigation for the options menu
     this.setupMenuNavigation();
+
+    // Listen for window resize to reflow responsive layout
+    this.onResizeListener = () => {
+      this.cleanUpListeners();
+      this.scene.restart({ returnScene: this.returnScene, defaultTab: this.currentTab });
+    };
+    this.scale.on('resize', this.onResizeListener);
 
     // Show initial tab
     this.switchTab(this.currentTab);
@@ -115,26 +131,33 @@ export default class OptionsMenuScene extends Phaser.Scene {
       window.removeEventListener('keydown', this.keydownListener);
       this.keydownListener = undefined;
     }
+    if (this.onResizeListener) {
+      this.scale.off('resize', this.onResizeListener);
+      this.onResizeListener = undefined;
+    }
   }
 
-  private createTabs(centerX: number, y: number, uiScale: number = 1.0): void {
+  private createTabs(
+    centerX: number,
+    layout: OptionsMenuLayout
+  ): void {
+    this.tabButtons = [];
     const tabs = [
-      { id: 'audio', label: '🔊 AUDIO' },
-      { id: 'controls', label: '🎮 CONTROLS' },
-      { id: 'howToPlay', label: '❓ GUIDE' },
-      { id: 'ai', label: '🤖 AI' }
+      { id: 'audio', label: '🔊 AUDIO', shortLabel: '🔊 AUDIO' },
+      { id: 'controls', label: '🎮 CONTROLS', shortLabel: '🎮 KEYS' },
+      { id: 'howToPlay', label: '❓ GUIDE', shortLabel: '❓ GUIDE' },
+      { id: 'ai', label: '🤖 AI', shortLabel: '🤖 AI' }
     ];
 
-    const tabWidth = Math.round(108 * uiScale);
-    const tabHeight = Math.round(32 * uiScale);
+    const tabWidth = layout.tabWidth;
+    const tabHeight = layout.tabHeight;
     const halfH = tabHeight / 2;
-    const spacing = Math.round(8 * uiScale);
-    const totalW = tabs.length * tabWidth + (tabs.length - 1) * spacing;
-    const startX = centerX - totalW / 2 + tabWidth / 2;
+    const spacing = layout.tabSpacing;
+    const startX = centerX - layout.totalTabWidth / 2 + tabWidth / 2;
 
     tabs.forEach((tab, index) => {
       const x = startX + index * (tabWidth + spacing);
-      const container = this.add.container(x, y);
+      const container = this.add.container(x, layout.tabY);
 
       const bg = this.add.graphics();
       const drawTab = (active: boolean) => {
@@ -147,8 +170,9 @@ export default class OptionsMenuScene extends Phaser.Scene {
 
       drawTab(tab.id === this.currentTab);
 
-      const text = this.add.text(0, -1, tab.label, {
-        fontSize: `${Math.round(11 * uiScale)}px`,
+      const labelText = layout.useShortLabels ? tab.shortLabel : tab.label;
+      const text = this.add.text(0, -1, labelText, {
+        fontSize: `${layout.useShortLabels ? 10 : Math.round(11 * (layout.isMobile ? 1.0 : Math.min(1.2, layout.uiScale)))}px`,
         color: '#ffffff',
         fontStyle: 'bold',
         stroke: '#000000',
@@ -190,20 +214,28 @@ export default class OptionsMenuScene extends Phaser.Scene {
   }
 
   /** Tab 1: Music & Sound FX Volume Controls */
-  private createAudioTab(x: number, y: number): void {
+  private createAudioTab(
+    x: number,
+    y: number,
+    cardW: number,
+    cardH: number,
+    isMobile: boolean
+  ): void {
     this.audioTabContainer = this.add.container(x, y);
 
     // Card frame
     const cardBg = this.add.graphics();
     cardBg.fillStyle(0x181028, 0.95);
-    cardBg.fillRoundedRect(-225, -135, 450, 270, 16);
+    cardBg.fillRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 16);
     cardBg.lineStyle(2, 0x54a0ff, 0.85);
-    cardBg.strokeRoundedRect(-225, -135, 450, 270, 16);
+    cardBg.strokeRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 16);
     this.audioTabContainer.add(cardBg);
 
+    const stepBtnOffset = Math.min(160, Math.round(cardW / 2 - 28));
+
     // 1. Music Volume Row
-    const musicLabel = this.add.text(0, -95, '🎵 BGM MUSIC VOLUME', {
-      fontSize: '14px',
+    const musicLabel = this.add.text(0, -92, '🎵 BGM MUSIC VOLUME', {
+      fontSize: isMobile ? '13px' : '14px',
       color: '#feca57',
       fontStyle: 'bold',
       stroke: '#000000',
@@ -217,21 +249,21 @@ export default class OptionsMenuScene extends Phaser.Scene {
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    const musicMinusBtn = this.createStepButton(-160, -62, '➖', () => {
+    const musicMinusBtn = this.createStepButton(-stepBtnOffset, -62, '➖', () => {
       Settings.setMusicVolume(Settings.musicVolume - 0.1, this);
       this.updateAudioDisplays();
       SoundFx.playCursor();
     });
 
-    const musicPlusBtn = this.createStepButton(160, -62, '➕', () => {
+    const musicPlusBtn = this.createStepButton(stepBtnOffset, -62, '➕', () => {
       Settings.setMusicVolume(Settings.musicVolume + 0.1, this);
       this.updateAudioDisplays();
       SoundFx.playCursor();
     });
 
     // 2. SFX Volume Row
-    const sfxLabel = this.add.text(0, 0, '🔊 SOUND EFFECTS VOLUME', {
-      fontSize: '14px',
+    const sfxLabel = this.add.text(0, 4, '🔊 SOUND EFFECTS VOLUME', {
+      fontSize: isMobile ? '13px' : '14px',
       color: '#ff69b4',
       fontStyle: 'bold',
       stroke: '#000000',
@@ -245,23 +277,24 @@ export default class OptionsMenuScene extends Phaser.Scene {
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    const sfxMinusBtn = this.createStepButton(-160, 34, '➖', () => {
+    const sfxMinusBtn = this.createStepButton(-stepBtnOffset, 34, '➖', () => {
       Settings.setSfxVolume(Settings.sfxVolume - 0.1);
       this.updateAudioDisplays();
       SoundFx.playSwap();
     });
 
-    const sfxPlusBtn = this.createStepButton(160, 34, '➕', () => {
+    const sfxPlusBtn = this.createStepButton(stepBtnOffset, 34, '➕', () => {
       Settings.setSfxVolume(Settings.sfxVolume + 0.1);
       this.updateAudioDisplays();
       SoundFx.playMatch();
     });
 
     // Install App button
+    const installBtnW = Math.min(190, cardW - 40);
     const installBtn = CuteUI.createPillButton(
       this,
       0,
-      95,
+      96,
       '📲 INSTALL APP (PWA)',
       () => {
         if ((window as any).deferredInstallPrompt && (window as any).promptPwaInstall) {
@@ -270,7 +303,7 @@ export default class OptionsMenuScene extends Phaser.Scene {
           alert("To install as an app:\n• On Chrome/Edge/Android: Tap browser menu (⋮) -> 'Install App'\n• On iPhone/Safari: Tap Share icon (⎋) -> 'Add to Home Screen'");
         }
       },
-      { textureKey: 'pill_green', fontSize: '12px', width: 190, height: 32 }
+      { textureKey: 'pill_green', fontSize: '12px', width: installBtnW, height: 32 }
     );
 
     this.audioTabContainer.add([
@@ -291,19 +324,27 @@ export default class OptionsMenuScene extends Phaser.Scene {
   }
 
   /** Tab 2: Keyboard Remapping, Gamepad Status & Touch Support */
-  private createControlsTab(x: number, y: number): void {
+  private createControlsTab(
+    x: number,
+    y: number,
+    cardW: number,
+    cardH: number,
+    isMobile: boolean,
+    useSubTabs: boolean = false
+  ): void {
     this.controlsTabContainer = this.add.container(x, y);
+    this.keyRemapButtons.clear();
 
     const cardBg = this.add.graphics();
     cardBg.fillStyle(0x181028, 0.95);
-    cardBg.fillRoundedRect(-225, -135, 450, 270, 16);
+    cardBg.fillRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 16);
     cardBg.lineStyle(2, 0x54a0ff, 0.85);
-    cardBg.strokeRoundedRect(-225, -135, 450, 270, 16);
+    cardBg.strokeRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 16);
     this.controlsTabContainer.add(cardBg);
 
     // Gamepad live status indicator at top
-    this.gamepadStatusText = this.add.text(0, -118, '🎮 GAMEPAD: Checking...', {
-      fontSize: '11px',
+    this.gamepadStatusText = this.add.text(0, -cardH / 2 + 18, '🎮 GAMEPAD: Checking...', {
+      fontSize: isMobile ? '10px' : '11px',
       color: '#feca57',
       fontStyle: 'bold',
       stroke: '#000000',
@@ -311,7 +352,7 @@ export default class OptionsMenuScene extends Phaser.Scene {
     }).setOrigin(0.5);
     this.controlsTabContainer.add(this.gamepadStatusText);
 
-    // Left Column: Key Remapping Actions (Move Left, Right, Up, Down, Swap, Lift, Pause)
+    // Key Remapping Actions (Move Left, Right, Up, Down, Swap, Lift, Pause)
     const actions: { key: keyof KeyBindings; label: string }[] = [
       { key: 'moveLeft', label: 'MOVE LEFT' },
       { key: 'moveRight', label: 'MOVE RIGHT' },
@@ -322,102 +363,249 @@ export default class OptionsMenuScene extends Phaser.Scene {
       { key: 'pause', label: 'PAUSE GAME' }
     ];
 
-    const startRowY = -92;
-    const rowHeight = 27;
+    if (!useSubTabs && cardW >= 420) {
+      // DESKTOP: Two-column layout
+      const startRowY = -92;
+      const rowHeight = 27;
 
-    actions.forEach((act, idx) => {
-      const rowY = startRowY + idx * rowHeight;
+      actions.forEach((act, idx) => {
+        const rowY = startRowY + idx * rowHeight;
 
-      const actText = this.add.text(-205, rowY, act.label, {
+        const actText = this.add.text(-205, rowY, act.label, {
+          fontSize: '11px',
+          color: '#d2dae2',
+          fontStyle: 'bold',
+          stroke: '#000000',
+          strokeThickness: 2
+        }).setOrigin(0, 0.5);
+
+        // Key binding button (click to remap)
+        const btnContainer = this.add.container(-40, rowY);
+        const btnBg = this.add.graphics();
+        const drawBtn = (isListening: boolean) => {
+          btnBg.clear();
+          btnBg.fillStyle(isListening ? 0xffbe1a : 0x221a38, 0.95);
+          btnBg.fillRoundedRect(-55, -11, 110, 22, 6);
+          btnBg.lineStyle(1.5, isListening ? 0xffffff : 0x54a0ff, 0.9);
+          btnBg.strokeRoundedRect(-55, -11, 110, 22, 6);
+        };
+        drawBtn(false);
+
+        const keyLabel = this.add.text(0, -1, this.formatKeyName(Settings.keyBindings[act.key]), {
+          fontSize: '10.5px',
+          color: '#ffffff',
+          fontStyle: 'bold'
+        }).setOrigin(0.5);
+
+        const hit = this.add.rectangle(0, 0, 110, 22, 0x000000, 0);
+        hit.setInteractive({ useHandCursor: true });
+
+        hit.on('pointerdown', () => {
+          SoundFx.playCursor();
+          this.startListeningForKey(act.key);
+        });
+
+        btnContainer.add([btnBg, keyLabel, hit]);
+        (btnContainer as any).drawBtn = drawBtn;
+
+        this.keyRemapButtons.set(act.key, { container: btnContainer, label: keyLabel });
+        this.controlsTabContainer.add([actText, btnContainer]);
+      });
+
+      // Right Column: Gamepad & Touch Guide Reference
+      const guideBox = this.add.graphics();
+      guideBox.fillStyle(0x0e091b, 0.7);
+      guideBox.fillRoundedRect(30, -96, 185, 185, 10);
+      guideBox.lineStyle(1, 0xffffff, 0.15);
+      guideBox.strokeRoundedRect(30, -96, 185, 185, 10);
+      this.controlsTabContainer.add(guideBox);
+
+      const guideTitle = this.add.text(122, -84, '🎮 GAMEPAD MAP', {
         fontSize: '11px',
-        color: '#d2dae2',
+        color: '#2ed573',
         fontStyle: 'bold',
         stroke: '#000000',
         strokeThickness: 2
-      }).setOrigin(0, 0.5);
-
-      // Key binding button (click to remap)
-      const btnContainer = this.add.container(-40, rowY);
-      const btnBg = this.add.graphics();
-      const drawBtn = (isListening: boolean) => {
-        btnBg.clear();
-        btnBg.fillStyle(isListening ? 0xffbe1a : 0x221a38, 0.95);
-        btnBg.fillRoundedRect(-55, -11, 110, 22, 6);
-        btnBg.lineStyle(1.5, isListening ? 0xffffff : 0x54a0ff, 0.9);
-        btnBg.strokeRoundedRect(-55, -11, 110, 22, 6);
-      };
-      drawBtn(false);
-
-      const keyLabel = this.add.text(0, -1, this.formatKeyName(Settings.keyBindings[act.key]), {
-        fontSize: '10.5px',
-        color: '#ffffff',
-        fontStyle: 'bold'
       }).setOrigin(0.5);
 
-      const hit = this.add.rectangle(0, 0, 110, 22, 0x000000, 0);
-      hit.setInteractive({ useHandCursor: true });
+      const padLines = [
+        '• D-Pad / Stick: Move',
+        '• Button A / X: Swap',
+        '• Button B / Y / L1: Lift',
+        '• Start / Select: Pause',
+        '',
+        '📱 TOUCH CONTROLS:',
+        '• Tap & swipe on board',
+        '• Virtual D-pad + Pills'
+      ];
 
-      hit.on('pointerdown', () => {
-        SoundFx.playCursor();
-        this.startListeningForKey(act.key);
+      const guideText = this.add.text(38, -68, padLines.join('\n'), {
+        fontSize: '9.5px',
+        color: '#c8d6e5',
+        lineSpacing: 3
       });
 
-      btnContainer.add([btnBg, keyLabel, hit]);
-      (btnContainer as any).drawBtn = drawBtn;
+      this.controlsTabContainer.add([guideTitle, guideText]);
 
-      this.keyRemapButtons.set(act.key, { container: btnContainer, label: keyLabel });
-      this.controlsTabContainer.add([actText, btnContainer]);
-    });
+      // Reset Defaults Button
+      const resetBtn = CuteUI.createPillButton(
+        this,
+        -95,
+        108,
+        'RESET DEFAULTS',
+        () => {
+          Settings.resetKeyBindings();
+          this.updateKeyRemapLabels();
+          SoundFx.playCursor();
+        },
+        { textureKey: 'pill_sm_grey', fontSize: '11px', width: 130, height: 28 }
+      );
+      this.controlsTabContainer.add(resetBtn);
+    } else {
+      // MOBILE: Sub-segmented toggle for Keyboard vs Gamepad & Touch
+      this.mobileKeysContainer = this.add.container(0, 0);
+      this.mobileGamepadContainer = this.add.container(0, 0);
+      this.mobileSubTabButtons = [];
 
-    // Right Column: Gamepad & Touch Guide Reference
-    const guideBox = this.add.graphics();
-    guideBox.fillStyle(0x0e091b, 0.7);
-    guideBox.fillRoundedRect(30, -96, 185, 185, 10);
-    guideBox.lineStyle(1, 0xffffff, 0.15);
-    guideBox.strokeRoundedRect(30, -96, 185, 185, 10);
-    this.controlsTabContainer.add(guideBox);
+      // Sub-toggle pills
+      const subTabs = [
+        { id: 'keys', label: '⌨️ KEY REMAP' },
+        { id: 'gamepad', label: '🎮 GAMEPAD / TOUCH' }
+      ];
+      const subTabW = Math.floor((cardW - 32 - 8) / 2);
+      const subTabH = 26;
+      const subStartX = -cardW / 2 + 16 + subTabW / 2;
+      const subY = -cardH / 2 + 40;
 
-    const guideTitle = this.add.text(122, -84, '🎮 GAMEPAD MAP', {
-      fontSize: '11px',
-      color: '#2ed573',
-      fontStyle: 'bold',
-      stroke: '#000000',
-      strokeThickness: 2
-    }).setOrigin(0.5);
+      subTabs.forEach((st, idx) => {
+        const stX = subStartX + idx * (subTabW + 8);
+        const stContainer = this.add.container(stX, subY);
+        const stBg = this.add.graphics();
 
-    const padLines = [
-      '• D-Pad / Stick: Move',
-      '• Button A / X: Swap',
-      '• Button B / Y / L1: Lift',
-      '• Start / Select: Pause',
-      '',
-      '📱 TOUCH CONTROLS:',
-      '• Tap & swipe on board',
-      '• Virtual D-pad + Pills'
-    ];
+        const drawSubTab = (active: boolean) => {
+          stBg.clear();
+          stBg.fillStyle(active ? 0x2ed573 : 0x110d20, active ? 0.95 : 0.75);
+          stBg.fillRoundedRect(-subTabW / 2, -subTabH / 2, subTabW, subTabH, 6);
+          stBg.lineStyle(1.5, active ? 0xffffff : 0x54a0ff, active ? 0.9 : 0.4);
+          stBg.strokeRoundedRect(-subTabW / 2, -subTabH / 2, subTabW, subTabH, 6);
+        };
+        drawSubTab(st.id === this.mobileControlsSubTab);
 
-    const guideText = this.add.text(38, -68, padLines.join('\n'), {
-      fontSize: '9.5px',
-      color: '#c8d6e5',
-      lineSpacing: 3
-    });
+        const stText = this.add.text(0, -1, st.label, {
+          fontSize: '10.5px',
+          color: '#ffffff',
+          fontStyle: 'bold'
+        }).setOrigin(0.5);
 
-    this.controlsTabContainer.add([guideTitle, guideText]);
+        const stHit = this.add.rectangle(0, 0, subTabW, subTabH, 0x000000, 0);
+        stHit.setInteractive({ useHandCursor: true });
+        stHit.on('pointerdown', () => {
+          SoundFx.playCursor();
+          this.switchMobileControlsSubTab(st.id as any);
+        });
 
-    // Reset Defaults Button
-    const resetBtn = CuteUI.createPillButton(
-      this,
-      -95,
-      108,
-      'RESET DEFAULTS',
-      () => {
-        Settings.resetKeyBindings();
-        this.updateKeyRemapLabels();
-        SoundFx.playCursor();
-      },
-      { textureKey: 'pill_sm_grey', fontSize: '11px', width: 130, height: 28 }
-    );
-    this.controlsTabContainer.add(resetBtn);
+        stContainer.add([stBg, stText, stHit]);
+        (stContainer as any).drawTab = drawSubTab;
+        (stContainer as any).tabId = st.id;
+        this.mobileSubTabButtons.push(stContainer);
+        this.controlsTabContainer.add(stContainer);
+      });
+
+      // 1. Mobile Keyboard Remap View
+      const rowStartY = -62;
+      const rowHeight = 22;
+      const labelX = -cardW / 2 + 16;
+      const btnX = cardW / 2 - 58;
+
+      actions.forEach((act, idx) => {
+        const rowY = rowStartY + idx * rowHeight;
+
+        const actText = this.add.text(labelX, rowY, act.label, {
+          fontSize: '10px',
+          color: '#d2dae2',
+          fontStyle: 'bold',
+          stroke: '#000000',
+          strokeThickness: 2
+        }).setOrigin(0, 0.5);
+
+        const btnContainer = this.add.container(btnX, rowY);
+        const btnBg = this.add.graphics();
+        const drawBtn = (isListening: boolean) => {
+          btnBg.clear();
+          btnBg.fillStyle(isListening ? 0xffbe1a : 0x221a38, 0.95);
+          btnBg.fillRoundedRect(-50, -9, 100, 18, 5);
+          btnBg.lineStyle(1.5, isListening ? 0xffffff : 0x54a0ff, 0.9);
+          btnBg.strokeRoundedRect(-50, -9, 100, 18, 5);
+        };
+        drawBtn(false);
+
+        const keyLabel = this.add.text(0, -1, this.formatKeyName(Settings.keyBindings[act.key]), {
+          fontSize: '10px',
+          color: '#ffffff',
+          fontStyle: 'bold'
+        }).setOrigin(0.5);
+
+        const hit = this.add.rectangle(0, 0, 100, 18, 0x000000, 0);
+        hit.setInteractive({ useHandCursor: true });
+        hit.on('pointerdown', () => {
+          SoundFx.playCursor();
+          this.startListeningForKey(act.key);
+        });
+
+        btnContainer.add([btnBg, keyLabel, hit]);
+        (btnContainer as any).drawBtn = drawBtn;
+
+        this.keyRemapButtons.set(act.key, { container: btnContainer, label: keyLabel });
+        this.mobileKeysContainer!.add([actText, btnContainer]);
+      });
+
+      const resetBtn = CuteUI.createPillButton(
+        this,
+        0,
+        106,
+        'RESET DEFAULTS',
+        () => {
+          Settings.resetKeyBindings();
+          this.updateKeyRemapLabels();
+          SoundFx.playCursor();
+        },
+        { textureKey: 'pill_sm_grey', fontSize: '11px', width: 140, height: 26 }
+      );
+      this.mobileKeysContainer.add(resetBtn);
+
+      // 2. Mobile Gamepad & Touch Guide View
+      const guideBoxW = cardW - 28;
+      const guideBoxH = 168;
+      const gBox = this.add.graphics();
+      gBox.fillStyle(0x0e091b, 0.7);
+      gBox.fillRoundedRect(-guideBoxW / 2, -64, guideBoxW, guideBoxH, 10);
+      gBox.lineStyle(1, 0xffffff, 0.15);
+      gBox.strokeRoundedRect(-guideBoxW / 2, -64, guideBoxW, guideBoxH, 10);
+
+      const padGuideLines = [
+        '🎮 GAMEPAD / CONTROLLER:',
+        '• D-Pad / Left Stick: Move Cursor',
+        '• Button A / Cross: Swap Horizontal Slimes',
+        '• Button B / Circle / L1: Fast Lift Stack',
+        '• Start / Options: Pause Game',
+        '',
+        '📱 TOUCHSCREEN CONTROLS:',
+        '• Tap & drag on slimes to swap dynamically',
+        '• Virtual D-pad + On-screen Swap / Lift buttons'
+      ];
+
+      const gText = this.add.text(-guideBoxW / 2 + 14, -54, padGuideLines.join('\n'), {
+        fontSize: '9.5px',
+        color: '#c8d6e5',
+        lineSpacing: 3,
+        wordWrap: { width: guideBoxW - 28 }
+      });
+
+      this.mobileGamepadContainer.add([gBox, gText]);
+
+      this.controlsTabContainer.add([this.mobileKeysContainer, this.mobileGamepadContainer]);
+      this.switchMobileControlsSubTab('keys');
+    }
 
     // Global Key Listener for Remapping
     this.keydownListener = (event: KeyboardEvent) => {
@@ -450,6 +638,16 @@ export default class OptionsMenuScene extends Phaser.Scene {
     };
 
     window.addEventListener('keydown', this.keydownListener);
+  }
+
+  private switchMobileControlsSubTab(subTab: 'keys' | 'gamepad'): void {
+    this.mobileControlsSubTab = subTab;
+    this.mobileSubTabButtons.forEach((btn) => {
+      const active = (btn as any).tabId === subTab;
+      (btn as any).drawTab(active);
+    });
+    if (this.mobileKeysContainer) this.mobileKeysContainer.setVisible(subTab === 'keys');
+    if (this.mobileGamepadContainer) this.mobileGamepadContainer.setVisible(subTab === 'gamepad');
   }
 
   private startListeningForKey(action: keyof KeyBindings): void {
@@ -518,7 +716,7 @@ export default class OptionsMenuScene extends Phaser.Scene {
       color: number
     ) => {
       g.clear();
-      const barWidth = 240;
+      const barWidth = this.barWidth;
       const barHeight = 14;
       const startX = -barWidth / 2;
 
@@ -571,14 +769,20 @@ export default class OptionsMenuScene extends Phaser.Scene {
   }
 
   /** Tab 3: How to Play Visual Guide */
-  private createHowToPlayTab(x: number, y: number): void {
+  private createHowToPlayTab(
+    x: number,
+    y: number,
+    cardW: number,
+    cardH: number,
+    isMobile: boolean
+  ): void {
     this.howToPlayTabContainer = this.add.container(x, y);
 
     const cardBg = this.add.graphics();
     cardBg.fillStyle(0x181028, 0.95);
-    cardBg.fillRoundedRect(-225, -135, 450, 270, 16);
+    cardBg.fillRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 16);
     cardBg.lineStyle(2, 0x2ed573, 0.85);
-    cardBg.strokeRoundedRect(-225, -135, 450, 270, 16);
+    cardBg.strokeRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 16);
     this.howToPlayTabContainer.add(cardBg);
 
     const guideLines = [
@@ -588,7 +792,7 @@ export default class OptionsMenuScene extends Phaser.Scene {
       },
       {
         title: '🎮 UNIVERSAL CONTROLS',
-        desc: '• Keyboard: Remappable keys in Controls tab (Default: Arrows/WASD, Space, Shift).\n• Gamepad: Full native support (D-Pad, A to Swap, B to Lift, Start to Pause).\n• Touch: Swipe directly on slimes or use on-screen D-Pad and pill buttons!'
+        desc: '• Keyboard: Remappable keys in Controls tab (Arrows/WASD, Space, Shift).\n• Gamepad: Full native support (D-Pad, A to Swap, B to Lift, Start to Pause).\n• Touch: Swipe directly on slimes or use on-screen D-Pad and pill buttons!'
       },
       {
         title: '💥 CHAINS & COMBOS',
@@ -600,41 +804,50 @@ export default class OptionsMenuScene extends Phaser.Scene {
       }
     ];
 
-    let startY = -120;
+    const contentX = -cardW / 2 + (isMobile ? 14 : 20);
+    const wrapW = cardW - (isMobile ? 28 : 40);
+    let startY = -cardH / 2 + 15;
+
     guideLines.forEach((item) => {
-      const heading = this.add.text(-205, startY, item.title, {
-        fontSize: '11.5px',
+      const heading = this.add.text(contentX, startY, item.title, {
+        fontSize: isMobile ? '10.5px' : '11.5px',
         color: '#ff9ff3',
         fontStyle: 'bold',
         stroke: '#000000',
         strokeThickness: 2
       });
 
-      const body = this.add.text(-205, startY + 15, item.desc, {
-        fontSize: '10px',
+      const body = this.add.text(contentX, startY + (isMobile ? 13 : 15), item.desc, {
+        fontSize: isMobile ? '9px' : '10px',
         color: '#d2dae2',
-        lineSpacing: 2,
-        wordWrap: { width: 410 }
+        lineSpacing: isMobile ? 1.5 : 2,
+        wordWrap: { width: wrapW }
       });
 
       this.howToPlayTabContainer.add([heading, body]);
-      startY += body.height + 18;
+      startY += body.height + (isMobile ? 12 : 18);
     });
   }
 
   /** Tab 4: AI Disclosure Statement */
-  private createAITab(x: number, y: number): void {
+  private createAITab(
+    x: number,
+    y: number,
+    cardW: number,
+    cardH: number,
+    isMobile: boolean
+  ): void {
     this.aiTabContainer = this.add.container(x, y);
 
     const cardBg = this.add.graphics();
     cardBg.fillStyle(0x181028, 0.95);
-    cardBg.fillRoundedRect(-225, -135, 450, 270, 16);
+    cardBg.fillRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 16);
     cardBg.lineStyle(2, 0xa55eea, 0.85);
-    cardBg.strokeRoundedRect(-225, -135, 450, 270, 16);
+    cardBg.strokeRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 16);
     this.aiTabContainer.add(cardBg);
 
-    const title = this.add.text(0, -100, '🤖 AI TRANSPARENCY & DISCLOSURE', {
-      fontSize: '13.5px',
+    const title = this.add.text(0, -cardH / 2 + 25, '🤖 AI TRANSPARENCY & DISCLOSURE', {
+      fontSize: isMobile ? '11.5px' : '13.5px',
       color: '#a55eea',
       fontStyle: 'bold',
       stroke: '#000000',
@@ -648,21 +861,24 @@ export default class OptionsMenuScene extends Phaser.Scene {
       'Built with passion and dedication to classic action puzzle gaming!'
     ];
 
-    let currentY = -68;
+    const contentX = -cardW / 2 + (isMobile ? 14 : 20);
+    const wrapW = cardW - (isMobile ? 28 : 40);
+    let currentY = -cardH / 2 + 50;
+
     statements.forEach((txt, idx) => {
       const isLast = idx === statements.length - 1;
-      const t = this.add.text(isLast ? 0 : -205, currentY, txt, {
-        fontSize: isLast ? '11px' : '10px',
+      const t = this.add.text(isLast ? 0 : contentX, currentY, txt, {
+        fontSize: isLast ? (isMobile ? '10px' : '11px') : (isMobile ? '9px' : '10px'),
         color: isLast ? '#feca57' : '#d2dae2',
         fontStyle: isLast ? 'italic bold' : 'normal',
         align: isLast ? 'center' : 'left',
-        lineSpacing: 2.5,
-        wordWrap: { width: 410 }
+        lineSpacing: isMobile ? 1.5 : 2.5,
+        wordWrap: { width: wrapW }
       });
       if (isLast) t.setOrigin(0.5, 0);
 
       this.aiTabContainer.add(t);
-      currentY += t.height + 10;
+      currentY += t.height + (isMobile ? 8 : 10);
     });
 
     this.aiTabContainer.add(title);

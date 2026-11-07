@@ -123,9 +123,10 @@ def deploy():
             pass
         if upload_file_if_changed(sftp, str(server_bundle), '/home/dh_8jvcwd/server/index.cjs', prefix="server: "):
             upload_count += 1
-        # Restart or keepalive server
-        stdin, stdout, stderr = ssh.exec_command('pkill -f "node /home/dh_8jvcwd/server/index.cjs"; sleep 1; /home/dh_8jvcwd/server/keepalive.sh; sleep 1')
-        stdout.read()
+        # Restart or keepalive server with nohup so process persists after SSH disconnect
+        stdin, stdout, stderr = ssh.exec_command('pkill -f "node /home/dh_8jvcwd/server/index.cjs"; sleep 1; nohup /usr/bin/node /home/dh_8jvcwd/server/index.cjs >> /home/dh_8jvcwd/server/server.log 2>&1 & sleep 1; pgrep -f "node /home/dh_8jvcwd/server/index.cjs"')
+        server_pid = stdout.read().decode('utf-8').strip()
+        print(f"Backend server running with PID: {server_pid}", flush=True)
 
     sftp.close()
     ssh.close()
