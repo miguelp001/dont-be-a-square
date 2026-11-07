@@ -49,6 +49,9 @@ export default class Board extends Phaser.Events.EventEmitter {
   public isTopOut: boolean = false;
   private dangerBeepTimer: number = 0;
 
+  /** Input buffer queue (150ms window) so inputs during animations are never lost */
+  public inputBuffer: { gridX: number; gridY: number; ttl: number }[] = [];
+
   constructor(scene: Phaser.Scene, offsetX: number = 64, offsetY: number = 64, scale: number = 1.0) {
     super();
     this.scene = scene;
@@ -274,11 +277,7 @@ export default class Board extends Phaser.Events.EventEmitter {
     }
   }
 
-  /**
-   * Execute horizontal swap at (x, y) with (x + 1, y).
-   * Supports swapping with empty space (air swap).
-   */
-  public swap(gridX: number, gridY: number): boolean {
+  public canSwap(gridX: number, gridY: number): boolean {
     if (this.isTopOut) return false;
     if (gridX < 0 || gridX >= BOARD_WIDTH - 1 || gridY < 0 || gridY >= BOARD_HEIGHT) {
       return false;
@@ -310,6 +309,13 @@ export default class Board extends Phaser.Events.EventEmitter {
       }
     }
 
+    return true;
+  }
+
+  private executeSwap(gridX: number, gridY: number): boolean {
+    const left = this.panels[gridY][gridX];
+    const right = this.panels[gridY][gridX + 1];
+
     SoundFx.playSwap();
 
     this.panels[gridY][gridX] = right;
@@ -334,6 +340,22 @@ export default class Board extends Phaser.Events.EventEmitter {
 
     this.emit('swap');
     return true;
+  }
+
+  /**
+   * Execute horizontal swap at (x, y) with (x + 1, y).
+   * If cells are currently busy, queues the command in the 150ms input buffer.
+   */
+  public swap(gridX: number, gridY: number): boolean {
+    if (this.isTopOut) return false;
+
+    if (this.canSwap(gridX, gridY)) {
+      return this.executeSwap(gridX, gridY);
+    } else {
+      // Input buffer (150ms window) ensures rapid swipes during animations are never lost!
+      this.inputBuffer.push({ gridX, gridY, ttl: 150 });
+      return false;
+    }
   }
 
   public canPanelFallInto(x: number, y: number): boolean {
@@ -392,6 +414,7 @@ export default class Board extends Phaser.Events.EventEmitter {
 
     this.updateHoverAndFalling(delta);
     this.updateClearingPanels(delta);
+    this.processInputBuffer(delta);
     this.updateGarbage();
     this.checkMatches();
     this.updateChainState();
@@ -408,6 +431,21 @@ export default class Board extends Phaser.Events.EventEmitter {
           if (panel.x !== expectedX) panel.x = expectedX;
           if (panel.y !== expectedY) panel.y = expectedY;
         }
+      }
+    }
+  }
+
+  /** Evaluate queued swap inputs in the 150ms buffer */
+  private processInputBuffer(delta: number): void {
+    for (let i = this.inputBuffer.length - 1; i >= 0; i--) {
+      const item = this.inputBuffer[i];
+      item.ttl -= delta;
+
+      if (this.canSwap(item.gridX, item.gridY)) {
+        this.executeSwap(item.gridX, item.gridY);
+        this.inputBuffer.splice(i, 1);
+      } else if (item.ttl <= 0) {
+        this.inputBuffer.splice(i, 1);
       }
     }
   }
