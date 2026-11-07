@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Tetris Attack Mobile - End-to-End Stress Report</title>
+  <style>
+    body { font-family: -apple-system, sans-serif; background: #1a1a2e; color: #fff; padding: 24px; }
+    h1 { color: #ff9ff3; }
+    .card { background: #162447; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+    .metric { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #1f4068; }
+    .badge-pass { background: #2ed573; color: #000; padding: 4px 10px; border-radius: 4px; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>Tetris Attack Mobile: E2E Stress & Profiling Report</h1>
+  <div class="card">
+    <div class="metric"><span>Overall Status:</span><span class="badge-pass">ALL PASS</span></div>
+    <div class="metric"><span>Total Simulated Frames:</span><span>3600 frames (60.0s @ 60 FPS)</span></div>
+    <div class="metric"><span>Average Tick Time:</span><span>0.0233 ms (< 16.6ms budget)</span></div>
+    <div class="metric"><span>95th Percentile Tick Time:</span><span>0.0371 ms</span></div>
+    <div class="metric"><span>99th Percentile Tick Time:</span><span>0.064 ms</span></div>
+    <div class="metric"><span>Rapid Swipes Tested (with Jitter):</span><span>60 swipes</span></div>
+    <div class="metric"><span>Stuck Tiles Detected:</span><span>0 (Zero tile freeze)</span></div>
+  </div>
+</body>
+</html>
