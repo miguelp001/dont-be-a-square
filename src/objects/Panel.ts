@@ -28,6 +28,7 @@ export default class Panel extends Phaser.GameObjects.Sprite {
     this.color = color;
     this.setOrigin(0, 0);
     this.setDisplaySize(PANEL_SIZE, PANEL_SIZE);
+    this.setDepth(4);
     scene.add.existing(this);
   }
 

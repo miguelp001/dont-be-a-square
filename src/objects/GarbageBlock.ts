@@ -49,7 +49,7 @@ export default class GarbageBlock {
         );
         sprite.setOrigin(0, 0);
         sprite.setDisplaySize(PANEL_SIZE, PANEL_SIZE);
-        sprite.setDepth(5);
+        sprite.setDepth(4);
         this.container.add(sprite);
         this.sprites[r][c] = sprite;
       }
@@ -125,7 +125,7 @@ export default class GarbageBlock {
       SoundFx.playGarbageTransform();
 
       const bottomRowIndex = this.height - 1;
-      const rowSprites = this.sprites[bottomRowIndex] || [];
+      const rowSprites = (this.sprites[bottomRowIndex] || []).slice();
       for (let c = 0; c < this.width; c++) {
         const sprite = rowSprites[c];
 
@@ -141,13 +141,23 @@ export default class GarbageBlock {
             yoyo: true,
             repeat: 3,
             onComplete: () => {
-              sprite.destroy();
+              if (sprite && sprite.active) {
+                sprite.destroy();
+              }
             }
           });
         }
       }
 
       this.scene.time.delayedCall(420, () => {
+        // Explicitly guarantee all bottom row garbage sprites are destroyed
+        // so no residual or flashing graphics linger over newly spawned slime panels
+        for (const sprite of rowSprites) {
+          if (sprite && sprite.active) {
+            sprite.destroy();
+          }
+        }
+
         this.height--;
         this.sprites.pop(); // Remove bottom row sprites
 

@@ -197,12 +197,13 @@ export default class Board extends Phaser.Events.EventEmitter {
         }
       }
 
-      // Check other resting or falling garbage blocks
+      // Check other resting, falling, or transforming garbage blocks
       for (const other of this.garbageBlocks) {
         if (
           other !== block &&
-          (other.state === GarbageState.RESTING || other.state === GarbageState.FALLING) &&
-          other.occupies(col, other.gridY)
+          other.state !== GarbageState.CLEARED &&
+          col >= other.gridX &&
+          col < other.gridX + other.width
         ) {
           const possible = other.gridY - block.height;
           if (possible < landingRow) {
@@ -212,7 +213,10 @@ export default class Board extends Phaser.Events.EventEmitter {
       }
     }
 
-    landingRow = Math.max(0, landingRow);
+    // Do NOT clamp landingRow to 0!
+    // If landingRow < 0 (stack reaches ceiling), block rests above ceiling (negative gridY)
+    // and alerts danger/top-out. Clamping to 0 would force the garbage block to penetrate
+    // into existing slime panels at row 0+, causing overlapping tiles!
     const distance = Math.max(1, landingRow - block.gridY);
     const duration = Math.min(360, Math.max(120, distance * 36));
     block.fallTo(landingRow, duration);
@@ -230,9 +234,12 @@ export default class Board extends Phaser.Events.EventEmitter {
       let canFall = true;
       for (let c = 0; c < block.width; c++) {
         const col = block.gridX + c;
-        if (this.panels[nextY][col] !== null) {
-          canFall = false;
-          break;
+        if (nextY >= 0 && nextY < BOARD_HEIGHT) {
+          const p = this.panels[nextY][col];
+          if (p !== null) {
+            canFall = false;
+            break;
+          }
         }
         for (const other of this.garbageBlocks) {
           if (other !== block && other.occupies(col, nextY)) {
@@ -251,9 +258,12 @@ export default class Board extends Phaser.Events.EventEmitter {
           const checkY = testY + block.height - 1;
           for (let c = 0; c < block.width; c++) {
             const col = block.gridX + c;
-            if (this.panels[checkY][col] !== null) {
-              testRowClear = false;
-              break;
+            if (checkY >= 0 && checkY < BOARD_HEIGHT) {
+              const p = this.panels[checkY][col];
+              if (p !== null) {
+                testRowClear = false;
+                break;
+              }
             }
             for (const other of this.garbageBlocks) {
               if (other !== block && other.occupies(col, checkY)) {
@@ -288,6 +298,19 @@ export default class Board extends Phaser.Events.EventEmitter {
       this.isCellOccupiedByGarbage(gridX + 1, gridY)
     ) {
       return false;
+    }
+
+    // Do not allow swapping directly into or beneath a falling garbage block
+    for (const b of this.garbageBlocks) {
+      if (b.state === GarbageState.FALLING) {
+        if (
+          b.occupies(gridX, gridY) ||
+          b.occupies(gridX + 1, gridY) ||
+          (gridY > 0 && (b.occupies(gridX, gridY - 1) || b.occupies(gridX + 1, gridY - 1)))
+        ) {
+          return false;
+        }
+      }
     }
 
     const left = this.panels[gridY][gridX];
@@ -879,6 +902,7 @@ export default class Board extends Phaser.Events.EventEmitter {
           const existing = this.panels[pos.gridY][pos.gridX];
           if (existing) {
             existing.destroy();
+            this.panels[pos.gridY][pos.gridX] = null;
           }
           const color = randomInt(0, COLORS.COUNT - 1);
           const panel = new Panel(this.scene, pos.gridX * PANEL_SIZE, pos.gridY * PANEL_SIZE, color);
