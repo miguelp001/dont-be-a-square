@@ -59,6 +59,12 @@ export default class PreloadScene extends Phaser.Scene {
     this.load.image('wood_plaque_sign', 'assets/ui/wood_plaque_sign.png');
     this.load.image('wood_clock_icon', 'assets/ui/wood_clock_icon.png');
 
+    // 3D Parallax Menu Layers
+    this.load.image('parallax_sky', 'assets/ui/parallax/sky.png?v=v1');
+    this.load.image('parallax_far_hills', 'assets/ui/parallax/far_hills.png?v=v1');
+    this.load.image('parallax_mid_forest', 'assets/ui/parallax/mid_forest.png?v=v1');
+    this.load.image('parallax_near_canopy', 'assets/ui/parallax/near_canopy.png?v=v1');
+
     // Load custom kawaii slime sprites for puzzle panels (panel_0 .. panel_5)
     for (let i = 0; i < 6; i++) {
       this.load.image(`panel_${i}`, `assets/sprites/slimes/panel_${i}.png?v=32px_v5`);
