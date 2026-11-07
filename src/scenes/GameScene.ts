@@ -118,6 +118,10 @@ export default class GameScene extends Phaser.Scene {
   private matchSeed: number = 0;
   private lastSentCursorX: number = -1;
   private lastSentCursorY: number = -1;
+  private isRematchRequested: boolean = false;
+  private opponentWantsRematch: boolean = false;
+  private opponentDisconnected: boolean = false;
+  private onlinePlayAgainBtnText?: Phaser.GameObjects.Text;
 
   constructor() {
     super({ key: 'GameScene' });
@@ -148,6 +152,10 @@ export default class GameScene extends Phaser.Scene {
     this.cpuScore = 0;
     this.gameTime = 240;
     this.isMatchOver = false;
+    this.isRematchRequested = false;
+    this.opponentWantsRematch = false;
+    this.opponentDisconnected = false;
+    this.onlinePlayAgainBtnText = undefined;
     this.gameOverModalContainer = undefined;
     this.gameOverButtons = [];
     this.gameOverActions = [];
@@ -720,9 +728,37 @@ export default class GameScene extends Phaser.Scene {
         }
       });
 
+      this.socketMgr.onOpponentRematchRequested(() => {
+        this.opponentWantsRematch = true;
+        SoundFx.playDecide();
+        if (this.onlinePlayAgainBtnText && !this.isRematchRequested) {
+          this.onlinePlayAgainBtnText.setText('PLAY AGAIN (READY!)');
+        }
+      });
+
+      this.socketMgr.onGameRestart((payload: any) => {
+        SoundFx.playMatch();
+        if (this.onlinePlayAgainBtnText) {
+          this.onlinePlayAgainBtnText.setText('REMATCH STARTING!');
+        }
+        this.time.delayedCall(500, () => {
+          this.scene.restart({
+            mode: 'vs_online',
+            roomId: payload.roomId || this.roomId,
+            seed: payload.seed,
+            characterId: this.characterId,
+            opponentCharacterId: this.opponentCharacterId,
+            isPlayer1: this.isPlayer1
+          });
+        });
+      });
+
       this.socketMgr.onOpponentDisconnected(() => {
+        this.opponentDisconnected = true;
         if (!this.isMatchOver) {
           this.endMatch('OPPONENT LEFT - YOU WIN!', true);
+        } else if (this.onlinePlayAgainBtnText) {
+          this.onlinePlayAgainBtnText.setText('OPPONENT LEFT');
         }
       });
 
@@ -1247,6 +1283,9 @@ export default class GameScene extends Phaser.Scene {
       if (this.touchController) {
         this.touchController.destroy();
         this.touchController = undefined;
+      }
+      if (this.gameMode === 'vs_online' && this.socketMgr && this.roomId && !this.isRematchRequested) {
+        this.socketMgr.leaveRoom(this.roomId);
       }
     });
 
@@ -2097,10 +2136,6 @@ export default class GameScene extends Phaser.Scene {
     if (this.isMatchOver) return;
     this.isMatchOver = true;
 
-    if (this.gameMode === 'vs_online' && this.socketMgr && this.roomId) {
-      this.socketMgr.leaveRoom(this.roomId);
-    }
-
     if (this.timerEvent) {
       this.timerEvent.remove();
     }
@@ -2312,19 +2347,64 @@ export default class GameScene extends Phaser.Scene {
         ];
       }
     } else if (this.gameMode === 'vs_online') {
-      const lobbyBtn = CuteUI.createPillButton(this, 0, startBtnY, 'FIND NEXT MATCH ⚡', () => {
-        this.scene.start('LobbyScene', { characterId: this.characterId });
-      }, { textureKey: 'pill_green', fontSize: btnFont, width: btnW, height: btnH, autoScale: false });
+      const initialBtnText = this.opponentDisconnected
+        ? 'OPPONENT LEFT'
+        : this.opponentWantsRematch
+        ? 'PLAY AGAIN (READY!)'
+        : 'PLAY AGAIN';
 
-      const menuBtn = CuteUI.createPillButton(this, 0, startBtnY + btnSpacing, 'MAIN MENU', () => {
+      const handlePlayAgain = () => {
+        if (this.opponentDisconnected) {
+          SoundFx.playDecide();
+          if (this.socketMgr && this.roomId) {
+            this.socketMgr.leaveRoom(this.roomId);
+          }
+          this.scene.start('LobbyScene', { characterId: this.characterId });
+          return;
+        }
+
+        if (this.isRematchRequested) return;
+
+        this.isRematchRequested = true;
+        SoundFx.playDecide();
+        if (this.onlinePlayAgainBtnText) {
+          this.onlinePlayAgainBtnText.setText('WAITING FOR OPPONENT...');
+        }
+        if (this.socketMgr && this.roomId) {
+          this.socketMgr.requestRematch(this.roomId);
+        }
+      };
+
+      const handleMainMenu = () => {
+        SoundFx.playDecide();
+        if (this.socketMgr && this.roomId) {
+          this.socketMgr.leaveRoom(this.roomId);
+        }
         this.scene.start('MenuScene');
-      }, { textureKey: 'pill_grey', fontSize: btnFont, width: btnW, height: btnH, autoScale: false });
+      };
 
-      this.gameOverButtons = [lobbyBtn, menuBtn];
-      this.gameOverActions = [
-        () => this.scene.start('LobbyScene', { characterId: this.characterId }),
-        () => this.scene.start('MenuScene')
-      ];
+      const playAgainBtn = CuteUI.createPillButton(
+        this,
+        0,
+        startBtnY,
+        initialBtnText,
+        handlePlayAgain,
+        { textureKey: 'pill_green', fontSize: btnFont, width: btnW, height: btnH, autoScale: false }
+      );
+
+      this.onlinePlayAgainBtnText = playAgainBtn.list.find((child) => child instanceof Phaser.GameObjects.Text) as Phaser.GameObjects.Text | undefined;
+
+      const menuBtn = CuteUI.createPillButton(
+        this,
+        0,
+        startBtnY + btnSpacing,
+        'MAIN MENU',
+        handleMainMenu,
+        { textureKey: 'pill_grey', fontSize: btnFont, width: btnW, height: btnH, autoScale: false }
+      );
+
+      this.gameOverButtons = [playAgainBtn, menuBtn];
+      this.gameOverActions = [handlePlayAgain, handleMainMenu];
     } else {
       const playAgainBtn = CuteUI.createPillButton(this, 0, startBtnY, 'PLAY AGAIN', () => {
         this.scene.restart({

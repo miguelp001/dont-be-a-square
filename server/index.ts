@@ -19,6 +19,7 @@ interface Room {
   players: Player[];
   isPublic: boolean;
   seed: number;
+  rematchVotes?: Set<string>;
 }
 
 const rooms = new Map<string, Room>();
@@ -35,7 +36,8 @@ io.on('connection', (socket) => {
       id: roomId,
       players: [{ socketId: socket.id, characterId }],
       isPublic: data.isPublic ?? false,
-      seed: Math.floor(Math.random() * 1000000)
+      seed: Math.floor(Math.random() * 1000000),
+      rematchVotes: new Set<string>()
     };
 
     rooms.set(roomId, room);
@@ -105,12 +107,53 @@ io.on('connection', (socket) => {
         id: roomId,
         players: [{ socketId: socket.id, characterId }],
         isPublic: true,
-        seed: Math.floor(Math.random() * 1000000)
+        seed: Math.floor(Math.random() * 1000000),
+        rematchVotes: new Set<string>()
       };
       rooms.set(roomId, room);
       socket.join(roomId);
       socket.emit('room_created', { roomId, player: { characterId } });
       console.log(`Quick match waiting in room ${roomId}`);
+    }
+  });
+
+  // Rematch / Play Again Handler
+  socket.on('rematch_request', (data: { roomId?: string } = {}) => {
+    let roomId = data.roomId;
+    if (!roomId) {
+      roomId = Array.from(socket.rooms).find((r) => r !== socket.id);
+    }
+    if (!roomId) return;
+
+    const room = rooms.get(roomId);
+    if (!room) {
+      socket.emit('room_error', { message: 'Room no longer exists.' });
+      return;
+    }
+
+    if (!room.rematchVotes) {
+      room.rematchVotes = new Set<string>();
+    }
+    room.rematchVotes.add(socket.id);
+    console.log(`Player ${socket.id} requested rematch in room ${roomId} (${room.rematchVotes.size}/${room.players.length})`);
+
+    // Notify opponent that this player voted to play again
+    socket.to(roomId).emit('opponent_rematch_requested', {
+      message: 'Opponent wants to play again!'
+    });
+
+    // If both players have voted to play again, restart the match!
+    if (room.rematchVotes.size >= 2 && room.players.length >= 2) {
+      room.rematchVotes.clear();
+      room.seed = Math.floor(Math.random() * 1000000);
+
+      io.to(roomId).emit('game_restart', {
+        roomId,
+        seed: room.seed,
+        player1: room.players[0],
+        player2: room.players[1]
+      });
+      console.log(`Rematch started in room ${roomId}: ${room.players[0].characterId} vs ${room.players[1].characterId}`);
     }
   });
 
@@ -131,6 +174,7 @@ io.on('connection', (socket) => {
       const idx = room.players.findIndex((p) => p.socketId === socket.id);
       if (idx !== -1) {
         room.players.splice(idx, 1);
+        room.rematchVotes?.delete(socket.id);
         socket.leave(roomId);
         socket.to(roomId).emit('opponent_disconnected', { message: 'Opponent left the room.' });
         if (room.players.length === 0) {
@@ -147,6 +191,7 @@ io.on('connection', (socket) => {
       const idx = room.players.findIndex((p) => p.socketId === socket.id);
       if (idx !== -1) {
         room.players.splice(idx, 1);
+        room.rematchVotes?.delete(socket.id);
         socket.to(roomId).emit('opponent_disconnected', { message: 'Opponent disconnected!' });
         if (room.players.length === 0) {
           rooms.delete(roomId);

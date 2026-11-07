@@ -90,6 +90,20 @@ export default class SocketManager {
     this.socket.on('room_joined', callback);
   }
 
+  public requestRematch(roomId?: string): void {
+    this.socket.emit('rematch_request', { roomId });
+  }
+
+  public onOpponentRematchRequested(callback: (data: { message: string }) => void): void {
+    this.socket.off('opponent_rematch_requested');
+    this.socket.on('opponent_rematch_requested', callback);
+  }
+
+  public onGameRestart(callback: (data: GameStartPayload) => void): void {
+    this.socket.off('game_restart');
+    this.socket.on('game_restart', callback);
+  }
+
   public onGameStart(callback: (data: GameStartPayload) => void): void {
     this.socket.off('game_start');
     this.socket.on('game_start', callback);
