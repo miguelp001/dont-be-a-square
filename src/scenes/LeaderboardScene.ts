@@ -45,8 +45,8 @@ export default class LeaderboardScene extends Phaser.Scene {
     const isMobile = width < 600 || height >= width * 1.05;
     const uiScale = isMobile ? 1.0 : CuteUI.getUIScale(this);
 
-    // Drifting fairytale background
-    CuteUI.createCuteBackground(this, 'meadow');
+    // 3D Parallax fairytale background
+    CuteUI.createCuteBackground(this);
 
     // Title
     const titleY = Math.round((isMobile ? 24 : 30) * uiScale);

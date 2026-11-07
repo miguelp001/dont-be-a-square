@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { GAME_WIDTH, GAME_HEIGHT, CUTE_FONT } from './Constants';
 import { SoundFx } from './SoundFx';
+import { ParallaxBackground } from './ParallaxBackground';
 
 export interface PillButtonOptions {
   textureKey?: string;
@@ -35,12 +36,18 @@ export class CuteUI {
   }
   /**
    * Create a fairytale storybook forest landscape background with drifting breeze particles.
-   * Seamlessly scales to cover any viewport ratio and supports 'meadow' and 'autumn' themes.
+   * If theme is 'parallax' (default for menus) and parallax textures exist,
+   * instantiates the 4-layer 3D interactive parallax background with mouse & gyroscope tilt!
    */
   public static createCuteBackground(
     scene: Phaser.Scene,
-    theme: 'meadow' | 'autumn' = 'meadow'
+    theme: 'parallax' | 'meadow' | 'autumn' = 'parallax'
   ): Phaser.GameObjects.GameObject {
+    if (theme === 'parallax' && ParallaxBackground.isAvailable(scene)) {
+      const parallax = new ParallaxBackground(scene);
+      return parallax.getContainer();
+    }
+
     const width = scene.cameras?.main?.width || GAME_WIDTH;
     const height = scene.cameras?.main?.height || GAME_HEIGHT;
 

@@ -4,7 +4,6 @@ import { CuteUI } from '../utils/CuteUI';
 import { Settings } from '../utils/Settings';
 import { SoundFx } from '../utils/SoundFx';
 import { RecordManager } from '../utils/DifficultyRecords';
-import { ParallaxBackground } from '../utils/ParallaxBackground';
 
 export default class MenuScene extends Phaser.Scene {
   private selectedButtonIndex: number = 0;
@@ -14,7 +13,6 @@ export default class MenuScene extends Phaser.Scene {
   private prevPadButtons: Map<number, boolean> = new Map();
   private cursorIndicator?: Phaser.GameObjects.Image;
   private indicatorOffset: number = 140;
-  private parallaxBg?: ParallaxBackground;
 
   constructor() {
     super({ key: 'MenuScene' });
@@ -30,15 +28,8 @@ export default class MenuScene extends Phaser.Scene {
     const height = this.cameras.main.height;
     const uiScale = CuteUI.getUIScale(this);
 
-    // 3D Parallax Storybook Background (falls back gracefully to static cute background if textures unavailable)
-    if (this.textures.exists('parallax_sky')) {
-      this.parallaxBg = new ParallaxBackground(this);
-      this.scale.on('resize', (gameSize: Phaser.Structs.Size) => {
-        this.parallaxBg?.resize(gameSize.width, gameSize.height);
-      });
-    } else {
-      CuteUI.createCuteBackground(this);
-    }
+    // 3D Parallax Storybook Background
+    CuteUI.createCuteBackground(this);
 
     // Title with cute glow & kawaii stars
     const isMobile = width < 600 || height >= width * 1.05;
@@ -380,10 +371,7 @@ export default class MenuScene extends Phaser.Scene {
     });
   }
 
-  public update(time: number, delta: number): void {
-    if (this.parallaxBg) {
-      this.parallaxBg.update(time, delta);
-    }
+  public update(_time: number, delta: number): void {
     this.handleGamepadInput(delta);
   }
 

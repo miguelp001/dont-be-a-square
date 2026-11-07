@@ -26,8 +26,14 @@ export class ParallaxBackground {
 
   // Gyroscope listener handle
   private orientationHandler?: (e: DeviceOrientationEvent) => void;
+  private updateHandler?: (time: number, delta: number) => void;
+  private resizeHandler?: (gameSize: Phaser.Structs.Size) => void;
   private isUsingGyro: boolean = false;
   private lastInputTime: number = 0;
+
+  public static isAvailable(scene: Phaser.Scene): boolean {
+    return scene.textures.exists('parallax_sky');
+  }
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
@@ -37,7 +43,38 @@ export class ParallaxBackground {
     this.initLayers();
     this.setupPointerListeners();
     this.setupGyroListeners();
-    this.setupCleanup();
+    this.setupLifecycleHooks();
+  }
+
+  private setupLifecycleHooks(): void {
+    // Automatically bind to scene update loop
+    this.updateHandler = (time: number, delta: number) => {
+      this.update(time, delta);
+    };
+    this.scene.events.on(Phaser.Scenes.Events.UPDATE, this.updateHandler);
+
+    // Automatically handle window/viewport resize
+    this.resizeHandler = (gameSize: Phaser.Structs.Size) => {
+      this.resize(gameSize.width, gameSize.height);
+    };
+    this.scene.scale.on('resize', this.resizeHandler);
+
+    // Cleanup on scene shutdown or destroy
+    const cleanup = () => {
+      if (this.orientationHandler && typeof window !== 'undefined') {
+        window.removeEventListener('deviceorientation', this.orientationHandler);
+      }
+      if (this.updateHandler) {
+        this.scene.events.off(Phaser.Scenes.Events.UPDATE, this.updateHandler);
+      }
+      if (this.resizeHandler) {
+        this.scene.scale.off('resize', this.resizeHandler);
+      }
+      this.container.destroy();
+    };
+
+    this.scene.events.once(Phaser.Scenes.Events.SHUTDOWN, cleanup);
+    this.scene.events.once(Phaser.Scenes.Events.DESTROY, cleanup);
   }
 
   private initLayers(): void {
@@ -147,17 +184,6 @@ export class ParallaxBackground {
     }
   }
 
-  private setupCleanup(): void {
-    const cleanup = () => {
-      if (this.orientationHandler && typeof window !== 'undefined') {
-        window.removeEventListener('deviceorientation', this.orientationHandler);
-      }
-      this.container.destroy();
-    };
-
-    this.scene.events.once(Phaser.Scenes.Events.SHUTDOWN, cleanup);
-    this.scene.events.once(Phaser.Scenes.Events.DESTROY, cleanup);
-  }
 
   public update(time: number, _delta: number): void {
     const width = this.scene.cameras.main.width;

@@ -50,8 +50,8 @@ export default class CharacterProfileScene extends Phaser.Scene {
     const height = this.cameras.main.height;
     const uiScale = CuteUI.getUIScale(this);
 
-    // Drifting fairytale meadow background
-    CuteUI.createCuteBackground(this, 'meadow');
+    // 3D Parallax fairytale meadow background
+    CuteUI.createCuteBackground(this);
 
     // Header Title
     this.add
