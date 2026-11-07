@@ -85,24 +85,33 @@ describe('Phase 3: RecordManager & Tier-Specific Progression Tracking', () => {
     expect(RecordManager.getChallengeClear(GameDifficulty.GRANDMASTER).bestTimeSeconds).toBe(150);
   });
 
-  it('5. Tracks secret boss (Nano Banana / Void Slime Champion) unlock and defeat states', () => {
-    // Initially locked
-    expect(RecordManager.isSecretBossUnlocked()).toBe(false);
-    expect(RecordManager.isSecretBossDefeated()).toBe(false);
+  it('5. Tracks Master Void Slime and Grandmaster Nano Banana unlock and defeat states independently', () => {
+    // Initially both locked
+    expect(RecordManager.isVoidSlimeUnlocked()).toBe(false);
+    expect(RecordManager.isVoidSlimeDefeated()).toBe(false);
+    expect(RecordManager.isNanoBananaUnlocked()).toBe(false);
+    expect(RecordManager.isNanoBananaDefeated()).toBe(false);
+    expect(RecordManager.isCharacterUnlocked('void_slime')).toBe(false);
+    expect(RecordManager.isCharacterUnlocked('nano_banana')).toBe(false);
 
-    // Conquering Master tier unlocks secret boss
-    RecordManager.recordChallengeClear(GameDifficulty.MASTER, 'kiri', 210);
-    expect(RecordManager.isSecretBossUnlocked()).toBe(true);
-    expect(RecordManager.isSecretBossDefeated()).toBe(false);
+    // Defeating Void Slime unlocks it for multiplayer and singleplayer
+    RecordManager.recordVoidSlimeDefeat();
+    expect(RecordManager.isVoidSlimeUnlocked()).toBe(true);
+    expect(RecordManager.isVoidSlimeDefeated()).toBe(true);
+    expect(RecordManager.isCharacterUnlocked('void_slime')).toBe(true);
+    // Nano Banana remains locked until Grandmaster
+    expect(RecordManager.isNanoBananaUnlocked()).toBe(false);
+    expect(RecordManager.isCharacterUnlocked('nano_banana')).toBe(false);
 
-    // Recording defeat of Nano Banana persists both unlocked and defeated flags
-    RecordManager.recordSecretBossDefeat();
-    expect(RecordManager.isSecretBossUnlocked()).toBe(true);
-    expect(RecordManager.isSecretBossDefeated()).toBe(true);
+    // Defeating Nano Banana on Grandmaster unlocks it
+    RecordManager.recordNanoBananaDefeat();
+    expect(RecordManager.isNanoBananaUnlocked()).toBe(true);
+    expect(RecordManager.isNanoBananaDefeated()).toBe(true);
+    expect(RecordManager.isCharacterUnlocked('nano_banana')).toBe(true);
 
     // Persists across localStorage reloads
     (RecordManager as any).cachedData = null;
-    expect(RecordManager.isSecretBossUnlocked()).toBe(true);
-    expect(RecordManager.isSecretBossDefeated()).toBe(true);
+    expect(RecordManager.isVoidSlimeUnlocked()).toBe(true);
+    expect(RecordManager.isNanoBananaUnlocked()).toBe(true);
   });
 });

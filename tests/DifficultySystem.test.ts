@@ -185,21 +185,35 @@ describe('5-Step Difficulty System (Novice to Grandmaster)', () => {
     expect(board.dangerGraceDuration).toBe(3500);
   });
 
-  it('8. Registers secret boss Nano Banana (Void Slime Champion) with extreme AI personality', async () => {
+  it('8. Registers Master Void Slime and Grandmaster Nano Banana with distinct AI profiles', async () => {
     const { CHARACTERS } = await import('../src/utils/Constants');
     const { AI_PERSONALITIES } = await import('../src/objects/AIBot');
 
+    // Void Slime (Master secret boss)
+    const voidChar = CHARACTERS.find((c) => c.id === 'void_slime');
+    expect(voidChar).toBeDefined();
+    expect(voidChar?.name).toBe('Void Slime');
+    expect(voidChar?.species).toBe('Cosmic Void Champion');
+    expect(voidChar?.isSecret).toBe(true);
+
+    const voidAi = AI_PERSONALITIES['void_slime'];
+    expect(voidAi).toBeDefined();
+    expect(voidAi.name).toBe('Void Slime');
+    expect(voidAi.title).toBe('Cosmic Void Champion');
+    expect(voidAi.comboBias).toBeGreaterThanOrEqual(2.0);
+
+    // Nano Banana (Grandmaster hidden boss)
     const nanoChar = CHARACTERS.find((c) => c.id === 'nano_banana');
     expect(nanoChar).toBeDefined();
     expect(nanoChar?.name).toBe('Nano Banana');
-    expect(nanoChar?.species).toBe('Void Slime Champion');
+    expect(nanoChar?.species).toBe('Glitch Nanite Overlord');
     expect(nanoChar?.isSecret).toBe(true);
 
     const nanoAi = AI_PERSONALITIES['nano_banana'];
     expect(nanoAi).toBeDefined();
     expect(nanoAi.name).toBe('Nano Banana');
-    expect(nanoAi.title).toBe('Void Slime Champion');
-    expect(nanoAi.baseInterval).toBeLessThanOrEqual(150); // Hyper speed
-    expect(nanoAi.chainBias).toBeGreaterThanOrEqual(2.5); // Supreme cascade builder
+    expect(nanoAi.title).toBe('Glitch Nanite Overlord');
+    expect(nanoAi.baseInterval).toBeLessThanOrEqual(140); // Blistering speed
+    expect(nanoAi.chainBias).toBeGreaterThanOrEqual(2.8); // Supreme cascade builder
   });
 });

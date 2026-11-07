@@ -14,7 +14,8 @@ const THEME_COLORS: Record<string, { primary: number; hex: string; light: string
   volt: { primary: 0x1dd1a1, hex: '#1dd1a1', light: '#55efc4' },
   salty: { primary: 0x54a0ff, hex: '#54a0ff', light: '#70a1ff' },
   poppy: { primary: 0xff69b4, hex: '#ff69b4', light: '#ff9ff3' },
-  nano_banana: { primary: 0xa55eea, hex: '#feca57', light: '#00d2d3' }
+  void_slime: { primary: 0x8e44ad, hex: '#a55eea', light: '#d980fa' },
+  nano_banana: { primary: 0xf1c40f, hex: '#feca57', light: '#00d2d3' }
 };
 
 export default class CharacterProfileScene extends Phaser.Scene {

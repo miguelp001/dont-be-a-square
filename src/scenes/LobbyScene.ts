@@ -49,7 +49,7 @@ export default class LobbyScene extends Phaser.Scene {
     const passedCharId = data?.characterId || 'kiri';
     let foundIndex = CHARACTERS.findIndex((c) => c.id === passedCharId);
     if (foundIndex < 0) foundIndex = 0;
-    if (CHARACTERS[foundIndex].isSecret && !RecordManager.isSecretBossUnlocked()) {
+    if (!RecordManager.isCharacterUnlocked(CHARACTERS[foundIndex].id)) {
       foundIndex = 0;
     }
     this.characterIndex = foundIndex;
@@ -184,8 +184,7 @@ export default class LobbyScene extends Phaser.Scene {
 
   private cycleCharacter(dir: number): void {
     SoundFx.playCursor();
-    const isUnlocked = RecordManager.isSecretBossUnlocked();
-    const available = CHARACTERS.filter((c) => !c.isSecret || isUnlocked);
+    const available = CHARACTERS.filter((c) => RecordManager.isCharacterUnlocked(c.id));
     const currentCharId = CHARACTERS[this.characterIndex].id;
     let availIdx = available.findIndex((c) => c.id === currentCharId);
     if (availIdx < 0) availIdx = 0;

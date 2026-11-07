@@ -65,7 +65,8 @@ Meet the colorful cast of chibi puzzle fighters in the enchanted Candy Forest:
 | **Volt** ⚡ | Gecko Inventor | Twitchy glitch genius! Moves in rapid overdrive bursts with lightning reflexes. |
 | **Salty** 🦦 | Otter Pirate | Relentless raider! Sends heavy slabs and goes full pirate raid under pressure. |
 | **Poppy** 🐼 | Red Panda Idol | Rhythm idol! Dances across the board with multi-tier cascading performances. |
-| **Nano Banana** 🍌👑 | Void Slime Champion | **Secret Boss!** Reality-bending cosmic nanite slime with 140ms reflexes and 2.8x cascade bias. Conquered on Master/GM! |
+| **Void Slime** 👑 | Cosmic Void Champion | **Master Secret Boss!** Ultra cute crowned slime wielding space magic. Unlocks for Online Multiplayer upon defeat! |
+| **Nano Banana** 🍌👑 | Glitch Nanite Overlord | **Grandmaster Hidden Boss!** Legendary reality-peeling anomaly with 130ms twitch instincts and 3.0x cascade bias! |
 
 ---
 

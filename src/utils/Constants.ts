@@ -124,12 +124,23 @@ export const CHARACTERS = [
     defeatQuote: 'The curtain fell...'
   },
   {
+    id: 'void_slime',
+    name: 'Void Slime',
+    species: 'Cosmic Void Champion',
+    description: 'An ultra cute squishy slime crowned with cosmic space magic and mischievous sparkle!',
+    quote: 'The cosmic void calls... squish!',
+    defeatQuote: 'Pop goes the galaxy...',
+    isSecret: true,
+    unlockTier: 'Master'
+  },
+  {
     id: 'nano_banana',
     name: 'Nano Banana',
-    species: 'Void Slime Champion',
-    description: 'A sentient cosmic nanite banana slime bending space and reality!',
+    species: 'Glitch Nanite Overlord',
+    description: 'The legendary hidden anomaly peeling the very fabric of reality itself!',
     quote: 'Reality is ripe for peeling!',
     defeatQuote: 'Split into nanobits...',
-    isSecret: true
+    isSecret: true,
+    unlockTier: 'Grandmaster'
   }
 ];

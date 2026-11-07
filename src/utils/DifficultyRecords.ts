@@ -12,6 +12,10 @@ export interface PlayerRecordsData {
   challengeClears: Record<GameDifficulty, ChallengeClearRecord>;
   secretBossUnlocked?: boolean;
   secretBossDefeated?: boolean;
+  voidSlimeUnlocked?: boolean;
+  voidSlimeDefeated?: boolean;
+  nanoBananaUnlocked?: boolean;
+  nanoBananaDefeated?: boolean;
 }
 
 const STORAGE_KEY = 'dont_be_a_square_records_v1';
@@ -30,7 +34,16 @@ function getDefaultRecords(): PlayerRecordsData {
     };
   }
 
-  return { endlessHighScores, challengeClears, secretBossUnlocked: false, secretBossDefeated: false };
+  return {
+    endlessHighScores,
+    challengeClears,
+    secretBossUnlocked: false,
+    secretBossDefeated: false,
+    voidSlimeUnlocked: false,
+    voidSlimeDefeated: false,
+    nanoBananaUnlocked: false,
+    nanoBananaDefeated: false
+  };
 }
 
 export class RecordManager {
@@ -59,11 +72,19 @@ export class RecordManager {
                 };
               }
             }
-            if (parsed.secretBossUnlocked) {
+            if (parsed.secretBossUnlocked || parsed.voidSlimeUnlocked) {
               defaults.secretBossUnlocked = true;
+              defaults.voidSlimeUnlocked = true;
             }
-            if (parsed.secretBossDefeated) {
+            if (parsed.secretBossDefeated || parsed.voidSlimeDefeated) {
               defaults.secretBossDefeated = true;
+              defaults.voidSlimeDefeated = true;
+            }
+            if (parsed.nanoBananaUnlocked) {
+              defaults.nanoBananaUnlocked = true;
+            }
+            if (parsed.nanoBananaDefeated) {
+              defaults.nanoBananaDefeated = true;
             }
           }
         }
@@ -166,31 +187,83 @@ export class RecordManager {
     return count;
   }
 
-  public static isSecretBossUnlocked(): boolean {
+  public static isVoidSlimeUnlocked(): boolean {
     const data = this.load();
     return Boolean(
+      data.voidSlimeUnlocked ||
       data.secretBossUnlocked ||
       data.challengeClears[GameDifficulty.MASTER]?.cleared ||
       data.challengeClears[GameDifficulty.GRANDMASTER]?.cleared
     );
   }
 
-  public static unlockSecretBoss(): void {
+  public static unlockVoidSlime(): void {
     const data = this.load();
+    data.voidSlimeUnlocked = true;
     data.secretBossUnlocked = true;
     this.save();
   }
 
-  public static isSecretBossDefeated(): boolean {
+  public static isVoidSlimeDefeated(): boolean {
     const data = this.load();
-    return Boolean(data.secretBossDefeated);
+    return Boolean(data.voidSlimeDefeated || data.secretBossDefeated);
   }
 
-  public static recordSecretBossDefeat(): void {
+  public static recordVoidSlimeDefeat(): void {
     const data = this.load();
+    data.voidSlimeUnlocked = true;
+    data.voidSlimeDefeated = true;
     data.secretBossUnlocked = true;
     data.secretBossDefeated = true;
     this.save();
+  }
+
+  public static isNanoBananaUnlocked(): boolean {
+    const data = this.load();
+    return Boolean(
+      data.nanoBananaUnlocked ||
+      data.challengeClears[GameDifficulty.GRANDMASTER]?.cleared
+    );
+  }
+
+  public static unlockNanoBanana(): void {
+    const data = this.load();
+    data.nanoBananaUnlocked = true;
+    this.save();
+  }
+
+  public static isNanoBananaDefeated(): boolean {
+    const data = this.load();
+    return Boolean(data.nanoBananaDefeated);
+  }
+
+  public static recordNanoBananaDefeat(): void {
+    const data = this.load();
+    data.nanoBananaUnlocked = true;
+    data.nanoBananaDefeated = true;
+    this.save();
+  }
+
+  public static isCharacterUnlocked(charId: string): boolean {
+    if (charId === 'void_slime') return this.isVoidSlimeUnlocked();
+    if (charId === 'nano_banana') return this.isNanoBananaUnlocked();
+    return true;
+  }
+
+  public static isSecretBossUnlocked(): boolean {
+    return this.isVoidSlimeUnlocked();
+  }
+
+  public static unlockSecretBoss(): void {
+    this.unlockVoidSlime();
+  }
+
+  public static isSecretBossDefeated(): boolean {
+    return this.isVoidSlimeDefeated();
+  }
+
+  public static recordSecretBossDefeat(): void {
+    this.recordVoidSlimeDefeat();
   }
 
   public static resetAll(): void {

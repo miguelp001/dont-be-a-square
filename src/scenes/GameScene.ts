@@ -2257,10 +2257,17 @@ export default class GameScene extends Phaser.Scene {
 
     let isNewRecord = false;
     let previousBest = 0;
-    const isMasterTier = this.difficulty === GameDifficulty.MASTER || this.difficulty === GameDifficulty.GRANDMASTER;
-    const isSecretBossPending = isMasterTier && this.characterId !== 'nano_banana' && !this.defeatedOpponents.includes('nano_banana');
+    const isMasterTier = this.difficulty === GameDifficulty.MASTER;
+    const isGrandmasterTier = this.difficulty === GameDifficulty.GRANDMASTER;
+    const targetBossId = isMasterTier ? 'void_slime' : isGrandmasterTier ? 'nano_banana' : null;
+    const isSecretBossPending = Boolean(
+      targetBossId &&
+      this.characterId !== targetBossId &&
+      !this.defeatedOpponents.includes(targetBossId)
+    );
+    const neededVictories = targetBossId && this.characterId !== targetBossId ? 8 : 7;
     const isChampion = this.gameMode === 'challenge' && isVictory && (
-      isSecretBossPending ? false : this.defeatedOpponents.length >= (this.characterId === 'nano_banana' ? 7 : (isMasterTier ? 8 : 7))
+      isSecretBossPending ? false : this.defeatedOpponents.length >= neededVictories
     );
 
     if (this.gameMode === 'endless') {
@@ -2273,8 +2280,11 @@ export default class GameScene extends Phaser.Scene {
     } else if (isChampion) {
       const elapsedSeconds = Math.max(1, 240 - this.gameTime);
       RecordManager.recordChallengeClear(this.difficulty, this.characterId, elapsedSeconds);
+      if (this.opponentCharacterId === 'void_slime' || this.defeatedOpponents.includes('void_slime')) {
+        RecordManager.recordVoidSlimeDefeat();
+      }
       if (this.opponentCharacterId === 'nano_banana' || this.defeatedOpponents.includes('nano_banana')) {
-        RecordManager.recordSecretBossDefeat();
+        RecordManager.recordNanoBananaDefeat();
       }
     }
 
@@ -2329,10 +2339,14 @@ export default class GameScene extends Phaser.Scene {
 
     const subQuote = isChampion
       ? (this.defeatedOpponents.includes('nano_banana')
-          ? `Void Slime Champion conquered! ${winChar?.name} is the True Grandmaster Champion!`
+          ? `Hidden Boss Nano Banana conquered! ${winChar?.name} is the Grandmaster Legend!`
+          : this.defeatedOpponents.includes('void_slime')
+          ? `Void Slime Champion conquered! ${winChar?.name} is the Master Slime Champion!`
           : `All rivals defeated! ${winChar?.name} is the Slime Champion!`)
       : (isSecretBossPending && this.defeatedOpponents.length >= 7)
-      ? `All 7 rivals fallen! But a terrifying cosmic anomaly is awakening in the void...`
+      ? (isGrandmasterTier
+          ? `All 7 rivals fallen! But reality is peeling open... Nano Banana emerges!`
+          : `All 7 rivals fallen! But an ominous cosmic aura stirs... The Void Slime awakens!`)
       : isVictory
       ? `${winChar?.name}: "${winChar?.quote}"`
       : `${loseChar?.name}: "${loseChar?.defeatQuote}"`;
@@ -2406,7 +2420,7 @@ export default class GameScene extends Phaser.Scene {
         ];
       } else if (isVictory) {
         const nextLabel = (isSecretBossPending && this.defeatedOpponents.length >= 7)
-          ? '⚠️ CONFRONT VOID BOSS ⚠️'
+          ? (isGrandmasterTier ? '🍌 CONFRONT NANO BANANA 🍌' : '👑 CONFRONT VOID SLIME 👑')
           : `NEXT CHALLENGER (${this.defeatedOpponents.length}/7)`;
         const nextBtn = CuteUI.createPillButton(this, 0, startBtnY, nextLabel, () => {
           this.scene.start('ChallengeMapScene', {
