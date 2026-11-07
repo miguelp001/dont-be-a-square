@@ -157,4 +157,24 @@ describe('TouchController - Phase 2 Mobile Touch Interaction & Zero-Latency Drag
     expect(committed).toBe(true);
     expect(mockBoard.swap).toHaveBeenCalledWith(2, 4);
   });
+
+  it('7. Zero Offset & Precise Cursor Tracking: Cursor stays locked to swapping pair with 0px vertical offset', () => {
+    // Touch at (3, 5)
+    touchController.handlePointerDown({ x: 64 + 3 * 32 + 16, y: 64 + 5 * 32 + 16, time: 2000 } as any);
+    expect(touchController.touchRow).toBe(5);
+    expect(touchController.primaryCol).toBe(3);
+    expect(mockCursor.setGridPosition).toHaveBeenCalledWith(3, 5);
+
+    // Drag left by -15px
+    touchController.handlePointerMove({ x: 64 + 3 * 32 + 16 - 15, y: 64 + 5 * 32 + 16, time: 2050 } as any);
+    expect(touchController.neighborCol).toBe(2);
+    // Cursor must frame the swapping pair (cols 2 and 3 at row 5)
+    expect(mockCursor.setGridPosition).toHaveBeenCalledWith(2, 5);
+
+    // Drag right by +15px
+    touchController.handlePointerMove({ x: 64 + 3 * 32 + 16 + 15, y: 64 + 5 * 32 + 16, time: 2100 } as any);
+    expect(touchController.neighborCol).toBe(4);
+    // Cursor must frame the swapping pair (cols 3 and 4 at row 5)
+    expect(mockCursor.setGridPosition).toHaveBeenCalledWith(3, 5);
+  });
 });

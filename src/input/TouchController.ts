@@ -5,7 +5,7 @@ import type Panel from '../objects/Panel';
 import { PanelState, PANEL_SIZE, BOARD_WIDTH, BOARD_VISIBLE_HEIGHT } from '../utils/Constants';
 
 export interface TouchControllerConfig {
-  occlusionOffsetY?: number; // Visual lift above thumb (default 24px)
+  occlusionOffsetY?: number; // Visual lift above thumb (default 0px for exact 1:1 precision)
   flickVelocityThreshold?: number; // px/s (default 400)
   flickDistanceThreshold?: number; // fraction of cell width (default 0.2)
   dragCommitThreshold?: number; // fraction of cell width (default 0.4)
@@ -60,7 +60,7 @@ export class TouchController {
     this.cursor = cursor;
 
     this.config = {
-      occlusionOffsetY: config?.occlusionOffsetY ?? 24,
+      occlusionOffsetY: config?.occlusionOffsetY ?? 0,
       flickVelocityThreshold: config?.flickVelocityThreshold ?? 400,
       flickDistanceThreshold: config?.flickDistanceThreshold ?? 0.2,
       dragCommitThreshold: config?.dragCommitThreshold ?? 0.4,
@@ -138,15 +138,18 @@ export class TouchController {
       this.cursor.setGridPosition(cursorCol, row);
     }
 
-    // Setup ghost projection preview
+    // Setup selection glow & projection directly on touched tile (0 offset for 1:1 precision)
     const primaryPanel = this.board.panels[row]?.[col];
     if (primaryPanel && primaryPanel.color !== undefined) {
       const texKey = this.scene.textures.exists(`panel_${primaryPanel.color}`)
         ? `panel_${primaryPanel.color}`
         : 'panel';
       this.ghostSprite.setTexture(texKey);
-      this.ghostContainer.setScale(scale * 1.1); // Slightly enlarged projection
-      this.ghostContainer.setPosition(pointer.x, pointer.y - this.config.occlusionOffsetY * scale);
+      this.ghostSprite.setAlpha(this.config.occlusionOffsetY > 0 ? 0.9 : 0);
+      this.ghostContainer.setScale(scale);
+      const rowCenterY = bY + (row * PANEL_SIZE + PANEL_SIZE / 2 - this.board.stackOffsetPixels) * scale;
+      const colCenterX = bX + (col * PANEL_SIZE + PANEL_SIZE / 2) * scale;
+      this.ghostContainer.setPosition(colCenterX, rowCenterY - this.config.occlusionOffsetY * scale);
       this.ghostContainer.setVisible(true);
     }
 
@@ -176,15 +179,25 @@ export class TouchController {
     this.lastX = pointer.x;
     this.lastTime = now;
 
-    // 3. Determine Adjacent Neighbor Column
+    // 3. Determine Adjacent Neighbor Column & update cursor to encompass swapping pair
     if (this.currentDx > 0) {
       // Dragging Right -> neighbor is to the right (primaryCol + 1)
       this.neighborCol = this.primaryCol < BOARD_WIDTH - 1 ? this.primaryCol + 1 : -1;
+      if (this.cursor && this.neighborCol >= 0) {
+        this.cursor.setGridPosition(this.primaryCol, this.touchRow);
+      }
     } else if (this.currentDx < 0) {
       // Dragging Left -> neighbor is to the left (primaryCol - 1)
       this.neighborCol = this.primaryCol > 0 ? this.primaryCol - 1 : -1;
+      if (this.cursor && this.neighborCol >= 0) {
+        this.cursor.setGridPosition(this.primaryCol - 1, this.touchRow);
+      }
     } else {
       this.neighborCol = -1;
+      if (this.cursor) {
+        const cursorCol = Math.min(this.primaryCol, BOARD_WIDTH - 2);
+        this.cursor.setGridPosition(cursorCol, this.touchRow);
+      }
     }
 
     // Clamp currentDx if at edge of board
@@ -213,9 +226,13 @@ export class TouchController {
       }
     }
 
-    // 5. Update Occlusion Ghost Projection (shifted 24px above thumb)
+    // 5. Update Selection Glow (locked to touchRow, follows displacement 1:1 with zero offset drift)
     if (this.ghostContainer.visible) {
-      this.ghostContainer.setPosition(pointer.x, pointer.y - this.config.occlusionOffsetY * scale);
+      const bX = this.board.boardOffsetX;
+      const bY = this.board.boardOffsetY;
+      const rowCenterY = bY + (this.touchRow * PANEL_SIZE + PANEL_SIZE / 2 - this.board.stackOffsetPixels) * scale;
+      const colCenterX = bX + (this.primaryCol * PANEL_SIZE + PANEL_SIZE / 2) * scale + this.currentDx;
+      this.ghostContainer.setPosition(colCenterX, rowCenterY - this.config.occlusionOffsetY * scale);
     }
   }
 

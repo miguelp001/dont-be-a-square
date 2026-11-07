@@ -1283,9 +1283,10 @@ export default class GameScene extends Phaser.Scene {
       }
     });
 
-    // Initialize Phase 2 Mobile Touch Controller (single-axis lock, 1:1 reciprocal drag, 24px occlusion lift)
+    // Initialize Phase 2 Mobile Touch Controller (single-axis lock, 1:1 reciprocal drag, 0px offset for tactile precision)
     if (this.playerBoard) {
       this.touchController = new TouchController(this, this.playerBoard, this.playerCursor, {
+        occlusionOffsetY: 0,
         onSwapCommit: (col, row) => {
           this.broadcastCursor();
         }
@@ -1312,7 +1313,13 @@ export default class GameScene extends Phaser.Scene {
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
       if (this.isMatchOver || this.isPaused || !this.playerBoard || !this.playerCursor) return;
 
-      // Selection rectangle directly tracks mouse on hover or drag
+      // If actively dragging via touch controller, give it exclusive control so cursor remains locked to touch row
+      if (this.touchController?.isDragging) {
+        this.touchController.handlePointerMove(pointer);
+        return;
+      }
+
+      // Selection rectangle directly tracks mouse on hover or non-drag move
       this.updateMouseCursorTracking(pointer);
 
       if (this.touchController) {

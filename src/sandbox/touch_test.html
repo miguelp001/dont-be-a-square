@@ -125,7 +125,7 @@
 </head>
 <body>
   <h1>Tetris Attack: 1:1 Reciprocal Touch</h1>
-  <p class="desc">Single-axis locked, reciprocal push drag, 24px thumb occlusion offset, 40% detent or &gt;400px/s flick commit.</p>
+  <p class="desc">Single-axis locked, reciprocal push drag, 0px touch offset (1:1 precision), 40% detent or &gt;400px/s flick commit.</p>
 
   <div id="stage-container">
     <div id="ghost-anchor"></div>
@@ -147,7 +147,7 @@
     const FLICK_VELOCITY = 400; // px/s
     const DETENT_THRESHOLD = 0.4 * CELL_SIZE; // 19.2px
     const FLICK_DISTANCE = 0.2 * CELL_SIZE; // 9.6px
-    const OCCLUSION_OFFSET_Y = 24;
+    const OCCLUSION_OFFSET_Y = 0;
 
     const container = document.getElementById('stage-container');
     const ghost = document.getElementById('ghost-anchor');
