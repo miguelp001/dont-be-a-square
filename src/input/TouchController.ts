@@ -192,18 +192,24 @@ export class TouchController {
       this.currentDx = 0;
     }
 
-    // 4. Reciprocal Push: 1:1 visual displacement
-    // Primary touched tile moves by dX / scale
-    // Adjacent neighbor tile moves inversely by -dX / scale
+    // 4. Reciprocal Push: 1:1 visual displacement with subtle 1.05x squash & stretch
     const primaryPanel = this.board.panels[this.touchRow]?.[this.primaryCol];
     if (primaryPanel && primaryPanel.state === PanelState.IDLE) {
       primaryPanel.x = this.primaryCol * PANEL_SIZE + this.currentDx / scale;
+      if (typeof primaryPanel.setScale === 'function') {
+        const isMoved = Math.abs(this.currentDx) > 3;
+        primaryPanel.setScale(isMoved ? 1.05 : 1.0, isMoved ? 0.95 : 1.0);
+      }
     }
 
     if (this.neighborCol >= 0) {
       const neighborPanel = this.board.panels[this.touchRow]?.[this.neighborCol];
       if (neighborPanel && neighborPanel.state === PanelState.IDLE) {
         neighborPanel.x = this.neighborCol * PANEL_SIZE - this.currentDx / scale;
+        if (typeof neighborPanel.setScale === 'function') {
+          const isMoved = Math.abs(this.currentDx) > 3;
+          neighborPanel.setScale(isMoved ? 1.05 : 1.0, isMoved ? 0.95 : 1.0);
+        }
       }
     }
 
@@ -309,15 +315,21 @@ export class TouchController {
     }
   }
 
-  /** Reset panel positions instantly prior to authoritative swap */
+  /** Reset panel positions and restore standard scale prior to authoritative swap */
   private resetPanelPositions(row: number, colA: number, colB: number): void {
     if (colA >= 0) {
       const pA = this.board.panels[row]?.[colA];
-      if (pA && pA.state === PanelState.IDLE) pA.x = colA * PANEL_SIZE;
+      if (pA && pA.state === PanelState.IDLE) {
+        pA.x = colA * PANEL_SIZE;
+        if (typeof pA.setScale === 'function') pA.setScale(1.0);
+      }
     }
     if (colB >= 0) {
       const pB = this.board.panels[row]?.[colB];
-      if (pB && pB.state === PanelState.IDLE) pB.x = colB * PANEL_SIZE;
+      if (pB && pB.state === PanelState.IDLE) {
+        pB.x = colB * PANEL_SIZE;
+        if (typeof pB.setScale === 'function') pB.setScale(1.0);
+      }
     }
   }
 

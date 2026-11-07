@@ -42,25 +42,42 @@ export class SoundFx {
     osc.stop(now + 0.04);
   }
 
-  /** Quick snap/whoosh when swapping two tiles */
-  public static playSwap(): void {
+  /** Crisp mechanical tactile switch click on swap commit */
+  public static playSwapCommit(): void {
     const ctx = this.getContext();
     if (!ctx) return;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
     const now = ctx.currentTime;
 
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(320, now);
-    osc.frequency.exponentialRampToValueAtTime(640, now + 0.06);
+    // Stage 1: Tactile click transient impulse
+    const oscClick = ctx.createOscillator();
+    const gainClick = ctx.createGain();
+    oscClick.type = 'square';
+    oscClick.frequency.setValueAtTime(1450, now);
+    oscClick.frequency.exponentialRampToValueAtTime(750, now + 0.015);
+    gainClick.gain.setValueAtTime(this.volume * 0.45, now);
+    gainClick.gain.exponentialRampToValueAtTime(0.001, now + 0.018);
+    oscClick.connect(gainClick);
+    gainClick.connect(ctx.destination);
+    oscClick.start(now);
+    oscClick.stop(now + 0.018);
 
-    gain.gain.setValueAtTime(this.volume * 0.5, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+    // Stage 2: Resonant glass snap tone
+    const oscTone = ctx.createOscillator();
+    const gainTone = ctx.createGain();
+    oscTone.type = 'triangle';
+    oscTone.frequency.setValueAtTime(420, now + 0.004);
+    oscTone.frequency.exponentialRampToValueAtTime(840, now + 0.045);
+    gainTone.gain.setValueAtTime(this.volume * 0.35, now + 0.004);
+    gainTone.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+    oscTone.connect(gainTone);
+    gainTone.connect(ctx.destination);
+    oscTone.start(now + 0.004);
+    oscTone.stop(now + 0.05);
+  }
 
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + 0.06);
+  /** Quick snap/whoosh when swapping two tiles */
+  public static playSwap(): void {
+    this.playSwapCommit();
   }
 
   /** Soft thud when a panel lands after falling */
@@ -157,32 +174,43 @@ export class SoundFx {
     });
   }
 
-  /** Fanfare chord for combos (4+, 5+, 6+) and Chains (x2, x3, x4...) */
+  /**
+   * Ascending chime for chain combos (x2, x3, x4...) and 4+ combos.
+   * Pitch shifts up by exactly +1 semitone per cascade level (f = f0 * 2^(n / 12)).
+   */
   public static playCombo(chainLevel: number): void {
     const ctx = this.getContext();
     if (!ctx) return;
     const now = ctx.currentTime;
 
-    // Shift chord base with chain level (higher chains = higher pitch)
-    const baseRoot = 440 * Math.pow(1.05946, Math.min(chainLevel * 2, 16));
-    const chord = [baseRoot, baseRoot * 1.25, baseRoot * 1.5, baseRoot * 2.0];
+    // Base root frequency at C5 (523.25 Hz), shifted by +1 semitone per cascade level
+    const semitoneShift = Math.max(0, chainLevel - 1);
+    const rootFreq = 523.25 * Math.pow(2, semitoneShift / 12);
+    // Ascending major arpeggio: Root, 3rd (5:4), 5th (3:2), Octave (2:1), 10th (5:2)
+    const arpeggio = [
+      rootFreq,
+      rootFreq * 1.25,
+      rootFreq * 1.5,
+      rootFreq * 2.0,
+      rootFreq * 2.5
+    ];
 
-    chord.forEach((freq, idx) => {
+    arpeggio.forEach((freq, idx) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-      const startTime = now + idx * 0.04;
+      const startTime = now + idx * 0.035;
 
-      osc.type = 'triangle';
+      osc.type = 'sine';
       osc.frequency.setValueAtTime(freq, startTime);
-      osc.frequency.exponentialRampToValueAtTime(freq * 1.02, startTime + 0.25);
+      osc.frequency.exponentialRampToValueAtTime(freq * 1.015, startTime + 0.22);
 
-      gain.gain.setValueAtTime(this.volume * 0.5, startTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.28);
+      gain.gain.setValueAtTime(this.volume * 0.45, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.25);
 
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start(startTime);
-      osc.stop(startTime + 0.28);
+      osc.stop(startTime + 0.25);
     });
   }
 

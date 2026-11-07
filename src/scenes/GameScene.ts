@@ -32,6 +32,8 @@ export default class GameScene extends Phaser.Scene {
   private playerWoodFrame?: Phaser.GameObjects.Image;
   private playerSpeechBubble?: Phaser.GameObjects.Text;
   private playerDangerText?: Phaser.GameObjects.Text;
+  private playerHazardVignette?: Phaser.GameObjects.Graphics;
+  private playerHazardTween?: Phaser.Tweens.Tween;
 
   // Opponent (CPU or Online)
   private cpuBoard?: Board;
@@ -1033,10 +1035,50 @@ export default class GameScene extends Phaser.Scene {
         textObj.setText(`! DANGER: ${secondsRemaining.toFixed(1)}s !`);
         textObj.setColor(secondsRemaining < 2.5 ? '#ff3838' : '#ff9f43');
       }
+
+      if (isPlayer) {
+        if (!this.playerHazardVignette) {
+          this.playerHazardVignette = this.add.graphics();
+          this.playerHazardVignette.setDepth(20);
+        }
+        this.playerHazardVignette.clear();
+        this.playerHazardVignette.setVisible(true);
+
+        // Ceiling danger hazard overlay across top rows (rows 10-12)
+        const ceilingH = Math.round(3 * PANEL_SIZE * scale);
+        // Red gradient wash
+        this.playerHazardVignette.fillGradientStyle(0xff4757, 0xff4757, 0xff0000, 0x000000, 0.65, 0.65, 0.05, 0.0);
+        this.playerHazardVignette.fillRect(boardX, boardY, boardW, ceilingH);
+
+        // Warning hazard stripe accents along ceiling border
+        this.playerHazardVignette.lineStyle(2, 0xffffff, 0.4);
+        for (let i = 0; i < boardW; i += 16) {
+          this.playerHazardVignette.lineBetween(boardX + i, boardY, boardX + i + 8, boardY + 12);
+        }
+
+        // Pulse tween
+        if (!this.playerHazardTween) {
+          this.playerHazardTween = this.tweens.add({
+            targets: this.playerHazardVignette,
+            alpha: 0.25,
+            duration: 320,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+          });
+        }
+      }
     } else {
       this.drawBoardFrame(borderObj, boardX, boardY, boardW, boardH, defaultColor, isPlayer);
       if (textObj) {
         textObj.setText('');
+      }
+      if (isPlayer && this.playerHazardVignette) {
+        if (this.playerHazardTween) {
+          this.playerHazardTween.stop();
+          this.playerHazardTween = undefined;
+        }
+        this.playerHazardVignette.setVisible(false);
       }
     }
   }

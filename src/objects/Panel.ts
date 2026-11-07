@@ -55,23 +55,43 @@ export default class Panel extends Phaser.GameObjects.Sprite {
     return this.state !== PanelState.IDLE;
   }
 
-  /** Animate horizontal swap */
-  public startSwap(targetX: number, duration: number = 90): Promise<void> {
+  /** Animate horizontal swap with 1.05x squash-stretch and 2px overshoot bounce settling in 40ms */
+  public startSwap(targetX: number, duration: number = 85): Promise<void> {
     return new Promise((resolve) => {
       this.state = PanelState.SWAPPING;
+      const s = this.baseScale;
+      const startX = this.x;
+      const direction = targetX > startX ? 1 : -1;
+      const overshootX = targetX + direction * 2;
+
+      // Phase 1: Slide with 1.05x horizontal stretch and 0.95x vertical squash toward overshoot
       this.scene.tweens.add({
         targets: this,
-        x: targetX,
-        duration: duration,
+        x: overshootX,
+        scaleX: s * 1.05,
+        scaleY: s * 0.95,
+        duration: Math.max(20, duration - 40),
         ease: 'Linear',
         onComplete: () => {
-          if (this.state === PanelState.SWAPPING) {
-            this.state = PanelState.IDLE;
-          }
-          // Authoritative grid snapping prevents drift or desync
-          this.x = this.gridX * PANEL_SIZE;
-          this.y = this.gridY * PANEL_SIZE;
-          resolve();
+          // Phase 2: Snap commit settling overshoot bounce (40ms)
+          this.scene.tweens.add({
+            targets: this,
+            x: targetX,
+            scaleX: s,
+            scaleY: s,
+            duration: 40,
+            ease: 'Back.easeOut',
+            onComplete: () => {
+              if (this.state === PanelState.SWAPPING) {
+                this.state = PanelState.IDLE;
+              }
+              // Authoritative grid snapping prevents drift or desync
+              this.x = this.gridX * PANEL_SIZE;
+              this.y = this.gridY * PANEL_SIZE;
+              this.setDisplaySize(PANEL_SIZE, PANEL_SIZE);
+              resolve();
+            }
+          });
         }
       });
     });
@@ -126,27 +146,31 @@ export default class Panel extends Phaser.GameObjects.Sprite {
     });
   }
 
-  /** Begin flashing animation when a match is detected */
-  public startMatch(flashDuration: number = 380, popDelay: number = 0): void {
+  /** Begin high-luminance 300ms strobe animation when a match is detected */
+  public startMatch(flashDuration: number = 300, popDelay: number = 0): void {
     this.state = PanelState.FLASHING;
     this.matchTimer = flashDuration;
     this.popDelayTimer = popDelay;
 
-    // Switch to glowing flash slime texture
+    // Switch to glowing flash slime texture with slight celebratory pop
+    const s = this.baseScale;
+    this.setScale(s * 1.08);
+
     if (this.scene.textures.exists('panel_flash')) {
       this.setTexture('panel_flash');
-      this.setDisplaySize(PANEL_SIZE, PANEL_SIZE);
+      this.setDisplaySize(PANEL_SIZE * 1.08, PANEL_SIZE * 1.08);
     }
 
-    // Alternate texture or alpha to simulate bright flashing
+    // High-luminance 300ms strobe (oscillating every 50ms)
     this.flashTween = this.scene.tweens.add({
       targets: this,
-      alpha: 0.35,
-      duration: 65,
+      alpha: 0.25,
+      duration: 50,
       yoyo: true,
-      repeat: Math.floor(flashDuration / 130),
+      repeat: Math.floor(flashDuration / 100),
       onComplete: () => {
         this.alpha = 1.0;
+        this.setScale(s);
         const baseKey = this.scene.textures.exists(`panel_${this.color}`) ? `panel_${this.color}` : 'panel';
         this.setTexture(baseKey);
         this.setDisplaySize(PANEL_SIZE, PANEL_SIZE);

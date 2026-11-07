@@ -35,37 +35,66 @@ export default class BootScene extends Phaser.Scene {
       graphics.fillEllipse(16, 12, 18, 12);
       graphics.fillEllipse(16, 23, 23, 10);
 
-      // 4. Unique top decoration / personality crest
+      // 4. Prominent Top-Third Accent Glyph (visible above thumb during touch drag)
+      // Top-edge light rim
+      graphics.fillStyle(0xffffff, 0.45);
+      graphics.fillRoundedRect(7, 2, 18, 2, 1);
+
+      // Accent crest badge
       graphics.fillStyle(accentColor, 1);
+      graphics.lineStyle(1.2, 0xffffff, 0.9);
+
       if (decorType === 'heart') {
-        // Mini heart
-        graphics.fillCircle(14.5, 6, 2.5);
-        graphics.fillCircle(17.5, 6, 2.5);
-        graphics.fillTriangle(12.5, 6.5, 19.5, 6.5, 16, 10);
+        // Bold glossy strawberry heart crest
+        graphics.fillCircle(13.8, 5.5, 3.2);
+        graphics.fillCircle(18.2, 5.5, 3.2);
+        graphics.fillTriangle(11, 6, 21, 6, 16, 10.5);
+        graphics.strokeCircle(13.8, 5.5, 3.2);
+        graphics.strokeCircle(18.2, 5.5, 3.2);
+        // White specular glint
+        graphics.fillStyle(0xffffff, 0.9);
+        graphics.fillCircle(13, 4.5, 1);
       } else if (decorType === 'drop') {
-        // Water droplet tip
-        graphics.fillTriangle(16, 2.5, 13, 8, 19, 8);
-        graphics.fillCircle(16, 8, 3.5);
+        // Gleaming crystal water droplet
+        graphics.fillTriangle(16, 1.8, 12, 7.5, 20, 7.5);
+        graphics.fillCircle(16, 7.5, 4.2);
+        graphics.strokeTriangle(16, 1.8, 12, 7.5, 20, 7.5);
+        graphics.strokeCircle(16, 7.5, 4.2);
+        // Specular sheen
+        graphics.fillStyle(0xffffff, 0.95);
+        graphics.fillCircle(14.5, 6, 1.2);
       } else if (decorType === 'leaf') {
-        // Nature sprout / leaf
-        graphics.fillEllipse(14, 5, 5, 2.5);
-        graphics.fillEllipse(18, 4.5, 4.5, 2);
-        graphics.fillRect(15.5, 6, 1.5, 3);
+        // Vibrant dual-leaf nature sprout
+        graphics.fillEllipse(13, 5, 5.5, 3);
+        graphics.fillEllipse(19, 4.5, 5, 2.5);
+        graphics.strokeEllipse(13, 5, 5.5, 3);
+        graphics.strokeEllipse(19, 4.5, 5, 2.5);
+        graphics.fillStyle(0xfffa65, 1);
+        graphics.fillRect(15.5, 6, 1.5, 3.5);
       } else if (decorType === 'star') {
-        // Mini star crest
-        graphics.fillTriangle(16, 2.5, 14, 8, 18, 8);
-        graphics.fillTriangle(16, 10, 14, 6, 18, 6);
-        graphics.fillTriangle(12, 6.5, 16, 4.5, 16, 8.5);
-        graphics.fillTriangle(20, 6.5, 16, 4.5, 16, 8.5);
+        // Brilliant 4-point star crest
+        graphics.fillTriangle(16, 1.5, 13.5, 7.5, 18.5, 7.5);
+        graphics.fillTriangle(16, 10.5, 13.5, 5.5, 18.5, 5.5);
+        graphics.fillTriangle(11, 6, 16, 3.5, 16, 8.5);
+        graphics.fillTriangle(21, 6, 16, 3.5, 16, 8.5);
+        // Star core diamond
+        graphics.fillStyle(0xffffff, 0.95);
+        graphics.fillCircle(16, 6, 1.6);
       } else if (decorType === 'horn') {
-        // Tiny cute horns
-        graphics.fillTriangle(10, 5, 8, 9, 12, 9);
-        graphics.fillTriangle(22, 5, 20, 9, 24, 9);
+        // Mystic twin horns and crest
+        graphics.fillTriangle(9, 3.5, 7, 8.5, 12, 8.5);
+        graphics.fillTriangle(23, 3.5, 20, 8.5, 25, 8.5);
+        graphics.strokeTriangle(9, 3.5, 7, 8.5, 12, 8.5);
+        graphics.strokeTriangle(23, 3.5, 20, 8.5, 25, 8.5);
+        graphics.fillStyle(0xffffff, 0.9);
+        graphics.fillCircle(16, 6, 2);
       } else if (decorType === 'bubble') {
-        // Mini shiny bubble
-        graphics.fillCircle(16, 4.5, 3);
-        graphics.fillStyle(0xffffff, 0.7);
-        graphics.fillCircle(15, 3.5, 1);
+        // Double floating frost crystal bubbles
+        graphics.fillCircle(16, 5, 3.8);
+        graphics.strokeCircle(16, 5, 3.8);
+        graphics.fillStyle(0xffffff, 0.9);
+        graphics.fillCircle(14.5, 3.8, 1.2);
+        graphics.fillCircle(20.5, 4, 2);
       }
 
       // 5. Glossy Jelly Highlights (Top-left shine)
