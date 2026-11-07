@@ -97,10 +97,18 @@ Keep your slimes from reaching the ceiling! Swap adjacent horizontal slimes to f
 
 ### Stop Time & Danger Grace
 * **Stop Time:** Whenever a match is made, the stack **stops rising** for a short duration while panels pop.
-* **Danger Grace (6.5s Counter):** When any column of slimes touches the top ceiling (row 12), an emergency siren sounds and a **6.5-second Danger Grace timer** begins ticking down.
+* **Danger Grace:** When any column of slimes touches the top ceiling, an emergency siren sounds and a Danger Grace timer begins ticking down (12.0s on Novice down to 3.5s on Grandmaster).
   * Making any match immediately **pauses the countdown** and stops the stack.
-  * If you clear enough slimes to drop all columns below the ceiling, the timer resets to 6.5s!
+  * If you clear enough slimes to drop all columns below the ceiling, the timer resets!
   * Only when the timer reaches `0.0s` does top-out game over occur.
+
+### The 5-Step Difficulty System
+Players can select their preferred difficulty on the Fighter Select screen or in the Options Menu:
+* 🟢 **Novice:** 5 slime colors, $0.75\times$ rise speed, $1.4\times$ stop-time freeze, and generous 12.0s Danger Grace. AI is relaxed with frequent exploratory moves.
+* 🔵 **Adept (Standard):** 5 slime colors, $1.0\times$ rise speed, $1.0\times$ stop-time freeze, and 10.0s Danger Grace. Balanced competitive baseline.
+* 🟡 **Expert:** **6 slime colors** (introduces Cyan Mint), $1.5\times$ rise speed, $0.75\times$ stop-time freeze, and 7.0s Danger Grace. AI executes fast routes with low error.
+* 🟠 **Master:** 6 slime colors, $2.1\times$ rise speed, $0.5\times$ stop-time freeze, 5.0s Danger Grace, and **1 initial handicap garbage slab**. AI reacts in rapid bursts.
+* 🔴 **Grandmaster:** 6 slime colors, $3.0\times$ blazing rise speed, $0.3\times$ stop-time freeze, 3.5s Danger Grace, and **2 initial handicap garbage slabs**. AI has 0% mistake rate and aggressive chain prioritization.
 
 ---
 

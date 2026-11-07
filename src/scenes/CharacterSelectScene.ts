@@ -280,7 +280,7 @@ export default class CharacterSelectScene extends Phaser.Scene {
   private updateDifficultyDisplay(): void {
     const info = getDifficultyInfo(this.selectedDifficulty);
     if (this.diffCenterText) {
-      this.diffCenterText.setText(`DIFFICULTY: ${info.name.toUpperCase()}`);
+      this.diffCenterText.setText(`DIFFICULTY: ${info.badge}`);
     }
     if (this.diffDescText) {
       this.diffDescText.setText(info.description);

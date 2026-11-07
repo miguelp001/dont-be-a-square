@@ -402,7 +402,15 @@ export default class GameScene extends Phaser.Scene {
         strokeThickness: 2
       });
 
-      p1Header.add([p1Sign, p1Badge, this.playerMascot, p1NameText, this.playerScoreText]);
+      const p1DiffBadge = this.add.text(p1PlaqueW / 2 - 38, 0, diffInfo.badgeText, {
+        fontSize: '9.5px',
+        color: diffInfo.hexColor,
+        fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 2
+      }).setOrigin(0.5);
+
+      p1Header.add([p1Sign, p1Badge, this.playerMascot, p1NameText, this.playerScoreText, p1DiffBadge]);
 
       this.playerChainText = this.add
         .text(p1X + p1BoardW / 2, p1Y + p1BoardH / 2, '', {
@@ -516,7 +524,15 @@ export default class GameScene extends Phaser.Scene {
         strokeThickness: 2
       });
 
-      p1Header.add([p1Sign, p1Badge, p1NameText, this.playerScoreText]);
+      const p1DiffBadge = this.add.text(p1PlaqueW / 2 - Math.round(38 * boardScaleRatio), 0, diffInfo.badgeText, {
+        fontSize: `${Math.round(11 * boardScaleRatio)}px`,
+        color: diffInfo.hexColor,
+        fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 2
+      }).setOrigin(0.5);
+
+      p1Header.add([p1Sign, p1Badge, p1NameText, this.playerScoreText, p1DiffBadge]);
 
       this.playerChainText = this.add
         .text(p1X + boardW / 2, boardY + boardH + Math.round(18 * boardScaleRatio), '', {
@@ -590,7 +606,15 @@ export default class GameScene extends Phaser.Scene {
         strokeThickness: 2
       });
 
-      p2Header.add([p2Sign, p2Badge, p2NameText, this.cpuScoreText]);
+      const p2DiffBadge = this.add.text(p2PlaqueW / 2 - Math.round(38 * boardScaleRatio), 0, diffInfo.badgeText, {
+        fontSize: `${Math.round(11 * boardScaleRatio)}px`,
+        color: diffInfo.hexColor,
+        fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 2
+      }).setOrigin(0.5);
+
+      p2Header.add([p2Sign, p2Badge, p2NameText, this.cpuScoreText, p2DiffBadge]);
 
       this.cpuChainText = this.add
         .text(p2X + boardW / 2, boardY + boardH + Math.round(18 * boardScaleRatio), '', {
@@ -877,6 +901,14 @@ export default class GameScene extends Phaser.Scene {
       strokeThickness: 2
     });
 
+    const diffBadge = this.add.text(-plaqueW / 2 + Math.round(78 * boardScaleRatio), Math.round(7 * boardScaleRatio), diffInfo.badge, {
+      fontSize: `${Math.round(10 * boardScaleRatio)}px`,
+      color: diffInfo.hexColor,
+      fontStyle: 'bold',
+      stroke: '#3e2415',
+      strokeThickness: 2
+    });
+
     const clockIcon = this.add.image(plaqueW / 2 - Math.round(76 * boardScaleRatio), 0, 'wood_clock_icon');
     clockIcon.setDisplaySize(Math.round(18 * boardScaleRatio), Math.round(18 * boardScaleRatio));
 
@@ -888,7 +920,7 @@ export default class GameScene extends Phaser.Scene {
       strokeThickness: 2
     }).setOrigin(0.5);
 
-    header.add([sign, charBadge, this.playerScoreText, clockIcon, this.timeText]);
+    header.add([sign, charBadge, this.playerScoreText, diffBadge, clockIcon, this.timeText]);
 
     this.playerChainText = this.add
       .text(boardX + boardW / 2, boardY + boardH / 2, '', {

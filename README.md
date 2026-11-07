@@ -27,7 +27,8 @@ An action puzzle game inspired by the legendary mechanics of *Panel de Pon* and 
 * **Horizontal Panel Swapping:** Fast, responsive horizontal tile swaps with instant gravity and fluid squishy animations.
 * **Cascading Chain Reactions ($x2, x3, \dots, x14+$):** Panels dropping into new matches trigger dynamic chain multipliers that pause stack rise and send colossal garbage blocks to opponents.
 * **Simultaneous Combos (4+, 5+, 6+):** Multi-slime matches send targeted combo slabs.
-* **Stop Time & 6.5s Danger Grace:** Whenever slimes reach the ceiling, a high-tension emergency alarm sounds with a 6.5s survival countdown. Making quick matches halts the rise and buys precious breathing room.
+* **Stop Time & Dynamic Danger Grace:** Whenever slimes reach the ceiling, a high-tension emergency alarm sounds with a survival countdown (12.0s on Novice down to 3.5s on Grandmaster). Making quick matches halts the rise and buys precious breathing room.
+* **5-Step Difficulty Ladder:** Choose between **Novice**, **Adept**, **Expert**, **Master**, or **Grandmaster**. Unlocks 6th color (Mint Cyan) on Expert+, compressed freeze windows, fast stack speeds, and handicap challenge garbage slabs.
 * **Mid-Air Catch Swapping:** Catch falling slimes mid-air to clutch buzzer-beating saves before they hit the stack.
 
 ### 🕹️ Universal Controls & Input Architecture

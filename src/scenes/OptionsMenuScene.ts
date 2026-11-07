@@ -3,6 +3,7 @@ import { CuteUI } from '../utils/CuteUI';
 import { Settings, KeyBindings, DEFAULT_KEYBINDINGS } from '../utils/Settings';
 import { SoundFx } from '../utils/SoundFx';
 import { computeOptionsMenuLayout, OptionsMenuLayout } from '../ui/OptionsMenuLayout';
+import { GameDifficulty, DIFFICULTY_ORDER, getDifficultyInfo } from '../utils/Difficulty';
 
 export default class OptionsMenuScene extends Phaser.Scene {
   private returnScene: string = 'MenuScene';
@@ -29,11 +30,13 @@ export default class OptionsMenuScene extends Phaser.Scene {
   private guideContainers: Map<'basics' | 'chains' | 'strategy', Phaser.GameObjects.Container> = new Map();
   private guideSubTabButtons: Phaser.GameObjects.Container[] = [];
 
-  // Audio tab text refs
+  // Audio & Settings tab refs
   private musicVolumeText!: Phaser.GameObjects.Text;
   private musicBarGraphics!: Phaser.GameObjects.Graphics;
   private sfxVolumeText!: Phaser.GameObjects.Text;
   private sfxBarGraphics!: Phaser.GameObjects.Graphics;
+  private diffCenterText?: Phaser.GameObjects.Text;
+  private diffDescText?: Phaser.GameObjects.Text;
 
   // Controls tab refs
   private listeningAction: keyof KeyBindings | null = null;
@@ -239,8 +242,8 @@ export default class OptionsMenuScene extends Phaser.Scene {
     const stepBtnOffset = Math.min(160, Math.round(cardW / 2 - 28));
 
     // 1. Music Volume Row
-    const musicLabel = this.add.text(0, -92, '🎵 BGM MUSIC VOLUME', {
-      fontSize: isMobile ? '13px' : '14px',
+    const musicLabel = this.add.text(0, -100, '🎵 BGM MUSIC VOLUME', {
+      fontSize: isMobile ? '12px' : '13px',
       color: '#feca57',
       fontStyle: 'bold',
       stroke: '#000000',
@@ -248,27 +251,27 @@ export default class OptionsMenuScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     this.musicBarGraphics = this.add.graphics();
-    this.musicVolumeText = this.add.text(0, -48, '', {
-      fontSize: '13px',
+    this.musicVolumeText = this.add.text(0, -64, '', {
+      fontSize: '12px',
       color: '#ffffff',
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    const musicMinusBtn = this.createStepButton(-stepBtnOffset, -62, '➖', () => {
+    const musicMinusBtn = this.createStepButton(-stepBtnOffset, -76, '➖', () => {
       Settings.setMusicVolume(Settings.musicVolume - 0.1, this);
       this.updateAudioDisplays();
       SoundFx.playCursor();
     });
 
-    const musicPlusBtn = this.createStepButton(stepBtnOffset, -62, '➕', () => {
+    const musicPlusBtn = this.createStepButton(stepBtnOffset, -76, '➕', () => {
       Settings.setMusicVolume(Settings.musicVolume + 0.1, this);
       this.updateAudioDisplays();
       SoundFx.playCursor();
     });
 
     // 2. SFX Volume Row
-    const sfxLabel = this.add.text(0, 4, '🔊 SOUND EFFECTS VOLUME', {
-      fontSize: isMobile ? '13px' : '14px',
+    const sfxLabel = this.add.text(0, -36, '🔊 SOUND EFFECTS VOLUME', {
+      fontSize: isMobile ? '12px' : '13px',
       color: '#ff69b4',
       fontStyle: 'bold',
       stroke: '#000000',
@@ -276,30 +279,66 @@ export default class OptionsMenuScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     this.sfxBarGraphics = this.add.graphics();
-    this.sfxVolumeText = this.add.text(0, 48, '', {
-      fontSize: '13px',
+    this.sfxVolumeText = this.add.text(0, 0, '', {
+      fontSize: '12px',
       color: '#ffffff',
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    const sfxMinusBtn = this.createStepButton(-stepBtnOffset, 34, '➖', () => {
+    const sfxMinusBtn = this.createStepButton(-stepBtnOffset, -12, '➖', () => {
       Settings.setSfxVolume(Settings.sfxVolume - 0.1);
       this.updateAudioDisplays();
       SoundFx.playSwap();
     });
 
-    const sfxPlusBtn = this.createStepButton(stepBtnOffset, 34, '➕', () => {
+    const sfxPlusBtn = this.createStepButton(stepBtnOffset, -12, '➕', () => {
       Settings.setSfxVolume(Settings.sfxVolume + 0.1);
       this.updateAudioDisplays();
       SoundFx.playMatch();
     });
+
+    // 3. Default Game Difficulty Row
+    const diffLabel = this.add.text(0, 22, '⭐ DEFAULT GAME DIFFICULTY', {
+      fontSize: isMobile ? '11.5px' : '12.5px',
+      color: '#54a0ff',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 3
+    }).setOrigin(0.5);
+
+    const diffBtnW = Math.min(240, cardW - 40);
+    const arrowW = 32;
+    const centerW = diffBtnW - (arrowW * 2) - 6;
+
+    const diffMinusBtn = CuteUI.createPillButton(this, -diffBtnW / 2 + arrowW / 2, 48, '◀', () => {
+      this.cycleDifficulty(-1);
+    }, { textureKey: 'pill_blue', width: arrowW, height: 26, fontSize: '13px', autoScale: false });
+
+    const diffCenterPill = CuteUI.createPillButton(this, 0, 48, '', () => {
+      this.cycleDifficulty(1);
+    }, { textureKey: 'pill_pink', width: centerW, height: 26, fontSize: '11px', autoScale: false });
+    this.diffCenterText = diffCenterPill.list.find((c) => c instanceof Phaser.GameObjects.Text) as Phaser.GameObjects.Text;
+
+    const diffPlusBtn = CuteUI.createPillButton(this, diffBtnW / 2 - arrowW / 2, 48, '▶', () => {
+      this.cycleDifficulty(1);
+    }, { textureKey: 'pill_blue', width: arrowW, height: 26, fontSize: '13px', autoScale: false });
+
+    this.diffDescText = this.add.text(0, 70, '', {
+      fontSize: isMobile ? '9px' : '10px',
+      color: '#54a0ff',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 2
+    }).setOrigin(0.5);
+
+    this.updateDifficultyDisplay();
 
     // Install App button
     const installBtnW = Math.min(190, cardW - 40);
     const installBtn = CuteUI.createPillButton(
       this,
       0,
-      96,
+      104,
       '📲 INSTALL APP (PWA)',
       () => {
         if ((window as any).deferredInstallPrompt && (window as any).promptPwaInstall) {
@@ -308,7 +347,7 @@ export default class OptionsMenuScene extends Phaser.Scene {
           alert("To install as an app:\n• On Chrome/Edge/Android: Tap browser menu (⋮) -> 'Install App'\n• On iPhone/Safari: Tap Share icon (⎋) -> 'Add to Home Screen'");
         }
       },
-      { textureKey: 'pill_green', fontSize: '12px', width: installBtnW, height: 32 }
+      { textureKey: 'pill_green', fontSize: '11.5px', width: installBtnW, height: 28 }
     );
 
     this.audioTabContainer.add([
@@ -322,6 +361,11 @@ export default class OptionsMenuScene extends Phaser.Scene {
       this.sfxVolumeText,
       sfxMinusBtn,
       sfxPlusBtn,
+      diffLabel,
+      diffMinusBtn,
+      diffCenterPill,
+      diffPlusBtn,
+      this.diffDescText,
       installBtn
     ]);
 
@@ -737,11 +781,30 @@ export default class OptionsMenuScene extends Phaser.Scene {
       }
     };
 
-    drawVolumeBar(this.musicBarGraphics, -62, Settings.musicVolume, 0xfeca57);
+    drawVolumeBar(this.musicBarGraphics, -76, Settings.musicVolume, 0xfeca57);
     this.musicVolumeText.setText(`${Math.round(Settings.musicVolume * 100)}%`);
 
-    drawVolumeBar(this.sfxBarGraphics, 34, Settings.sfxVolume, 0xff69b4);
+    drawVolumeBar(this.sfxBarGraphics, -12, Settings.sfxVolume, 0xff69b4);
     this.sfxVolumeText.setText(`${Math.round(Settings.sfxVolume * 100)}%`);
+  }
+
+  private cycleDifficulty(delta: number): void {
+    const currentIndex = DIFFICULTY_ORDER.indexOf(Settings.difficulty);
+    const newIndex = (currentIndex + delta + DIFFICULTY_ORDER.length) % DIFFICULTY_ORDER.length;
+    Settings.setDifficulty(DIFFICULTY_ORDER[newIndex]);
+    SoundFx.playCursor();
+    this.updateDifficultyDisplay();
+  }
+
+  private updateDifficultyDisplay(): void {
+    const info = getDifficultyInfo(Settings.difficulty);
+    if (this.diffCenterText) {
+      this.diffCenterText.setText(info.badge);
+    }
+    if (this.diffDescText) {
+      this.diffDescText.setText(info.description);
+      this.diffDescText.setColor(info.hexColor);
+    }
   }
 
   private createStepButton(x: number, y: number, label: string, callback: () => void): Phaser.GameObjects.Container {
@@ -855,7 +918,7 @@ export default class OptionsMenuScene extends Phaser.Scene {
         },
         {
           title: '⏱️ STOP TIME & DANGER GRACE',
-          desc: 'Matching animations freeze stack rise! When slimes reach the ceiling, a 6.5s Danger Grace countdown activates. Any match pauses danger!',
+          desc: 'Matching animations freeze stack rise! When slimes reach the ceiling, Danger Grace countdown activates (12s down to 3.5s by difficulty). Any match pauses danger!',
           iconColor: '#ff9ff3'
         }
       ],
@@ -878,19 +941,19 @@ export default class OptionsMenuScene extends Phaser.Scene {
       ],
       strategy: [
         {
+          title: '⭐ 5-STEP DIFFICULTY LADDER',
+          desc: 'Novice (5 colors, slow), Adept (standard), Expert (6 colors, fast), Master (handicap slab), or Grandmaster (0% bot error, 3.5s grace, 2 slabs)!',
+          iconColor: '#feca57'
+        },
+        {
           title: '📡 RADAR & THREAT BUFFER',
           desc: 'In VS mode, watch the opponent radar mini-grid! The flashing threat bar reveals pending garbage drop timers so you can prepare counters.',
-          iconColor: '#feca57'
+          iconColor: '#54a0ff'
         },
         {
           title: '🦅 MID-AIR SWAPPING',
           desc: 'You can swap slimes mid-air as they fall! Use mid-air swaps to catch cascading drops before they land for clutch last-second saves.',
           iconColor: '#1dd1a1'
-        },
-        {
-          title: '🔄 INSTANT ONLINE REMATCH',
-          desc: 'After an Online Multiplayer match, tap "PLAY AGAIN" to immediately vote for a rematch with the same player with synchronized seed generation!',
-          iconColor: '#a55eea'
         }
       ]
     };
