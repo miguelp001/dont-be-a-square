@@ -55,26 +55,36 @@ export default class CharacterSelectScene extends Phaser.Scene {
     });
     title.setOrigin(0.5);
     
-    // Create character grid centered
+    // Create character grid centered (3 columns x 3 rows)
+    const isSecretUnlocked = RecordManager.isSecretBossUnlocked();
     const colSpacing = isMobile
-      ? Math.min(84, Math.floor((width - 32) / 3))
-      : Math.min(150, Math.round(112 * uiScale));
-    const gridStartX = Math.floor((width - 3 * colSpacing) / 2);
-    const startGridY = Math.round((isMobile ? 105 : 135) * Math.min(1.3, uiScale));
-    const rowSpacing = isMobile ? 84 : Math.round(108 * Math.min(1.3, uiScale));
-    const baseSpriteSize = isMobile ? 48 : Math.round(58 * Math.min(1.4, uiScale));
+      ? Math.min(92, Math.floor((width - 32) / 3))
+      : Math.min(136, Math.round(108 * uiScale));
+    const gridStartX = Math.floor((width - 2 * colSpacing) / 2);
+    const startGridY = Math.round((isMobile ? 78 : 92) * Math.min(1.2, uiScale));
+    const rowSpacing = isMobile ? 66 : Math.round(76 * Math.min(1.2, uiScale));
+    const baseSpriteSize = isMobile ? 38 : Math.round(44 * Math.min(1.3, uiScale));
 
     CHARACTERS.forEach((char, i) => {
-      const x = gridStartX + (i % 4) * colSpacing;
-      const y = startGridY + Math.floor(i / 4) * rowSpacing;
+      const col = i % 3;
+      const row = Math.floor(i / 3);
+      const x = gridStartX + col * colSpacing;
+      const y = startGridY + row * rowSpacing;
+      const isCharUnlocked = !char.isSecret || isSecretUnlocked;
       
       const sprite = this.add.sprite(x, y, char.id);
       sprite.setDisplaySize(baseSpriteSize, baseSpriteSize);
-      sprite.setInteractive({ useHandCursor: true });
+      sprite.setInteractive({ useHandCursor: isCharUnlocked });
+
+      if (!isCharUnlocked) {
+        sprite.setTint(0x1a1a1a);
+        sprite.setAlpha(0.6);
+      }
       
-      const nameText = this.add.text(x, y + Math.round((isMobile ? 34 : 44) * Math.min(1.35, uiScale)), char.name, {
-        fontSize: `${Math.round((isMobile ? 11 : 12.5) * Math.min(1.35, uiScale))}px`,
-        color: '#ffffff',
+      const labelText = !isCharUnlocked ? '???' : (char.isSecret ? `${char.name} 👑` : char.name);
+      const nameText = this.add.text(x, y + Math.round((isMobile ? 26 : 30) * Math.min(1.3, uiScale)), labelText, {
+        fontSize: `${Math.round((isMobile ? 10 : 11.5) * Math.min(1.3, uiScale))}px`,
+        color: !isCharUnlocked ? '#747d8c' : (char.isSecret ? '#feca57' : '#ffffff'),
         stroke: '#000000',
         strokeThickness: 2
       });
@@ -98,11 +108,12 @@ export default class CharacterSelectScene extends Phaser.Scene {
     const startBtnY = backBtnY - btnSpacing;
     const diffBtnY = startBtnY - (isMobile ? 50 : Math.round(54 * uiScale));
     const diffDescY = diffBtnY + (isMobile ? 22 : Math.round(24 * uiScale));
-    const charTextY = Math.max(startGridY + rowSpacing + 36, (startGridY + rowSpacing + 42 + diffBtnY) / 2);
+    const gridBottomY = startGridY + 2 * rowSpacing + Math.round((isMobile ? 28 : 34) * Math.min(1.3, uiScale));
+    const charTextY = Math.max(gridBottomY + 16, (gridBottomY + 10 + diffBtnY) / 2);
 
     // Character info
     this.charText = this.add.text(width / 2, charTextY, '', {
-      fontSize: `${Math.round((isMobile ? 11.5 : 13) * uiScale)}px`,
+      fontSize: `${Math.round((isMobile ? 11 : 12) * uiScale)}px`,
       color: '#ffffff',
       align: 'center',
       stroke: '#000000',
@@ -169,13 +180,13 @@ export default class CharacterSelectScene extends Phaser.Scene {
     // Keyboard controls
     const moveSelection = (dx: number, dy: number) => {
       SoundFx.playCursor();
-      let row = Math.floor(this.selectedIndex / 4);
-      let col = this.selectedIndex % 4;
+      let row = Math.floor(this.selectedIndex / 3);
+      let col = this.selectedIndex % 3;
 
-      if (dx !== 0) col = (col + dx + 4) % 4;
-      if (dy !== 0) row = (row + dy + 2) % 2;
+      if (dx !== 0) col = (col + dx + 3) % 3;
+      if (dy !== 0) row = (row + dy + 3) % 3;
 
-      this.selectCharacter(row * 4 + col);
+      this.selectCharacter(row * 3 + col);
     };
 
     this.input.keyboard!.on('keydown-LEFT', () => moveSelection(-1, 0));
@@ -228,16 +239,16 @@ export default class CharacterSelectScene extends Phaser.Scene {
     if (isLeft || isRight || isUp || isDown) {
       if (this.padRepeatTimer <= 0) {
         SoundFx.playCursor();
-        let row = Math.floor(this.selectedIndex / 4);
-        let col = this.selectedIndex % 4;
+        let row = Math.floor(this.selectedIndex / 3);
+        let col = this.selectedIndex % 3;
 
-        if (isLeft) col = (col - 1 + 4) % 4;
-        else if (isRight) col = (col + 1) % 4;
+        if (isLeft) col = (col - 1 + 3) % 3;
+        else if (isRight) col = (col + 1) % 3;
 
-        if (isUp) row = (row - 1 + 2) % 2;
-        else if (isDown) row = (row + 1) % 2;
+        if (isUp) row = (row - 1 + 3) % 3;
+        else if (isDown) row = (row + 1) % 3;
 
-        this.selectCharacter(row * 4 + col);
+        this.selectCharacter(row * 3 + col);
         this.padRepeatTimer = 220;
       } else {
         this.padRepeatTimer -= delta;
@@ -320,6 +331,12 @@ export default class CharacterSelectScene extends Phaser.Scene {
 
   private startGame(): void {
     const selectedChar = CHARACTERS[this.selectedIndex];
+    const isUnlocked = !selectedChar.isSecret || RecordManager.isSecretBossUnlocked();
+    if (!isUnlocked) {
+      SoundFx.playCancel();
+      return;
+    }
+
     if (this.mode === 'endless') {
       this.scene.start('GameScene', {
         mode: 'endless',
@@ -338,25 +355,47 @@ export default class CharacterSelectScene extends Phaser.Scene {
   private selectCharacter(index: number): void {
     this.selectedIndex = index;
     const uiScale = CuteUI.getUIScale(this);
-    const selSize = Math.round(64 * Math.min(1.4, uiScale));
-    const unselSize = Math.round(52 * Math.min(1.4, uiScale));
+    const selSize = Math.round(54 * Math.min(1.4, uiScale));
+    const unselSize = Math.round(42 * Math.min(1.4, uiScale));
+    const isSecretUnlocked = RecordManager.isSecretBossUnlocked();
 
     this.charSprites.forEach((sprite, i) => {
+      const charObj = CHARACTERS[i];
+      const isCharUnlocked = !charObj.isSecret || isSecretUnlocked;
       if (i === index) {
         sprite.setDisplaySize(selSize, selSize);
-        sprite.clearTint();
-        sprite.setAlpha(1.0);
+        if (isCharUnlocked) {
+          sprite.clearTint();
+          sprite.setAlpha(1.0);
+        } else {
+          sprite.setTint(0x444444);
+          sprite.setAlpha(0.85);
+        }
       } else {
         sprite.setDisplaySize(unselSize, unselSize);
-        sprite.setTint(0xcccccc);
-        sprite.setAlpha(0.75);
+        if (isCharUnlocked) {
+          sprite.setTint(0xcccccc);
+          sprite.setAlpha(0.75);
+        } else {
+          sprite.setTint(0x1a1a1a);
+          sprite.setAlpha(0.5);
+        }
       }
     });
     
     const char = CHARACTERS[index];
-    const personality = AI_PERSONALITIES[char.id];
-    const styleLine = personality ? `\n\nAI Style: ${personality.title}\n"${personality.description}"` : '';
-    this.charText.setText(`${char.name} - ${char.species}\n${char.description}${styleLine}`);
+    const isCharUnlocked = !char.isSecret || isSecretUnlocked;
+
+    if (!isCharUnlocked) {
+      this.charText.setText(
+        `??? - Secret Boss\nConquer Challenge Mode on Master or Grandmaster to peel reality and unlock the Void Slime Champion!`
+      );
+    } else {
+      const personality = AI_PERSONALITIES[char.id];
+      const secretBadge = char.isSecret ? '👑 [UNLOCKED SECRET VOID CHAMPION]\n' : '';
+      const styleLine = personality ? `\n\nAI Style: ${personality.title}\n"${personality.description}"` : '';
+      this.charText.setText(`${secretBadge}${char.name} - ${char.species}\n${char.description}${styleLine}`);
+    }
   }
   
   private createButton(x: number, y: number, text: string, callback: () => void): void {

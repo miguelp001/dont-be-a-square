@@ -13,7 +13,8 @@ const THEME_COLORS: Record<string, { primary: number; hex: string; light: string
   ember: { primary: 0xff6b6b, hex: '#ff6b6b', light: '#ff9ff3' },
   volt: { primary: 0x1dd1a1, hex: '#1dd1a1', light: '#55efc4' },
   salty: { primary: 0x54a0ff, hex: '#54a0ff', light: '#70a1ff' },
-  poppy: { primary: 0xff69b4, hex: '#ff69b4', light: '#ff9ff3' }
+  poppy: { primary: 0xff69b4, hex: '#ff69b4', light: '#ff9ff3' },
+  nano_banana: { primary: 0xa55eea, hex: '#feca57', light: '#00d2d3' }
 };
 
 export default class CharacterProfileScene extends Phaser.Scene {
@@ -223,11 +224,14 @@ export default class CharacterProfileScene extends Phaser.Scene {
     nextArrow.on('pointerout', () => nextArrow.setScale(1.0).setColor('#ffffff'));
 
     // Roster count badge
+    const badgeLabel = char.isSecret
+      ? 'SECRET BOSS • VOID CHAMPION'
+      : `RIVAL ${this.currentIndex + 1} OF ${CHARACTERS.length}`;
     const badgeText = this.add
-      .text(0, -cardH / 2 + Math.round(18 * uiScale), `RIVAL ${this.currentIndex + 1} OF ${CHARACTERS.length}`, {
+      .text(0, -cardH / 2 + Math.round(18 * uiScale), badgeLabel, {
         fontFamily: CUTE_FONT,
         fontSize: `${Math.round(11 * uiScale)}px`,
-        color: '#a4b0be',
+        color: char.isSecret ? '#feca57' : '#a4b0be',
         fontStyle: 'bold'
       })
       .setOrigin(0.5);

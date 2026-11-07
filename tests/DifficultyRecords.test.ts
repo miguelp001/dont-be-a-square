@@ -84,4 +84,25 @@ describe('Phase 3: RecordManager & Tier-Specific Progression Tracking', () => {
     expect(RecordManager.isTierConquered(GameDifficulty.GRANDMASTER)).toBe(true);
     expect(RecordManager.getChallengeClear(GameDifficulty.GRANDMASTER).bestTimeSeconds).toBe(150);
   });
+
+  it('5. Tracks secret boss (Nano Banana / Void Slime Champion) unlock and defeat states', () => {
+    // Initially locked
+    expect(RecordManager.isSecretBossUnlocked()).toBe(false);
+    expect(RecordManager.isSecretBossDefeated()).toBe(false);
+
+    // Conquering Master tier unlocks secret boss
+    RecordManager.recordChallengeClear(GameDifficulty.MASTER, 'kiri', 210);
+    expect(RecordManager.isSecretBossUnlocked()).toBe(true);
+    expect(RecordManager.isSecretBossDefeated()).toBe(false);
+
+    // Recording defeat of Nano Banana persists both unlocked and defeated flags
+    RecordManager.recordSecretBossDefeat();
+    expect(RecordManager.isSecretBossUnlocked()).toBe(true);
+    expect(RecordManager.isSecretBossDefeated()).toBe(true);
+
+    // Persists across localStorage reloads
+    (RecordManager as any).cachedData = null;
+    expect(RecordManager.isSecretBossUnlocked()).toBe(true);
+    expect(RecordManager.isSecretBossDefeated()).toBe(true);
+  });
 });

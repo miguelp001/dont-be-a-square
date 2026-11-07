@@ -174,6 +174,24 @@ export const AI_PERSONALITIES: Record<string, AIPersonality> = {
     burstSteps: 2,
     burstCooldown: 240,
     panicSpeedup: 1.2
+  },
+  nano_banana: {
+    id: 'nano_banana',
+    name: 'Nano Banana',
+    title: 'Void Slime Champion',
+    description: 'Cosmic glitch monarch. Bends space and nanite matter with hyper-reactive speed, endless chain cascades, and zero remorse.',
+    baseInterval: 140,
+    indecisiveness: 0.01,
+    jitterChance: 0.03,
+    comboBias: 2.6,
+    garbageBias: 2.2,
+    chainBias: 2.8,
+    liftThreshold: 5,
+    liftFrequency: 11000,
+    liftDuration: 1000,
+    burstSteps: 2,
+    burstCooldown: 120,
+    panicSpeedup: 1.4
   }
 };
 

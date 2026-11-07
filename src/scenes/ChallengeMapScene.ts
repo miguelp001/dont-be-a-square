@@ -46,10 +46,23 @@ export default class ChallengeMapScene extends Phaser.Scene {
     CuteUI.createCuteBackground(this);
 
     const playerChar = CHARACTERS.find((c) => c.id === this.characterId) || CHARACTERS[0];
-    const totalOpponents = CHARACTERS.length - 1; // 7 opponents
-    const isAllDefeated = this.defeatedOpponents.length >= totalOpponents;
+    const isNanoPlayer = this.characterId === 'nano_banana';
+    const opponents = isNanoPlayer
+      ? CHARACTERS.filter((c) => c.id !== this.characterId).slice(0, 7)
+      : CHARACTERS.filter((c) => !c.isSecret && c.id !== this.characterId);
+    const totalOpponents = opponents.length; // 7 opponents
+    const standardDefeatedCount = opponents.filter((c) => this.defeatedOpponents.includes(c.id)).length;
+    const isAllStandardDefeated = standardDefeatedCount >= totalOpponents;
 
-    if (isAllDefeated) {
+    const isMasterTier = this.difficulty === GameDifficulty.MASTER || this.difficulty === GameDifficulty.GRANDMASTER;
+    const isSecretBossRun = isMasterTier && !isNanoPlayer;
+    const hasDefeatedSecretBoss = this.defeatedOpponents.includes('nano_banana');
+
+    if (isAllStandardDefeated) {
+      if (isSecretBossRun && !hasDefeatedSecretBoss) {
+        this.createSecretBossEncounter(playerChar);
+        return;
+      }
       this.createChampionCelebration(playerChar);
       return;
     }
@@ -120,8 +133,8 @@ export default class ChallengeMapScene extends Phaser.Scene {
 
     // Progress counter on right
     const progressLabel = isMobile
-      ? `🏆 ${this.defeatedOpponents.length}/${totalOpponents} DEFEATED`
-      : `🏆 PROGRESS: ${this.defeatedOpponents.length} / ${totalOpponents} DEFEATED`;
+      ? `🏆 ${standardDefeatedCount}/${totalOpponents} DEFEATED`
+      : `🏆 PROGRESS: ${standardDefeatedCount} / ${totalOpponents} DEFEATED`;
     const progressText = this.add.text(
       barX + barW - (isMobile ? 12 : Math.round(16 * uiScale)),
       barY + barH / 2,
@@ -137,7 +150,6 @@ export default class ChallengeMapScene extends Phaser.Scene {
     progressText.setOrigin(1, 0.5);
 
     // Challengers Grid (7 opponents)
-    const opponents = CHARACTERS.filter((c) => c.id !== this.characterId);
     let cardPositions: { x: number; y: number }[] = [];
     let cardW: number;
     let cardH: number;
@@ -526,6 +538,191 @@ export default class ChallengeMapScene extends Phaser.Scene {
     hitArea.on('pointerdown', startBattleAction);
   }
 
+  /** Secret Boss Encounter Screen (Void Slime Champion: Nano Banana) */
+  private createSecretBossEncounter(playerChar: any): void {
+    const width = this.cameras.main.width;
+    const height = this.cameras.main.height;
+    const isMobile = width < 600 || height >= width * 1.05;
+    const uiScale = isMobile ? 1.0 : CuteUI.getUIScale(this);
+    const cardScale = isMobile ? 1.0 : Math.min(1.3, uiScale);
+
+    if (this.cache.audio.exists('panic') && !this.sound.get('panic')?.isPlaying) {
+      this.sound.stopAll();
+      this.sound.play('panic', { loop: true, volume: Settings.musicVolume });
+    }
+
+    // Dark cosmic void backdrop
+    const voidBg = this.add.graphics();
+    voidBg.fillStyle(0x0a0518, 0.95);
+    voidBg.fillRect(0, 0, width, height);
+
+    // Drifting glitch / void stars
+    for (let i = 0; i < 28; i++) {
+      const sx = Math.random() * width;
+      const sy = Math.random() * height;
+      const star = this.add.image(sx, sy, 'sparkle_star');
+      star.setDisplaySize(Math.round(10 * uiScale), Math.round(10 * uiScale));
+      star.setTint([0xa55eea, 0x00d2d3, 0xfffa65, 0xff4757][Math.floor(Math.random() * 4)]);
+      star.setAlpha(0.65);
+      this.tweens.add({
+        targets: star,
+        alpha: { from: 0.2, to: 0.9 },
+        scale: { from: 0.8, to: 1.3 },
+        duration: 900 + Math.random() * 800,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut'
+      });
+    }
+
+    // Warning Header Banner
+    const warningText = this.add.text(width / 2, isMobile ? 24 : Math.round(30 * uiScale), '⚠️ EMERGENCY BOSS INVASION ⚠️', {
+      fontSize: isMobile ? '16px' : Math.round(19 * uiScale) + 'px',
+      color: '#ff4757',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 4
+    }).setOrigin(0.5);
+
+    this.tweens.add({
+      targets: warningText,
+      scaleX: 1.05,
+      scaleY: 1.05,
+      duration: 500,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
+    });
+
+    const diffInfo = getDifficultyInfo(this.difficulty);
+    this.add.text(width / 2, isMobile ? 46 : Math.round(54 * uiScale), `[${diffInfo.badgeText}] • A cosmic anomaly has unpeeled reality itself!`, {
+      fontSize: isMobile ? '10px' : Math.round(11 * uiScale) + 'px',
+      color: '#00d2d3',
+      stroke: '#000000',
+      strokeThickness: 2
+    }).setOrigin(0.5);
+
+    // Boss Card
+    const cardW = isMobile ? Math.min(width - 32, 310) : Math.round(340 * cardScale);
+    const cardH = isMobile ? Math.min(height - 150, 310) : Math.round(330 * cardScale);
+    const cardX = width / 2;
+    const cardY = height / 2 - (isMobile ? 10 : Math.round(8 * uiScale));
+
+    const card = this.add.graphics();
+    card.fillStyle(0x130924, 0.96);
+    card.fillRoundedRect(cardX - cardW / 2, cardY - cardH / 2, cardW, cardH, 16);
+    card.lineStyle(3, 0xa55eea, 1);
+    card.strokeRoundedRect(cardX - cardW / 2, cardY - cardH / 2, cardW, cardH, 16);
+
+    // Glowing cosmic outline
+    card.lineStyle(1.5, 0x00d2d3, 0.7);
+    card.strokeRoundedRect(cardX - cardW / 2 + 3, cardY - cardH / 2 + 3, cardW - 6, cardH - 6, 14);
+
+    // Boss Avatar
+    const bossAvatarSize = isMobile ? 80 : Math.round(100 * cardScale);
+    const bossAvatarY = cardY - cardH / 2 + Math.round(62 * cardScale);
+    const bossAvatar = this.add.image(cardX, bossAvatarY, 'nano_banana');
+    bossAvatar.setDisplaySize(bossAvatarSize, bossAvatarSize);
+
+    this.tweens.add({
+      targets: bossAvatar,
+      y: bossAvatarY - 6,
+      scaleX: 1.04,
+      scaleY: 1.04,
+      duration: 1200,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
+    });
+
+    // Boss Titles
+    const nameY = bossAvatarY + bossAvatarSize / 2 + Math.round(14 * cardScale);
+    this.add.text(cardX, nameY, 'NANO BANANA 👑', {
+      fontSize: isMobile ? '17px' : Math.round(20 * cardScale) + 'px',
+      color: '#feca57',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 3
+    }).setOrigin(0.5);
+
+    const titleY = nameY + Math.round(17 * cardScale);
+    this.add.text(cardX, titleY, 'Void Slime Champion • Cosmic Nanite Overlord', {
+      fontSize: isMobile ? '10px' : Math.round(11 * cardScale) + 'px',
+      color: '#ff9ff3',
+      fontStyle: 'italic',
+      stroke: '#000000',
+      strokeThickness: 2
+    }).setOrigin(0.5);
+
+    const quoteY = titleY + Math.round(18 * cardScale);
+    this.add.text(cardX, quoteY, '"Reality is ripe for peeling!"', {
+      fontSize: isMobile ? '10.5px' : Math.round(11.5 * cardScale) + 'px',
+      color: '#dfe4ea',
+      fontStyle: 'italic bold',
+      stroke: '#000000',
+      strokeThickness: 2
+    }).setOrigin(0.5);
+
+    const statsY = quoteY + Math.round(20 * cardScale);
+    this.add.text(cardX, statsY, '⚡ 140ms Hyper Reflexes  |  🌀 2.8x Cascade Chains  |  🌌 6 Slime Colors', {
+      fontSize: isMobile ? '8.5px' : Math.round(9.5 * cardScale) + 'px',
+      color: '#00d2d3',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 2,
+      align: 'center'
+    }).setOrigin(0.5);
+
+    // Battle Button
+    const btnW = isMobile ? Math.min(240, cardW - 32) : Math.round(250 * cardScale);
+    const btnH = isMobile ? 36 : Math.round(40 * cardScale);
+    const btnY = cardY + cardH / 2 - Math.round(30 * cardScale);
+
+    const startBossBattle = () => {
+      this.sound.stopAll();
+      this.scene.start('GameScene', {
+        mode: 'challenge',
+        characterId: this.characterId,
+        opponentCharacterId: 'nano_banana',
+        defeatedOpponents: this.defeatedOpponents,
+        difficulty: this.difficulty
+      });
+    };
+
+    const battleBtn = CuteUI.createPillButton(this, cardX, btnY, '⚔️ CONFRONT VOID CHAMPION ⚔️', startBossBattle, {
+      textureKey: 'pill_pink',
+      fontSize: isMobile ? '11px' : `${Math.round(12.5 * cardScale)}px`,
+      width: btnW,
+      height: btnH,
+      autoScale: false
+    });
+
+    this.tweens.add({
+      targets: battleBtn,
+      scaleX: 1.04,
+      scaleY: 1.04,
+      duration: 600,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
+    });
+
+    // Bottom Navigation Buttons
+    const footerY = height - Math.round(26 * uiScale);
+    this.createFooterButton(width / 2, footerY, 'MAIN MENU', () => {
+      this.scene.start('MenuScene');
+    }, uiScale, Math.round(150 * uiScale), Math.round(32 * uiScale));
+
+    this.selectedIndex = 0;
+    this.selectableItems = [
+      {
+        highlight: (on: boolean) => battleBtn.setScale(on ? 1.08 : 1.0),
+        activate: startBossBattle
+      }
+    ];
+    this.setupNavigation();
+  }
+
   /** Grand Champion Celebration Screen */
   private createChampionCelebration(playerChar: any): void {
     const width = this.cameras.main.width;
@@ -571,9 +768,18 @@ export default class ChallengeMapScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
+    const hasDefeatedSecret = this.defeatedOpponents.includes('nano_banana');
+    if (hasDefeatedSecret) {
+      RecordManager.recordSecretBossDefeat();
+    }
+
+    const champTitle = hasDefeatedSecret
+      ? 'TRUE VOID SLAYER & GRANDMASTER CHAMPION!'
+      : 'YOU ARE THE GRAND SLIME CHAMPION!';
+
     this.add
-      .text(width / 2, isMobile ? 116 : Math.round(165 * uiScale), 'YOU ARE THE GRAND SLIME CHAMPION!', {
-        fontSize: isMobile ? '13px' : Math.round(18 * uiScale) + 'px',
+      .text(width / 2, isMobile ? 116 : Math.round(165 * uiScale), champTitle, {
+        fontSize: isMobile ? '12px' : Math.round(16 * uiScale) + 'px',
         color: '#2ed573',
         fontStyle: 'bold',
         stroke: '#000000',
@@ -584,10 +790,14 @@ export default class ChallengeMapScene extends Phaser.Scene {
     const diffInfo = getDifficultyInfo(this.difficulty);
     RecordManager.recordChallengeClear(this.difficulty, playerChar.id, 0);
 
+    const bannerMsg = hasDefeatedSecret
+      ? '👑 NANO BANANA DEFEATED • COSMOS LIBERATED! 👑'
+      : `👑 CONQUERED ON [${diffInfo.badgeText}] DIFFICULTY! 👑`;
+
     this.add
-      .text(width / 2, isMobile ? 138 : Math.round(195 * uiScale), `👑 CONQUERED ON [${diffInfo.badgeText}] DIFFICULTY! 👑`, {
+      .text(width / 2, isMobile ? 138 : Math.round(195 * uiScale), bannerMsg, {
         fontSize: isMobile ? '11px' : Math.round(14 * uiScale) + 'px',
-        color: diffInfo.hexColor,
+        color: hasDefeatedSecret ? '#feca57' : diffInfo.hexColor,
         fontStyle: 'bold',
         stroke: '#000000',
         strokeThickness: 2
@@ -616,10 +826,16 @@ export default class ChallengeMapScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
+    const congratsText = hasDefeatedSecret
+      ? '🎉 Nano Banana defeated! Nano Banana is now UNLOCKED in Character Select!'
+      : (this.difficulty === GameDifficulty.NOVICE || this.difficulty === GameDifficulty.ADEPT || this.difficulty === GameDifficulty.EXPERT)
+      ? 'You conquered all 7 challenger personalities with pride!\n(Tip: Conquer on Master or Grandmaster to face the secret Void Slime Champion!)'
+      : 'You conquered the Road to Champion with supreme mastery!';
+
     this.add
-      .text(width / 2, isMobile ? 268 : Math.round(325 * uiScale), 'You conquered all 7 challenger personalities with pride!', {
-        fontSize: isMobile ? '10.5px' : Math.round(12 * uiScale) + 'px',
-        color: '#c8d6e5',
+      .text(width / 2, isMobile ? 268 : Math.round(325 * uiScale), congratsText, {
+        fontSize: isMobile ? '10px' : Math.round(11.5 * uiScale) + 'px',
+        color: hasDefeatedSecret ? '#feca57' : '#c8d6e5',
         stroke: '#000000',
         strokeThickness: 2,
         align: 'center',

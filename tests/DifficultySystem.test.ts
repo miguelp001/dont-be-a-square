@@ -184,4 +184,22 @@ describe('5-Step Difficulty System (Novice to Grandmaster)', () => {
     expect(board.stopTimeMultiplier).toBe(0.30);
     expect(board.dangerGraceDuration).toBe(3500);
   });
+
+  it('8. Registers secret boss Nano Banana (Void Slime Champion) with extreme AI personality', async () => {
+    const { CHARACTERS } = await import('../src/utils/Constants');
+    const { AI_PERSONALITIES } = await import('../src/objects/AIBot');
+
+    const nanoChar = CHARACTERS.find((c) => c.id === 'nano_banana');
+    expect(nanoChar).toBeDefined();
+    expect(nanoChar?.name).toBe('Nano Banana');
+    expect(nanoChar?.species).toBe('Void Slime Champion');
+    expect(nanoChar?.isSecret).toBe(true);
+
+    const nanoAi = AI_PERSONALITIES['nano_banana'];
+    expect(nanoAi).toBeDefined();
+    expect(nanoAi.name).toBe('Nano Banana');
+    expect(nanoAi.title).toBe('Void Slime Champion');
+    expect(nanoAi.baseInterval).toBeLessThanOrEqual(150); // Hyper speed
+    expect(nanoAi.chainBias).toBeGreaterThanOrEqual(2.5); // Supreme cascade builder
+  });
 });

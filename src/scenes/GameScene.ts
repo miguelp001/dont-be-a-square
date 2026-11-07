@@ -2257,7 +2257,11 @@ export default class GameScene extends Phaser.Scene {
 
     let isNewRecord = false;
     let previousBest = 0;
-    const isChampion = this.gameMode === 'challenge' && this.defeatedOpponents.length >= 7;
+    const isMasterTier = this.difficulty === GameDifficulty.MASTER || this.difficulty === GameDifficulty.GRANDMASTER;
+    const isSecretBossPending = isMasterTier && this.characterId !== 'nano_banana' && !this.defeatedOpponents.includes('nano_banana');
+    const isChampion = this.gameMode === 'challenge' && isVictory && (
+      isSecretBossPending ? false : this.defeatedOpponents.length >= (this.characterId === 'nano_banana' ? 7 : (isMasterTier ? 8 : 7))
+    );
 
     if (this.gameMode === 'endless') {
       const res = RecordManager.recordEndlessScore(this.difficulty, this.playerScore);
@@ -2269,6 +2273,9 @@ export default class GameScene extends Phaser.Scene {
     } else if (isChampion) {
       const elapsedSeconds = Math.max(1, 240 - this.gameTime);
       RecordManager.recordChallengeClear(this.difficulty, this.characterId, elapsedSeconds);
+      if (this.opponentCharacterId === 'nano_banana' || this.defeatedOpponents.includes('nano_banana')) {
+        RecordManager.recordSecretBossDefeat();
+      }
     }
 
     const finalBanner = isChampion
@@ -2321,7 +2328,11 @@ export default class GameScene extends Phaser.Scene {
     const loseChar = CHARACTERS.find((c) => c.id === losingCharId);
 
     const subQuote = isChampion
-      ? `All 7 rivals defeated! ${winChar?.name} is the Slime Champion!`
+      ? (this.defeatedOpponents.includes('nano_banana')
+          ? `Void Slime Champion conquered! ${winChar?.name} is the True Grandmaster Champion!`
+          : `All rivals defeated! ${winChar?.name} is the Slime Champion!`)
+      : (isSecretBossPending && this.defeatedOpponents.length >= 7)
+      ? `All 7 rivals fallen! But a terrifying cosmic anomaly is awakening in the void...`
       : isVictory
       ? `${winChar?.name}: "${winChar?.quote}"`
       : `${loseChar?.name}: "${loseChar?.defeatQuote}"`;
@@ -2394,7 +2405,10 @@ export default class GameScene extends Phaser.Scene {
           () => this.scene.start('MenuScene')
         ];
       } else if (isVictory) {
-        const nextBtn = CuteUI.createPillButton(this, 0, startBtnY, `NEXT CHALLENGER (${this.defeatedOpponents.length}/7)`, () => {
+        const nextLabel = (isSecretBossPending && this.defeatedOpponents.length >= 7)
+          ? '⚠️ CONFRONT VOID BOSS ⚠️'
+          : `NEXT CHALLENGER (${this.defeatedOpponents.length}/7)`;
+        const nextBtn = CuteUI.createPillButton(this, 0, startBtnY, nextLabel, () => {
           this.scene.start('ChallengeMapScene', {
             characterId: this.characterId,
             defeatedOpponents: this.defeatedOpponents,

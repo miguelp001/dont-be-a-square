@@ -174,6 +174,27 @@ export class SoundFx {
     });
   }
 
+  /** Subtle low buzzer / refusal sound for locked items or invalid actions */
+  public static playCancel(): void {
+    const ctx = this.getContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(220, now);
+    osc.frequency.linearRampToValueAtTime(140, now + 0.12);
+
+    gain.gain.setValueAtTime(this.volume * 0.35, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.14);
+  }
+
   /**
    * Ascending chime for chain combos (x2, x3, x4...) and 4+ combos.
    * Pitch shifts up by exactly +1 semitone per cascade level (f = f0 * 2^(n / 12)).

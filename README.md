@@ -5,7 +5,7 @@
 [![Phaser 3](https://img.shields.io/badge/Phaser-3.80-e056fd?style=for-the-badge&logo=html5&logoColor=white)](https://phaser.io/)
 [![Vite](https://img.shields.io/badge/Vite-5.4-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
 [![Socket.IO](https://img.shields.io/badge/Socket.IO-4.7-010101?style=for-the-badge&logo=socketdotio&logoColor=white)](https://socket.io/)
-[![Tests](https://img.shields.io/badge/Vitest-39%20Passing-2ed573?style=for-the-badge&logo=vitest&logoColor=white)](https://vitest.dev/)
+[![Tests](https://img.shields.io/badge/Vitest-52%20Passing-2ed573?style=for-the-badge&logo=vitest&logoColor=white)](https://vitest.dev/)
 [![PWA Ready](https://img.shields.io/badge/PWA-Installable-20bf6b?style=for-the-badge&logo=pwa&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps)
 
 An action puzzle game inspired by the legendary mechanics of *Panel de Pon* and *Tetris Attack*, reimagined with modern web technology. Built from scratch with **Phaser 3**, **TypeScript**, and **Vite**, featuring 8 unique anime chibi Slime Catchers, distinct AI bot personalities, real-time WebSocket online multiplayer, universal gamepad/keyboard/touch controls, and candy-themed audiovisual aesthetics.
@@ -51,20 +51,21 @@ An action puzzle game inspired by the legendary mechanics of *Panel de Pon* and 
 
 ---
 
-## 👥 The 8 Slime Catchers
+## 👥 The Slime Catchers & Secret Boss
 
 Meet the colorful cast of chibi puzzle fighters in the enchanted Candy Forest:
 
-| Character | Theme & Color | Personality & Playstyle |
+| Character | Species & Theme | Personality & Playstyle |
 | :--- | :--- | :--- |
-| **Sparky** 🐰 | Yellow Spark | Hyperactive bunny trainer with blistering speed and rapid stack lifts. |
-| **Poppy** 🍓 | Strawberry Pink | Fierce, spunky attacker who prioritizes 4- and 5-slime combos. |
-| **Salty** 🌊 | Ocean Blue | Cool, collected ocean tactician who excels at defensive patience. |
-| **Volt** ⚡ | Neon Yellow | Electric genius with advanced chain-seeking pattern recognition. |
-| **Ember** 🔥 | Flame Red | High-risk, aggressive attacker who plays constantly on the brink of danger. |
-| **Mocha** ☕ | Coffee Brown | Methodical counter-puncher who shatters heavy garbage into retaliatory chains. |
-| **Riff** 🎸 | Violet Punk | Chaotic rocker who varies speed unexpectedly to disrupt opponent rhythm. |
-| **Luna** 🌙 | Celestial Teal | The Grand Champion. Master of mid-air swaps and gargantuan cascades. |
+| **Kiri** 🦊 | Mechanic Fox Girl | Methodical and precise. Dismantles garbage blocks like clockwork. |
+| **Mizu** 🌊 | Axolotl Swordsman | Fluid and patient. Specializes in cascading chain reactions and counter-attacks. |
+| **Riff** 🎸 | Tigress Guitarist | Blazing shredder! High tempo with loud 4+ combos and fast lifts. |
+| **Mocha** 🐰 | Bunny Alchemist | Chaotic brewing! Switches tiles rapidly with unpredictable re-routes. |
+| **Ember** 🔥 | Shiba Inu Fire Dancer | Fireworks fanatic! Obsessively crafts massive 4+ and 5-in-a-row cross clears. |
+| **Volt** ⚡ | Gecko Inventor | Twitchy glitch genius! Moves in rapid overdrive bursts with lightning reflexes. |
+| **Salty** 🦦 | Otter Pirate | Relentless raider! Sends heavy slabs and goes full pirate raid under pressure. |
+| **Poppy** 🐼 | Red Panda Idol | Rhythm idol! Dances across the board with multi-tier cascading performances. |
+| **Nano Banana** 🍌👑 | Void Slime Champion | **Secret Boss!** Reality-bending cosmic nanite slime with 140ms reflexes and 2.8x cascade bias. Conquered on Master/GM! |
 
 ---
 

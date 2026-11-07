@@ -122,5 +122,14 @@ export const CHARACTERS = [
     description: 'The star of the show!',
     quote: 'Idol sparkle!',
     defeatQuote: 'The curtain fell...'
+  },
+  {
+    id: 'nano_banana',
+    name: 'Nano Banana',
+    species: 'Void Slime Champion',
+    description: 'A sentient cosmic nanite banana slime bending space and reality!',
+    quote: 'Reality is ripe for peeling!',
+    defeatQuote: 'Split into nanobits...',
+    isSecret: true
   }
 ];

@@ -3,6 +3,7 @@ import SocketManager, { GameStartPayload } from '../net/SocketManager';
 import { CHARACTERS } from '../utils/Constants';
 import { SoundFx } from '../utils/SoundFx';
 import { CuteUI } from '../utils/CuteUI';
+import { RecordManager } from '../utils/DifficultyRecords';
 
 export default class LobbyScene extends Phaser.Scene {
   private socketMgr!: SocketManager;
@@ -46,8 +47,12 @@ export default class LobbyScene extends Phaser.Scene {
 
   init(data: any): void {
     const passedCharId = data?.characterId || 'kiri';
-    const foundIndex = CHARACTERS.findIndex((c) => c.id === passedCharId);
-    this.characterIndex = foundIndex >= 0 ? foundIndex : 0;
+    let foundIndex = CHARACTERS.findIndex((c) => c.id === passedCharId);
+    if (foundIndex < 0) foundIndex = 0;
+    if (CHARACTERS[foundIndex].isSecret && !RecordManager.isSecretBossUnlocked()) {
+      foundIndex = 0;
+    }
+    this.characterIndex = foundIndex;
     this.currentRoomId = '';
     this.inputCode = '';
   }
@@ -179,10 +184,17 @@ export default class LobbyScene extends Phaser.Scene {
 
   private cycleCharacter(dir: number): void {
     SoundFx.playCursor();
-    this.characterIndex = (this.characterIndex + dir + CHARACTERS.length) % CHARACTERS.length;
+    const isUnlocked = RecordManager.isSecretBossUnlocked();
+    const available = CHARACTERS.filter((c) => !c.isSecret || isUnlocked);
+    const currentCharId = CHARACTERS[this.characterIndex].id;
+    let availIdx = available.findIndex((c) => c.id === currentCharId);
+    if (availIdx < 0) availIdx = 0;
+    availIdx = (availIdx + dir + available.length) % available.length;
+    const target = available[availIdx];
+    this.characterIndex = CHARACTERS.findIndex((c) => c.id === target.id);
     const char = CHARACTERS[this.characterIndex];
     this.charAvatar.setTexture(char.id);
-    this.charNameText.setText(`Fighter: ${char.name}`);
+    this.charNameText.setText(char.isSecret ? `Fighter: ${char.name} 👑` : `Fighter: ${char.name}`);
   }
 
   private get selectedCharacterId(): string {

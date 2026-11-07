@@ -10,6 +10,8 @@ export interface ChallengeClearRecord {
 export interface PlayerRecordsData {
   endlessHighScores: Record<GameDifficulty, number>;
   challengeClears: Record<GameDifficulty, ChallengeClearRecord>;
+  secretBossUnlocked?: boolean;
+  secretBossDefeated?: boolean;
 }
 
 const STORAGE_KEY = 'dont_be_a_square_records_v1';
@@ -28,7 +30,7 @@ function getDefaultRecords(): PlayerRecordsData {
     };
   }
 
-  return { endlessHighScores, challengeClears };
+  return { endlessHighScores, challengeClears, secretBossUnlocked: false, secretBossDefeated: false };
 }
 
 export class RecordManager {
@@ -56,6 +58,12 @@ export class RecordManager {
                   clearedAt: String(parsed.challengeClears[diff].clearedAt || '')
                 };
               }
+            }
+            if (parsed.secretBossUnlocked) {
+              defaults.secretBossUnlocked = true;
+            }
+            if (parsed.secretBossDefeated) {
+              defaults.secretBossDefeated = true;
             }
           }
         }
@@ -156,6 +164,33 @@ export class RecordManager {
       if (data.challengeClears[diff]?.cleared) count++;
     }
     return count;
+  }
+
+  public static isSecretBossUnlocked(): boolean {
+    const data = this.load();
+    return Boolean(
+      data.secretBossUnlocked ||
+      data.challengeClears[GameDifficulty.MASTER]?.cleared ||
+      data.challengeClears[GameDifficulty.GRANDMASTER]?.cleared
+    );
+  }
+
+  public static unlockSecretBoss(): void {
+    const data = this.load();
+    data.secretBossUnlocked = true;
+    this.save();
+  }
+
+  public static isSecretBossDefeated(): boolean {
+    const data = this.load();
+    return Boolean(data.secretBossDefeated);
+  }
+
+  public static recordSecretBossDefeat(): void {
+    const data = this.load();
+    data.secretBossUnlocked = true;
+    data.secretBossDefeated = true;
+    this.save();
   }
 
   public static resetAll(): void {
