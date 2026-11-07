@@ -4,6 +4,7 @@ import { AI_PERSONALITIES } from '../objects/AIBot';
 import { CuteUI } from '../utils/CuteUI';
 import { Settings } from '../utils/Settings';
 import { SoundFx } from '../utils/SoundFx';
+import { RecordManager } from '../utils/DifficultyRecords';
 
 const THEME_COLORS: Record<string, { primary: number; hex: string; light: string }> = {
   kiri: { primary: 0xff9f43, hex: '#ff9f43', light: '#feca57' },
@@ -21,6 +22,7 @@ const THEME_COLORS: Record<string, { primary: number; hex: string; light: string
 export default class CharacterProfileScene extends Phaser.Scene {
   private currentIndex: number = 0;
   private returnScene: string = 'MenuScene';
+  private availableCharacters = CHARACTERS;
 
   private cardContainer?: Phaser.GameObjects.Container;
   private padRepeatTimer: number = 0;
@@ -32,8 +34,9 @@ export default class CharacterProfileScene extends Phaser.Scene {
 
   init(data: any): void {
     this.returnScene = data?.returnScene || 'MenuScene';
+    this.availableCharacters = CHARACTERS.filter((c) => RecordManager.isCharacterUnlocked(c.id));
     const targetId = data?.characterId || 'kiri';
-    const foundIndex = CHARACTERS.findIndex((c) => c.id === targetId);
+    const foundIndex = this.availableCharacters.findIndex((c) => c.id === targetId);
     this.currentIndex = foundIndex >= 0 ? foundIndex : 0;
   }
 
@@ -77,7 +80,7 @@ export default class CharacterProfileScene extends Phaser.Scene {
         safeBottom - 84,
         'PLAY CHALLENGE 🏆',
         () => {
-          const char = CHARACTERS[this.currentIndex];
+          const char = this.availableCharacters[this.currentIndex];
           this.scene.start('ChallengeMapScene', { characterId: char.id, defeatedOpponents: [] });
         },
         { textureKey: 'pill_pink', fontSize: '12px', width: btnW, height: 34, autoScale: false }
@@ -89,7 +92,7 @@ export default class CharacterProfileScene extends Phaser.Scene {
         safeBottom - 44,
         'PLAY ENDLESS ⏳',
         () => {
-          const char = CHARACTERS[this.currentIndex];
+          const char = this.availableCharacters[this.currentIndex];
           this.scene.start('GameScene', { mode: 'endless', characterId: char.id });
         },
         { textureKey: 'pill_green', fontSize: '12px', width: btnW, height: 34, autoScale: false }
@@ -118,7 +121,7 @@ export default class CharacterProfileScene extends Phaser.Scene {
         safeBottom - Math.round(48 * uiScale),
         'PLAY CHALLENGE 🏆',
         () => {
-          const char = CHARACTERS[this.currentIndex];
+          const char = this.availableCharacters[this.currentIndex];
           this.scene.start('ChallengeMapScene', { characterId: char.id, defeatedOpponents: [] });
         },
         { textureKey: 'pill_pink', fontSize: btnFont, width: btnW, height: btnH, autoScale: false }
@@ -130,7 +133,7 @@ export default class CharacterProfileScene extends Phaser.Scene {
         safeBottom - Math.round(48 * uiScale),
         'PLAY ENDLESS ⏳',
         () => {
-          const char = CHARACTERS[this.currentIndex];
+          const char = this.availableCharacters[this.currentIndex];
           this.scene.start('GameScene', { mode: 'endless', characterId: char.id });
         },
         { textureKey: 'pill_green', fontSize: btnFont, width: btnW, height: btnH, autoScale: false }
@@ -162,7 +165,7 @@ export default class CharacterProfileScene extends Phaser.Scene {
 
   private navigate(delta: number): void {
     SoundFx.playCursor();
-    this.currentIndex = (this.currentIndex + delta + CHARACTERS.length) % CHARACTERS.length;
+    this.currentIndex = (this.currentIndex + delta + this.availableCharacters.length) % this.availableCharacters.length;
     this.renderProfileCard();
   }
 
@@ -174,7 +177,7 @@ export default class CharacterProfileScene extends Phaser.Scene {
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
     const uiScale = CuteUI.getUIScale(this);
-    const char = CHARACTERS[this.currentIndex];
+    const char = this.availableCharacters[this.currentIndex];
     const personality = AI_PERSONALITIES[char.id] || AI_PERSONALITIES['mizu'];
     const theme = THEME_COLORS[char.id] || { primary: 0xff69b4, hex: '#ff69b4', light: '#ff9ff3' };
 
@@ -225,9 +228,11 @@ export default class CharacterProfileScene extends Phaser.Scene {
     nextArrow.on('pointerout', () => nextArrow.setScale(1.0).setColor('#ffffff'));
 
     // Roster count badge
-    const badgeLabel = char.isSecret
+    const badgeLabel = char.id === 'nano_banana'
+      ? 'HIDDEN BOSS • GRANDMASTER'
+      : char.id === 'void_slime'
       ? 'SECRET BOSS • VOID CHAMPION'
-      : `RIVAL ${this.currentIndex + 1} OF ${CHARACTERS.length}`;
+      : `RIVAL ${this.currentIndex + 1} OF ${this.availableCharacters.length}`;
     const badgeText = this.add
       .text(0, -cardH / 2 + Math.round(18 * uiScale), badgeLabel, {
         fontFamily: CUTE_FONT,

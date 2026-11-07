@@ -368,12 +368,15 @@ export default class BootScene extends Phaser.Scene {
     generatePillButtonTexture('pill_blue', 230, 46, 0x54a0ff, 0x1e3799);
     generatePillButtonTexture('pill_green', 230, 46, 0x2ed573, 0x079992);
     generatePillButtonTexture('pill_purple', 230, 46, 0xa55eea, 0x4834d4);
+    generatePillButtonTexture('pill_orange', 230, 46, 0xff9f43, 0xd35400);
     generatePillButtonTexture('pill_grey', 230, 46, 0x57606f, 0x2f3542);
 
     // Compact 120x34 pill buttons for submenus/dialogs
     generatePillButtonTexture('pill_sm_pink', 120, 34, 0xff69b4, 0xb8255f);
     generatePillButtonTexture('pill_sm_blue', 120, 34, 0x54a0ff, 0x1e3799);
     generatePillButtonTexture('pill_sm_green', 120, 34, 0x2ed573, 0x079992);
+    generatePillButtonTexture('pill_sm_purple', 120, 34, 0xa55eea, 0x4834d4);
+    generatePillButtonTexture('pill_sm_orange', 120, 34, 0xff9f43, 0xd35400);
     generatePillButtonTexture('pill_sm_grey', 120, 34, 0x57606f, 0x2f3542);
     graphics.clear();
   }

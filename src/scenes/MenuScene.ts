@@ -3,6 +3,7 @@ import { CHARACTERS } from '../utils/Constants';
 import { CuteUI } from '../utils/CuteUI';
 import { Settings } from '../utils/Settings';
 import { SoundFx } from '../utils/SoundFx';
+import { RecordManager } from '../utils/DifficultyRecords';
 
 export default class MenuScene extends Phaser.Scene {
   private selectedButtonIndex: number = 0;
@@ -195,14 +196,16 @@ export default class MenuScene extends Phaser.Scene {
     );
     charHeading.setOrigin(0.5);
 
+    const unlockedCharacters = CHARACTERS.filter((char) => RecordManager.isCharacterUnlocked(char.id));
+
     if (isNarrow) {
-      // 2 rows of 4 characters for compact mobile portrait screens
-      const cols = 4;
+      // 2 rows of up to 4 characters for compact mobile portrait screens
+      const cols = Math.min(4, Math.max(1, unlockedCharacters.length));
       const colW = Math.min(74, Math.floor((width - 24) / cols));
       const startX = Math.floor((width - (cols - 1) * colW) / 2);
       const rowH = 64;
 
-      CHARACTERS.forEach((char, i) => {
+      unlockedCharacters.forEach((char, i) => {
         const col = i % cols;
         const row = Math.floor(i / cols);
         const x = startX + col * colW;
@@ -262,13 +265,13 @@ export default class MenuScene extends Phaser.Scene {
         });
       });
     } else {
-      // Show all 8 characters along bottom with gentle floating idle bobs
-      const colSpacing = Math.min(Math.floor((width - 40) / CHARACTERS.length), Math.round(68 * uiScale));
-      const showStartX = Math.floor((width - (CHARACTERS.length - 1) * colSpacing) / 2);
+      // Show unlocked characters along bottom with gentle floating idle bobs
+      const colSpacing = Math.min(Math.floor((width - 40) / unlockedCharacters.length), Math.round(68 * uiScale));
+      const showStartX = Math.floor((width - (unlockedCharacters.length - 1) * colSpacing) / 2);
       const spriteSize = Math.round(44 * uiScale);
       const nameSize = `${Math.round(11.5 * uiScale)}px`;
 
-      CHARACTERS.forEach((char, i) => {
+      unlockedCharacters.forEach((char, i) => {
         const x = showStartX + i * colSpacing;
         const baseY = showcaseY;
 
