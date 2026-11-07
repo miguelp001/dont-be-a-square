@@ -11,6 +11,7 @@ export default defineConfig({
     assetsDir: 'assets'
   },
   test: {
+    environment: 'happy-dom',
     coverage: {
       include: ['src/engine/**'],
       reporter: ['text', 'json', 'html']

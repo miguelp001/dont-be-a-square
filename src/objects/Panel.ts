@@ -1,15 +1,6 @@
 import Phaser from 'phaser';
-import { PANEL_SIZE } from '../utils/Constants';
-
-export enum PanelState {
-  IDLE = 'IDLE',
-  SWAPPING = 'SWAPPING',
-  HOVER = 'HOVER',
-  FALLING = 'FALLING',
-  FLASHING = 'FLASHING',
-  POPPING = 'POPPING',
-  DEAD = 'DEAD'
-}
+import { PANEL_SIZE, PanelState } from '../utils/Constants';
+export { PanelState };
 
 export default class Panel extends Phaser.GameObjects.Sprite {
   public gridX: number = 0;

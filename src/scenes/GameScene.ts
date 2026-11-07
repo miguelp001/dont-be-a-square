@@ -3,6 +3,7 @@ import Board, { MatchEvent } from '../objects/Board';
 import Cursor from '../objects/Cursor';
 import AIBot, { AIDifficulty } from '../objects/AIBot';
 import SocketManager, { GameAction } from '../net/SocketManager';
+import { TouchController } from '../input/TouchController';
 import {
   BOARD_WIDTH,
   BOARD_VISIBLE_HEIGHT,
@@ -106,6 +107,7 @@ export default class GameScene extends Phaser.Scene {
   private touchStartGridY: number = 0;
   private lastMouseX: number = -1;
   private lastMouseY: number = -1;
+  private touchController?: TouchController;
 
   // Online Multiplayer State
   private roomId: string = '';
@@ -1207,6 +1209,10 @@ export default class GameScene extends Phaser.Scene {
     window.addEventListener('contextmenu', onContextMenu);
     this.events.once('shutdown', () => {
       window.removeEventListener('contextmenu', onContextMenu);
+      if (this.touchController) {
+        this.touchController.destroy();
+        this.touchController = undefined;
+      }
     });
 
     // 1. Mobile & Desktop Pause Button (Top-Left on Mobile, Top-Right on Desktop)
@@ -1242,6 +1248,15 @@ export default class GameScene extends Phaser.Scene {
       }
     });
 
+    // Initialize Phase 2 Mobile Touch Controller (single-axis lock, 1:1 reciprocal drag, 24px occlusion lift)
+    if (this.playerBoard) {
+      this.touchController = new TouchController(this, this.playerBoard, this.playerCursor, {
+        onSwapCommit: (col, row) => {
+          this.broadcastCursor();
+        }
+      });
+    }
+
     // 3. Pointer Down: Left-Click / Tap to swap, Right-Click to fast-lift
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       if (this.isMatchOver || this.isPaused || !this.playerBoard || !this.playerCursor) return;
@@ -1253,90 +1268,20 @@ export default class GameScene extends Phaser.Scene {
         return;
       }
 
-      // Left Click or Touch on the Player Board
-      const bX = this.playerBoard.boardOffsetX;
-      const bY = this.playerBoard.boardOffsetY;
-      const bW = BOARD_WIDTH * PANEL_SIZE * this.playerBoardScale;
-      const bH = BOARD_VISIBLE_HEIGHT * PANEL_SIZE * this.playerBoardScale;
-      const padX = 24 * this.playerBoardScale;
-      const padY = 36 * this.playerBoardScale;
-
-      if (
-        pointer.x >= bX - padX &&
-        pointer.x <= bX + bW + padX &&
-        pointer.y >= bY - padY &&
-        pointer.y <= bY + bH + padY
-      ) {
-        const localX = (pointer.x - bX) / this.playerBoardScale;
-        const localY = (pointer.y - (bY - this.playerBoard.stackOffsetPixels * this.playerBoardScale)) / this.playerBoardScale;
-
-        const rawGx = Math.floor((localX - PANEL_SIZE / 2) / PANEL_SIZE + 0.5);
-        const gx = Math.max(0, Math.min(rawGx, BOARD_WIDTH - 2));
-
-        const rawGy = Math.floor(localY / PANEL_SIZE);
-        const gy = Math.max(0, Math.min(rawGy, BOARD_VISIBLE_HEIGHT - 1));
-
-        this.touchBoardActive = true;
-        this.touchSwapped = false;
-        this.touchStartX = pointer.x;
-        this.touchStartY = pointer.y;
-        this.touchStartGridX = gx;
-        this.touchStartGridY = gy;
-
-        // Snap cursor to touched slime pair
-        this.playerCursor.setGridPosition(gx, gy);
-        this.broadcastCursor();
-
-        // For desktop mouse click, trigger immediate swap on pointerdown
-        const isMouse = !pointer.wasTouch && pointer.button === 0;
-        if (isMouse) {
-          this.triggerPlayerSwap(gx, gy);
-          this.touchSwapped = true;
-        }
+      if (this.touchController) {
+        this.touchController.handlePointerDown(pointer);
       }
     });
 
-    // 4. Pointer Move: Selection rectangle smoothly follows mouse + drag/flick gestures
+    // 4. Pointer Move: Selection rectangle smoothly follows mouse + 1:1 reciprocal drag gestures
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
       if (this.isMatchOver || this.isPaused || !this.playerBoard || !this.playerCursor) return;
 
       // Selection rectangle directly tracks mouse on hover or drag
       this.updateMouseCursorTracking(pointer);
 
-      // Drag / Flick handling
-      if (!this.touchBoardActive || this.touchSwapped) return;
-
-      const dx = pointer.x - this.touchStartX;
-      const dy = pointer.y - this.touchStartY;
-      const threshold = 16 * this.playerBoardScale;
-
-      // Horizontal flick to swap
-      if (Math.abs(dx) > threshold && Math.abs(dx) > Math.abs(dy)) {
-        if (dx > 0) {
-          // Flick Right: swap current panel with the one to its right
-          const swapCol = Math.min(this.touchStartGridX, BOARD_WIDTH - 2);
-          this.playerCursor.setGridPosition(swapCol, this.touchStartGridY);
-          this.broadcastCursor();
-          this.triggerPlayerSwap(swapCol, this.touchStartGridY);
-        } else {
-          // Flick Left: swap current panel with the one to its left
-          const swapCol = Math.max(0, this.touchStartGridX - 1);
-          this.playerCursor.setGridPosition(swapCol, this.touchStartGridY);
-          this.broadcastCursor();
-          this.triggerPlayerSwap(swapCol, this.touchStartGridY);
-        }
-        this.touchSwapped = true;
-        this.touchBoardActive = false;
-      } else if (dy < -22 * this.playerBoardScale && Math.abs(dy) > Math.abs(dx)) {
-        // Upward flick: quick fast-lift impulse
-        this.setPlayerLifting(true);
-        this.time.delayedCall(220, () => {
-          if (!this.mouseRightLifting && !this.twoFingerLifting) {
-            this.setPlayerLifting(false);
-          }
-        });
-        this.touchSwapped = true;
-        this.touchBoardActive = false;
+      if (this.touchController) {
+        this.touchController.handlePointerMove(pointer);
       }
     });
 
@@ -1349,15 +1294,9 @@ export default class GameScene extends Phaser.Scene {
         }
       }
 
-      if (this.touchBoardActive && !this.touchSwapped) {
-        // Clean tap swap on mobile touch release
-        const dist = Math.hypot(pointer.x - this.touchStartX, pointer.y - this.touchStartY);
-        if (dist < 14 * this.playerBoardScale) {
-          this.triggerPlayerSwap(this.touchStartGridX, this.touchStartGridY);
-        }
+      if (this.touchController) {
+        this.touchController.handlePointerUp(pointer);
       }
-      this.touchBoardActive = false;
-      this.touchSwapped = false;
     });
 
     // 6. Sleek Fast-Lift Bar (Clickable with mouse or thumb)

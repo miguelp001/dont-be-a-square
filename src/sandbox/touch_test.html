@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+  <title>Tetris Attack - Phase 2 Touch Gesture Sandbox</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    body {
+      margin: 0;
+      padding: 16px;
+      background: #1e1e2f;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+    h1 {
+      font-size: 1.15rem;
+      margin: 0 0 6px 0;
+      color: #ff9ff3;
+      text-align: center;
+    }
+    p.desc {
+      font-size: 0.8rem;
+      color: #a4b0be;
+      margin: 0 0 16px 0;
+      text-align: center;
+      max-width: 380px;
+    }
+    #stage-container {
+      position: relative;
+      width: 320px;
+      height: 380px;
+      background: #2f3542;
+      border: 3px solid #ff4757;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      overflow: hidden;
+    }
+    .grid-row {
+      position: absolute;
+      left: 16px;
+      width: 288px;
+      height: 48px;
+      display: flex;
+    }
+    .tile {
+      width: 48px;
+      height: 48px;
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 0.85rem;
+      color: white;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+      box-shadow: inset 0 2px 0 rgba(255,255,255,0.4), 0 3px 6px rgba(0,0,0,0.3);
+      position: absolute;
+      transition: transform 0.05s ease-out;
+      will-change: transform;
+    }
+    .tile.snap-spring {
+      transition: transform 0.12s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .c-0 { background: #ff4757; }
+    .c-1 { background: #2ed573; }
+    .c-2 { background: #1e90ff; }
+    .c-3 { background: #ffa502; }
+    .c-4 { background: #9b59b6; }
+    .c-5 { background: #00d2d3; }
+
+    /* Occlusion Ghost Anchor (24px above thumb) */
+    #ghost-anchor {
+      position: absolute;
+      width: 52px;
+      height: 52px;
+      border-radius: 12px;
+      pointer-events: none;
+      display: none;
+      transform: translate(-50%, -50%);
+      border: 2px solid #ffffff;
+      box-shadow: 0 0 16px rgba(255,255,255,0.8), 0 8px 16px rgba(0,0,0,0.5);
+      z-index: 100;
+      opacity: 0.95;
+    }
+
+    #diagnostics {
+      width: 320px;
+      margin-top: 14px;
+      background: #181924;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-family: monospace;
+      font-size: 0.76rem;
+      color: #7bed9f;
+    }
+    .diag-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+    #log {
+      width: 320px;
+      height: 90px;
+      margin-top: 10px;
+      background: #11121a;
+      border-radius: 8px;
+      padding: 8px;
+      font-family: monospace;
+      font-size: 0.72rem;
+      color: #eccc68;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>Tetris Attack: 1:1 Reciprocal Touch</h1>
+  <p class="desc">Single-axis locked, reciprocal push drag, 24px thumb occlusion offset, 40% detent or &gt;400px/s flick commit.</p>
+
+  <div id="stage-container">
+    <div id="ghost-anchor"></div>
+  </div>
+
+  <div id="diagnostics">
+    <div class="diag-row"><span>Row Locked:</span><span id="d-row">None</span></div>
+    <div class="diag-row"><span>dx (Clamped):</span><span id="d-dx">0.0 px</span></div>
+    <div class="diag-row"><span>Velocity:</span><span id="d-vel">0.0 px/s</span></div>
+    <div class="diag-row"><span>Detent State:</span><span id="d-detent">IDLE</span></div>
+  </div>
+
+  <div id="log">Gesture Log Initialized...</div>
+
+  <script>
+    const CELL_SIZE = 48;
+    const COLS = 6;
+    const ROWS = 6;
+    const FLICK_VELOCITY = 400; // px/s
+    const DETENT_THRESHOLD = 0.4 * CELL_SIZE; // 19.2px
+    const FLICK_DISTANCE = 0.2 * CELL_SIZE; // 9.6px
+    const OCCLUSION_OFFSET_Y = 24;
+
+    const container = document.getElementById('stage-container');
+    const ghost = document.getElementById('ghost-anchor');
+    const dRow = document.getElementById('d-row');
+    const dDx = document.getElementById('d-dx');
+    const dVel = document.getElementById('d-vel');
+    const dDetent = document.getElementById('d-detent');
+    const logBox = document.getElementById('log');
+
+    function log(msg) {
+      const line = document.createElement('div');
+      line.textContent = `[${new Date().toLocaleTimeString().slice(3, 8)}] ${msg}`;
+      logBox.prepend(line);
+    }
+
+    // Grid State [r][c] (0 = bottom, 5 = top)
+    const grid = [];
+    const tileElements = [];
+
+    for (let r = 0; r < ROWS; r++) {
+      grid[r] = [];
+      tileElements[r] = [];
+      for (let c = 0; c < COLS; c++) {
+        const color = (r + c * 2) % 6;
+        grid[r][c] = color;
+
+        const tile = document.createElement('div');
+        tile.className = `tile c-${color}`;
+        tile.textContent = `${color}`;
+        tile.style.bottom = `${r * CELL_SIZE + 16}px`;
+        tile.style.left = `${c * CELL_SIZE + 16}px`;
+        tile.dataset.r = r;
+        tile.dataset.c = c;
+        container.appendChild(tile);
+        tileElements[r][c] = tile;
+      }
+    }
+
+    let isDragging = false;
+    let lockedRow = -1;
+    let primaryCol = -1;
+    let neighborCol = -1;
+    let startX = 0;
+    let lastX = 0;
+    let lastTime = 0;
+    let currentDx = 0;
+    let releaseVelocity = 0;
+
+    container.addEventListener('pointerdown', (e) => {
+      const rect = container.getBoundingClientRect();
+      const x = e.clientX - rect.left - 16;
+      const y = rect.bottom - e.clientY - 16; // bottom-indexed
+
+      const c = Math.floor(x / CELL_SIZE);
+      const r = Math.floor(y / CELL_SIZE);
+
+      if (c >= 0 && c < COLS && r >= 0 && r < ROWS) {
+        isDragging = true;
+        lockedRow = r;
+        primaryCol = c;
+        neighborCol = -1;
+        startX = e.clientX;
+        lastX = e.clientX;
+        lastTime = performance.now();
+        currentDx = 0;
+        releaseVelocity = 0;
+
+        dRow.textContent = `Row ${r} (Axis Locked)`;
+        dDetent.textContent = 'TRACKING';
+        log(`Locked Row ${r}, Col ${c}`);
+
+        // Occlusion Ghost Anchor
+        ghost.style.display = 'block';
+        ghost.className = `tile c-${grid[r][c]}`;
+        ghost.textContent = `${grid[r][c]}`;
+        ghost.style.left = `${e.clientX - rect.left}px`;
+        ghost.style.top = `${e.clientY - rect.top - OCCLUSION_OFFSET_Y}px`;
+      }
+    });
+
+    window.addEventListener('pointermove', (e) => {
+      if (!isDragging) return;
+
+      const rect = container.getBoundingClientRect();
+      const rawDx = e.clientX - startX;
+      // Single-axis lock & clamp
+      currentDx = Math.max(-CELL_SIZE, Math.min(CELL_SIZE, rawDx));
+
+      // Velocity calculation
+      const now = performance.now();
+      const dt = Math.max(1, now - lastTime);
+      releaseVelocity = (Math.abs(e.clientX - lastX) / dt) * 1000;
+      lastX = e.clientX;
+      lastTime = now;
+
+      // Determine neighbor
+      if (currentDx > 0 && primaryCol < COLS - 1) {
+        neighborCol = primaryCol + 1;
+      } else if (currentDx < 0 && primaryCol > 0) {
+        neighborCol = primaryCol - 1;
+      } else {
+        neighborCol = -1;
+        currentDx = 0;
+      }
+
+      // Reciprocal push
+      const pTile = tileElements[lockedRow][primaryCol];
+      pTile.classList.remove('snap-spring');
+      pTile.style.transform = `translateX(${currentDx}px)`;
+
+      if (neighborCol >= 0) {
+        const nTile = tileElements[lockedRow][neighborCol];
+        nTile.classList.remove('snap-spring');
+        nTile.style.transform = `translateX(${-currentDx}px)`;
+      }
+
+      // Update Ghost Anchor (24px above thumb)
+      ghost.style.left = `${e.clientX - rect.left}px`;
+      ghost.style.top = `${e.clientY - rect.top - OCCLUSION_OFFSET_Y}px`;
+
+      // Update Diagnostics
+      dDx.textContent = `${currentDx.toFixed(1)} px`;
+      dVel.textContent = `${releaseVelocity.toFixed(0)} px/s`;
+
+      const absDx = Math.abs(currentDx);
+      if (releaseVelocity > FLICK_VELOCITY && absDx > FLICK_DISTANCE) {
+        dDetent.textContent = 'FLICK READY (COMMIT)';
+      } else if (absDx >= DETENT_THRESHOLD) {
+        dDetent.textContent = 'DETENT READY (COMMIT)';
+      } else {
+        dDetent.textContent = 'DRAGGING (ABORT IF RELEASED)';
+      }
+    });
+
+    window.addEventListener('pointerup', (e) => {
+      if (!isDragging) return;
+      isDragging = false;
+      ghost.style.display = 'none';
+
+      const absDx = Math.abs(currentDx);
+      const isFlick = releaseVelocity > FLICK_VELOCITY && absDx > FLICK_DISTANCE;
+      const isDragCommit = absDx >= DETENT_THRESHOLD;
+
+      if ((isFlick || isDragCommit) && neighborCol >= 0) {
+        // Commit Swap
+        log(`SWAP COMMITTED (${isFlick ? 'FLICK' : 'DETENT'}) at Row ${lockedRow}, Cols ${primaryCol}<->${neighborCol}`);
+        dDetent.textContent = 'COMMITTED!';
+
+        // Swap Grid Data
+        const temp = grid[lockedRow][primaryCol];
+        grid[lockedRow][primaryCol] = grid[lockedRow][neighborCol];
+        grid[lockedRow][neighborCol] = temp;
+
+        // Reset DOM classes
+        const pTile = tileElements[lockedRow][primaryCol];
+        const nTile = tileElements[lockedRow][neighborCol];
+
+        pTile.style.transform = '';
+        nTile.style.transform = '';
+
+        pTile.className = `tile c-${grid[lockedRow][primaryCol]}`;
+        pTile.textContent = `${grid[lockedRow][primaryCol]}`;
+
+        nTile.className = `tile c-${grid[lockedRow][neighborCol]}`;
+        nTile.textContent = `${grid[lockedRow][neighborCol]}`;
+      } else {
+        // Snap Back with 120ms Spring
+        log(`ABORTED: Snapping back (120ms spring)`);
+        dDetent.textContent = 'SNAPPED BACK';
+
+        const pTile = tileElements[lockedRow][primaryCol];
+        pTile.classList.add('snap-spring');
+        pTile.style.transform = 'translateX(0px)';
+
+        if (neighborCol >= 0) {
+          const nTile = tileElements[lockedRow][neighborCol];
+          nTile.classList.add('snap-spring');
+          nTile.style.transform = 'translateX(0px)';
+        }
+      }
+
+      lockedRow = -1;
+      primaryCol = -1;
+      neighborCol = -1;
+      currentDx = 0;
+    });
+  </script>
+</body>
+</html>

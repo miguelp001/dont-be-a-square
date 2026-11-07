@@ -37,6 +37,16 @@ export const GAME_STATES = {
   GAME_OVER: 'game_over'
 };
 
+export enum PanelState {
+  IDLE = 'IDLE',
+  SWAPPING = 'SWAPPING',
+  HOVER = 'HOVER',
+  FALLING = 'FALLING',
+  FLASHING = 'FLASHING',
+  POPPING = 'POPPING',
+  DEAD = 'DEAD'
+}
+
 export const GRAVITY_DELAY = 50;
 export const SWAP_DURATION = 100;
 export const MATCH_DELAY = 150;
