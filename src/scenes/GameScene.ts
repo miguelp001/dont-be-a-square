@@ -4,6 +4,7 @@ import Cursor from '../objects/Cursor';
 import AIBot, { AIDifficulty } from '../objects/AIBot';
 import SocketManager, { GameAction } from '../net/SocketManager';
 import { TouchController } from '../input/TouchController';
+import { computeVsLayout, animateBallisticGarbageArc } from '../ui/VsLayout';
 import {
   BOARD_WIDTH,
   BOARD_VISIBLE_HEIGHT,
@@ -204,20 +205,20 @@ export default class GameScene extends Phaser.Scene {
     const p2Color = 0x54a0ff;
 
     if (isMobilePortrait) {
-      // ===== MOBILE PORTRAIT ADAPTIVE BATTLE LAYOUT =====
-      // 1. Bottom Fast-Lift Bar (thumb-friendly target)
-      const liftBarH = 36;
-      const liftBarY = height - liftBarH / 2 - 8;
-      const liftBarTop = liftBarY - liftBarH / 2;
+      // ===== PHASE 4 HERO & RADAR ASYMMETRIC MOBILE LAYOUT =====
+      const vsLayout = computeVsLayout(width, height);
 
-      // 2. Opponent Battle Monitor at Top-Right
-      // Keep opponent monitor compact so it never crowds or overlaps the player board
-      const opponentTargetW = Math.min(108, Math.max(80, Math.round(width * 0.26)));
-      this.cpuBoardScale = opponentTargetW / (BOARD_WIDTH * PANEL_SIZE);
-      const p2BoardW = Math.round(BOARD_WIDTH * PANEL_SIZE * this.cpuBoardScale);
-      const p2BoardH = Math.round(BOARD_VISIBLE_HEIGHT * PANEL_SIZE * this.cpuBoardScale);
-      const p2X = width - p2BoardW - 8;
-      const p2Y = 14;
+      // 1. Bottom Fast-Lift Bar (thumb-friendly target)
+      const liftBarH = vsLayout.bottomGutter.height;
+      const liftBarY = vsLayout.bottomGutter.y + liftBarH / 2;
+      const liftBarTop = vsLayout.bottomGutter.y;
+
+      // 2. Opponent Radar Monitor at Top-Right (Top 28%)
+      this.cpuBoardScale = vsLayout.opponentRadar.scale;
+      const p2BoardW = vsLayout.opponentRadar.width;
+      const p2BoardH = vsLayout.opponentRadar.height;
+      const p2X = vsLayout.opponentRadar.x;
+      const p2Y = vsLayout.opponentRadar.y;
 
       this.boardP2X = p2X;
       this.boardP2Y = p2Y;
@@ -332,20 +333,12 @@ export default class GameScene extends Phaser.Scene {
         ease: 'Sine.easeInOut'
       });
 
-      // 3. Player 1 Board at the bottom - calculated to fit with zero overlap
-      const p1TopAvailable = topSectionBottom + 40;
-      const p1BottomAvailable = liftBarTop - 8;
-      const availableP1H = Math.max(240, p1BottomAvailable - p1TopAvailable);
-      const availableP1W = width - 20;
-
-      const scaleByH = availableP1H / (BOARD_VISIBLE_HEIGHT * PANEL_SIZE);
-      const scaleByW = availableP1W / (BOARD_WIDTH * PANEL_SIZE);
-      this.playerBoardScale = Math.max(0.75, Math.min(1.4, scaleByW, scaleByH));
-
-      const p1BoardW = Math.round(BOARD_WIDTH * PANEL_SIZE * this.playerBoardScale);
-      const p1BoardH = Math.round(BOARD_VISIBLE_HEIGHT * PANEL_SIZE * this.playerBoardScale);
-      const p1X = Math.round((width - p1BoardW) / 2);
-      const p1Y = p1BottomAvailable - p1BoardH;
+      // 3. Player 1 Board at the bottom (Hero 60% viewport with 48px-56px touch targets)
+      this.playerBoardScale = vsLayout.playerGrid.scale;
+      const p1BoardW = vsLayout.playerGrid.width;
+      const p1BoardH = vsLayout.playerGrid.height;
+      const p1X = vsLayout.playerGrid.x;
+      const p1Y = vsLayout.playerGrid.y;
 
       this.boardP1X = p1X;
       this.boardP1Y = p1Y;
@@ -1755,10 +1748,18 @@ export default class GameScene extends Phaser.Scene {
     if (garbageWidth > 0) {
       this.triggerAvatarAttack(true);
       if ((this.gameMode === 'vs_cpu' || this.gameMode === 'challenge') && this.cpuBoard) {
-        this.cpuBoard.queueGarbage(garbageWidth, garbageHeight);
-        this.showAttackAlert(true, garbageHeight);
-        this.triggerAvatarHurt(false);
-        this.cameras.main.shake(100, 0.004);
+        // Animate ballistic arc vector traveling from attacker board to recipient queue
+        const startX = this.boardP1X + (BOARD_WIDTH * PANEL_SIZE * this.playerBoardScale) / 2;
+        const startY = this.boardP1Y;
+        const endX = this.boardP2X + (BOARD_WIDTH * PANEL_SIZE * this.cpuBoardScale) / 2;
+        const endY = this.boardP2Y - 12;
+
+        animateBallisticGarbageArc(this, startX, startY, endX, endY, event.comboSize, () => {
+          this.cpuBoard?.queueGarbage(garbageWidth, garbageHeight);
+          this.showAttackAlert(true, garbageHeight);
+          this.triggerAvatarHurt(false);
+          this.cameras.main.shake(100, 0.004);
+        });
       } else if (this.gameMode === 'vs_online' && this.socketMgr) {
         this.socketMgr.sendAction({
           type: 'attack',
@@ -1802,11 +1803,19 @@ export default class GameScene extends Phaser.Scene {
     }
 
     if (garbageWidth > 0) {
-      this.playerBoard.queueGarbage(garbageWidth, garbageHeight);
-      this.showAttackAlert(false, garbageHeight);
       this.triggerAvatarAttack(false);
-      this.triggerAvatarHurt(true);
-      this.cameras.main.shake(120, 0.005);
+      // Animate ballistic arc vector traveling from CPU board to player board
+      const startX = this.boardP2X + (BOARD_WIDTH * PANEL_SIZE * this.cpuBoardScale) / 2;
+      const startY = this.boardP2Y;
+      const endX = this.boardP1X + (BOARD_WIDTH * PANEL_SIZE * this.playerBoardScale) / 2;
+      const endY = this.boardP1Y - 12;
+
+      animateBallisticGarbageArc(this, startX, startY, endX, endY, event.comboSize, () => {
+        this.playerBoard.queueGarbage(garbageWidth, garbageHeight);
+        this.showAttackAlert(false, garbageHeight);
+        this.triggerAvatarHurt(true);
+        this.cameras.main.shake(120, 0.005);
+      });
     }
   }
 
