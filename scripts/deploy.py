@@ -20,7 +20,8 @@ HOST = os.environ.get('SSH_HOST')
 USER = os.environ.get('SSH_USER')
 PASS = os.environ.get('SSH_PASSWORD')
 PORT = int(os.environ.get('SSH_PORT', 22))
-REMOTE_DIR = os.environ.get('SSH_TARGET', '/home/dh_8jvcwd/dbas.aredpanic.com')
+REMOTE_DIR = os.environ.get('SSH_TARGET', f"/home/{USER}/dbas.aredpanic.com" if USER else "dbas.aredpanic.com")
+SERVER_DIR = os.environ.get('SSH_SERVER_DIR', f"/home/{USER}/server" if USER else "server")
 LOCAL_DIR = Path(__file__).resolve().parent.parent / 'dist'
 
 def upload_file_if_changed(sftp, local_file, remote_file, prefix=""):
@@ -118,18 +119,19 @@ def deploy():
     if server_bundle.exists():
         print(f"\nDeploying backend server {server_bundle}...", flush=True)
         try:
-            sftp.mkdir('/home/dh_8jvcwd/server')
+            sftp.mkdir(SERVER_DIR)
         except IOError:
             pass
-        if upload_file_if_changed(sftp, str(server_bundle), '/home/dh_8jvcwd/server/index.cjs', prefix="server: "):
+        remote_server_bundle = f"{SERVER_DIR}/index.cjs"
+        if upload_file_if_changed(sftp, str(server_bundle), remote_server_bundle, prefix="server: "):
             upload_count += 1
         # Restart backend server via keepalive and verify it is running
-        ssh.exec_command('pkill -f "node /home/dh_8jvcwd/server/index.cjs"')
+        ssh.exec_command(f'pkill -f "node {remote_server_bundle}"')
         import time
         time.sleep(2)
-        ssh.exec_command('/home/dh_8jvcwd/server/keepalive.sh')
+        ssh.exec_command(f'{SERVER_DIR}/keepalive.sh')
         time.sleep(2)
-        stdin, stdout, stderr = ssh.exec_command('pgrep -f "node /home/dh_8jvcwd/server/index.cjs"')
+        stdin, stdout, stderr = ssh.exec_command(f'pgrep -f "node {remote_server_bundle}"')
         server_pid = stdout.read().decode('utf-8').strip()
         print(f"Backend server running with PID: {server_pid}", flush=True)
 

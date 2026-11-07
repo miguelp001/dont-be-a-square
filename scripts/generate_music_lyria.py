@@ -17,7 +17,7 @@ if not api_key:
 
 client = genai.Client(api_key=api_key)
 
-output_dir = Path(r"d:\projects\Don't be a square\assets\audio\bgm")
+output_dir = Path(__file__).resolve().parent.parent / 'assets' / 'audio' / 'bgm'
 output_dir.mkdir(parents=True, exist_ok=True)
 
 TRACKS = [

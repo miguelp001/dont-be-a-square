@@ -3,13 +3,17 @@ node_modules/
 .pnp/
 .pnp.js
 
-# Build outputs
+# Build outputs & caches
 dist/
 dist-server/
 build/
 coverage/
+*.tsbuildinfo
+.vite/
+.parcel-cache/
+.turbo/
 
-# Logs
+# Logs & debugging
 logs/
 *.log
 npm-debug.log*
@@ -17,14 +21,43 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Environment files
+# Environment, secrets & credentials (Never commit!)
 .env
 .env.*
+*.env
 .env.deploy
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+credentials*.json
+client_secret*.json
+*secret*.json
+auth*.json
 
-# Editor & OS files
+# SSH & SSL/TLS private keys & certificates
+*.pem
+*.key
+*.keystore
+*.p12
+*.pfx
+*.cer
+*.crt
+id_rsa
+id_rsa*
+id_ed25519
+id_ed25519*
+known_hosts
+
+# Editor, IDE & OS files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
+desktop.ini
 .vscode/
 .idea/
 *.suo
@@ -32,6 +65,19 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+*~
+*.tmp
+*.bak
 
-# Private Prompts
+# Private project directories & prompt archives
 prompts/
+scratch/
+.user_uploaded/
+.gemini/
+.antigravity/
+
+# Generated test reports & benchmarks
+tests/e2e_stress_report.html
+tests/e2e_stress_report.json
+tests/engine_chain_test_results.json
+*.stress_report.*
