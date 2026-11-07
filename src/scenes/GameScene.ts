@@ -15,6 +15,7 @@ import { SoundFx } from '../utils/SoundFx';
 import { CuteUI } from '../utils/CuteUI';
 import { Settings, KeyBindings } from '../utils/Settings';
 import { GameDifficulty, getDifficultyInfo } from '../utils/Difficulty';
+import { RecordManager } from '../utils/DifficultyRecords';
 
 export default class GameScene extends Phaser.Scene {
   public gameMode: 'vs_cpu' | 'endless' | 'vs_online' | 'challenge' = 'challenge';
@@ -22,6 +23,7 @@ export default class GameScene extends Phaser.Scene {
   public opponentCharacterId: string = 'mizu';
   public defeatedOpponents: string[] = [];
   public difficulty: GameDifficulty = GameDifficulty.ADEPT;
+  private endlessBestText?: Phaser.GameObjects.Text;
 
   // Player 1
   private playerBoard!: Board;
@@ -691,12 +693,16 @@ export default class GameScene extends Phaser.Scene {
     this.playerBoard.on('dangerStart', () => {
       this.triggerAvatarHurt(true);
       this.updateDangerUI(true, true, this.playerBoard.dangerGraceDuration / 1000);
+      this.setBgmTension(true);
     });
     this.playerBoard.on('dangerPulse', (e: { remainingMs: number }) => {
       this.updateDangerUI(true, true, e.remainingMs / 1000);
     });
     this.playerBoard.on('dangerEnd', () => {
       this.updateDangerUI(true, false);
+      if (!this.cpuBoard?.isDanger) {
+        this.setBgmTension(false);
+      }
     });
     this.playerBoard.on('topOut', () => {
       if (this.gameMode === 'vs_online') {
@@ -727,6 +733,9 @@ export default class GameScene extends Phaser.Scene {
       });
       this.cpuBoard.on('dangerEnd', () => {
         this.updateDangerUI(false, false);
+        if (!this.playerBoard.isDanger) {
+          this.setBgmTension(false);
+        }
       });
       this.cpuBoard.on('topOut', () => this.endMatch('VICTORY!', true));
     }
@@ -909,6 +918,15 @@ export default class GameScene extends Phaser.Scene {
       strokeThickness: 2
     });
 
+    const bestScore = RecordManager.getEndlessHighScore(this.difficulty);
+    this.endlessBestText = this.add.text(-plaqueW / 2 + Math.round(175 * boardScaleRatio), -Math.round(8 * boardScaleRatio), `BEST: ${bestScore > 0 ? bestScore.toLocaleString() : '---'}`, {
+      fontSize: `${Math.round(10.5 * boardScaleRatio)}px`,
+      color: '#feca57',
+      fontStyle: 'bold',
+      stroke: '#3e2415',
+      strokeThickness: 2
+    });
+
     const clockIcon = this.add.image(plaqueW / 2 - Math.round(76 * boardScaleRatio), 0, 'wood_clock_icon');
     clockIcon.setDisplaySize(Math.round(18 * boardScaleRatio), Math.round(18 * boardScaleRatio));
 
@@ -920,7 +938,7 @@ export default class GameScene extends Phaser.Scene {
       strokeThickness: 2
     }).setOrigin(0.5);
 
-    header.add([sign, charBadge, this.playerScoreText, diffBadge, clockIcon, this.timeText]);
+    header.add([sign, charBadge, this.playerScoreText, diffBadge, this.endlessBestText, clockIcon, this.timeText]);
 
     this.playerChainText = this.add
       .text(boardX + boardW / 2, boardY + boardH / 2, '', {
@@ -992,12 +1010,14 @@ export default class GameScene extends Phaser.Scene {
     this.playerBoard.on('dangerStart', () => {
       this.triggerAvatarHurt(true);
       this.updateDangerUI(true, true, this.playerBoard.dangerGraceDuration / 1000);
+      this.setBgmTension(true);
     });
     this.playerBoard.on('dangerPulse', (e: { remainingMs: number }) => {
       this.updateDangerUI(true, true, e.remainingMs / 1000);
     });
     this.playerBoard.on('dangerEnd', () => {
       this.updateDangerUI(true, false);
+      this.setBgmTension(false);
     });
     this.playerBoard.on('topOut', () => this.endMatch('TOP OUT!', false));
 
@@ -1809,6 +1829,11 @@ export default class GameScene extends Phaser.Scene {
     this.playerScore += event.scoreGained;
     this.playerScoreText.setText(`SCORE: ${this.playerScore}`);
 
+    if (this.gameMode === 'endless' && this.endlessBestText) {
+      const best = Math.max(RecordManager.getEndlessHighScore(this.difficulty), this.playerScore);
+      this.endlessBestText.setText(`BEST: ${best.toLocaleString()}`);
+    }
+
     if (this.playerMascot && (event.comboSize >= 4 || event.chainLevel > 1)) {
       this.tweens.add({
         targets: this.playerMascot,
@@ -2230,8 +2255,27 @@ export default class GameScene extends Phaser.Scene {
       }
     }
 
+    let isNewRecord = false;
+    let previousBest = 0;
     const isChampion = this.gameMode === 'challenge' && this.defeatedOpponents.length >= 7;
-    const finalBanner = isChampion ? 'CHAMPION!' : bannerText;
+
+    if (this.gameMode === 'endless') {
+      const res = RecordManager.recordEndlessScore(this.difficulty, this.playerScore);
+      isNewRecord = res.isNewRecord;
+      previousBest = res.previousRecord;
+      if (isNewRecord) {
+        SoundFx.playVictory();
+      }
+    } else if (isChampion) {
+      const elapsedSeconds = Math.max(1, 240 - this.gameTime);
+      RecordManager.recordChallengeClear(this.difficulty, this.characterId, elapsedSeconds);
+    }
+
+    const finalBanner = isChampion
+      ? 'CHAMPION! 👑'
+      : (this.gameMode === 'endless' && isNewRecord)
+      ? 'NEW RECORD! 🏆'
+      : bannerText;
 
     // Create Game Over Modal Container at Depth 200 (guaranteed on top of boards, frames, and cursors)
     this.gameOverModalContainer = this.add.container(width / 2, height / 2);
@@ -2250,7 +2294,7 @@ export default class GameScene extends Phaser.Scene {
     const halfH = cardH / 2;
 
     const box = this.add.graphics();
-    const borderColor = isChampion ? 0xfeca57 : isVictory ? 0x2ed573 : 0xff4757;
+    const borderColor = isChampion || (this.gameMode === 'endless' && isNewRecord) ? 0xfeca57 : isVictory ? 0x2ed573 : 0xff4757;
     box.fillStyle(0x181028, 0.98);
     box.fillRoundedRect(-halfW, -halfH, cardW, cardH, Math.round(20 * uiScale));
     box.lineStyle(Math.round(3 * uiScale), borderColor, 1);
@@ -2261,7 +2305,7 @@ export default class GameScene extends Phaser.Scene {
     box.strokeLineShape(new Phaser.Geom.Line(-halfW + Math.round(24 * uiScale), -halfH + Math.round(68 * uiScale), halfW - Math.round(24 * uiScale), -halfH + Math.round(68 * uiScale)));
 
     // 3. Banner Title
-    const titleColor = isChampion ? '#feca57' : isVictory ? '#2ed573' : '#ff4757';
+    const titleColor = isChampion || (this.gameMode === 'endless' && isNewRecord) ? '#feca57' : isVictory ? '#2ed573' : '#ff4757';
     const titleText = this.add.text(0, -halfH + Math.round(38 * uiScale), finalBanner, {
       fontSize: `${Math.round(34 * uiScale)}px`,
       color: titleColor,
@@ -2294,10 +2338,17 @@ export default class GameScene extends Phaser.Scene {
 
     // 5. Score summary pill
     const diffInfo = getDifficultyInfo(this.difficulty);
-    const scoreSummary =
-      this.gameMode === 'endless'
-        ? `[${diffInfo.badgeText}]  Score: ${this.playerScore.toLocaleString()}`
-        : `[${diffInfo.badgeText}]  You: ${this.playerScore.toLocaleString()}  |  Opponent: ${this.cpuScore.toLocaleString()}`;
+    let scoreSummary = '';
+    if (this.gameMode === 'endless') {
+      if (isNewRecord && previousBest > 0) {
+        scoreSummary = `🏆 NEW BEST: ${this.playerScore.toLocaleString()} (Prev: ${previousBest.toLocaleString()})`;
+      } else {
+        const best = RecordManager.getEndlessHighScore(this.difficulty);
+        scoreSummary = `[${diffInfo.badgeText}] Score: ${this.playerScore.toLocaleString()}  |  Best: ${best.toLocaleString()}`;
+      }
+    } else {
+      scoreSummary = `[${diffInfo.badgeText}]  You: ${this.playerScore.toLocaleString()}  |  Opponent: ${this.cpuScore.toLocaleString()}`;
+    }
 
     const scoreBox = this.add.graphics();
     scoreBox.fillStyle(0x0d071c, 0.92);
@@ -2504,5 +2555,21 @@ export default class GameScene extends Phaser.Scene {
       duration: 320,
       ease: 'Back.easeOut'
     });
+  }
+
+  private setBgmTension(active: boolean): void {
+    if (this.cache.audio.exists('battle_cpu')) {
+      const bgm = this.sound.get('battle_cpu');
+      if (bgm && bgm.isPlaying) {
+        const targetRate = active
+          ? (this.difficulty === GameDifficulty.GRANDMASTER ? 1.22 : this.difficulty === GameDifficulty.MASTER ? 1.15 : 1.10)
+          : 1.0;
+        this.tweens.add({
+          targets: bgm,
+          rate: targetRate,
+          duration: 350
+        });
+      }
+    }
   }
 }

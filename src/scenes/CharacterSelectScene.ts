@@ -5,6 +5,7 @@ import { CuteUI } from '../utils/CuteUI';
 import { Settings } from '../utils/Settings';
 import { SoundFx } from '../utils/SoundFx';
 import { GameDifficulty, DIFFICULTY_ORDER, getDifficultyInfo } from '../utils/Difficulty';
+import { RecordManager } from '../utils/DifficultyRecords';
 
 export default class CharacterSelectScene extends Phaser.Scene {
   private mode: string = 'challenge';
@@ -14,6 +15,7 @@ export default class CharacterSelectScene extends Phaser.Scene {
   private charText!: Phaser.GameObjects.Text;
   private diffCenterText?: Phaser.GameObjects.Text;
   private diffDescText?: Phaser.GameObjects.Text;
+  private diffRecordText?: Phaser.GameObjects.Text;
   private padRepeatTimer: number = 0;
   private prevPadButtons: Map<number, boolean> = new Map();
   
@@ -136,9 +138,18 @@ export default class CharacterSelectScene extends Phaser.Scene {
       this.cycleDifficulty(1);
     }, { textureKey: 'pill_blue', width: arrowW, height: isMobile ? 32 : Math.round(36 * uiScale), fontSize: `${Math.round((isMobile ? 13 : 15) * uiScale)}px`, autoScale: false });
 
-    this.diffDescText = this.add.text(width / 2, diffDescY, '', {
+    this.diffDescText = this.add.text(width / 2, diffDescY - (isMobile ? 4 : 5), '', {
       fontSize: `${Math.round((isMobile ? 10 : 11) * uiScale)}px`,
       color: '#54a0ff',
+      align: 'center',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 2
+    }).setOrigin(0.5);
+
+    this.diffRecordText = this.add.text(width / 2, diffDescY + (isMobile ? 10 : 12), '', {
+      fontSize: `${Math.round((isMobile ? 9.5 : 10.5) * uiScale)}px`,
+      color: '#feca57',
       align: 'center',
       fontStyle: 'bold',
       stroke: '#000000',
@@ -285,6 +296,25 @@ export default class CharacterSelectScene extends Phaser.Scene {
     if (this.diffDescText) {
       this.diffDescText.setText(info.description);
       this.diffDescText.setColor(info.hexColor);
+    }
+    if (this.diffRecordText) {
+      if (this.mode === 'endless') {
+        const best = RecordManager.getEndlessHighScore(this.selectedDifficulty);
+        this.diffRecordText.setText(best > 0 ? `🏆 Personal Best: ${best.toLocaleString()} pts` : 'No score record yet');
+        this.diffRecordText.setColor('#feca57');
+      } else {
+        const clearRec = RecordManager.getChallengeClear(this.selectedDifficulty);
+        if (clearRec.cleared) {
+          const m = Math.floor(clearRec.bestTimeSeconds / 60);
+          const s = clearRec.bestTimeSeconds % 60;
+          const timeStr = m > 0 ? `${m}m ${s < 10 ? '0' : ''}${s}s` : `${s}s`;
+          this.diffRecordText.setText(`👑 Conquered! (Fastest Clear: ${timeStr})`);
+          this.diffRecordText.setColor('#2ed573');
+        } else {
+          this.diffRecordText.setText('⭐ Unconquered (Defeat all 7 rivals to claim Crown)');
+          this.diffRecordText.setColor('#c8d6e5');
+        }
+      }
     }
   }
 

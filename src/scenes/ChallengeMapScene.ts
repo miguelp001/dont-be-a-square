@@ -5,6 +5,7 @@ import { SoundFx } from '../utils/SoundFx';
 import { CuteUI } from '../utils/CuteUI';
 import { Settings } from '../utils/Settings';
 import { GameDifficulty, getDifficultyInfo } from '../utils/Difficulty';
+import { RecordManager } from '../utils/DifficultyRecords';
 
 export default class ChallengeMapScene extends Phaser.Scene {
   public characterId: string = 'kiri';
@@ -580,8 +581,21 @@ export default class ChallengeMapScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
+    const diffInfo = getDifficultyInfo(this.difficulty);
+    RecordManager.recordChallengeClear(this.difficulty, playerChar.id, 0);
+
+    this.add
+      .text(width / 2, isMobile ? 138 : Math.round(195 * uiScale), `👑 CONQUERED ON [${diffInfo.badgeText}] DIFFICULTY! 👑`, {
+        fontSize: isMobile ? '11px' : Math.round(14 * uiScale) + 'px',
+        color: diffInfo.hexColor,
+        fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 2
+      })
+      .setOrigin(0.5);
+
     // Champion Portrait
-    const avatar = this.add.image(width / 2, isMobile ? 180 : Math.round(235 * uiScale), playerChar.id);
+    const avatar = this.add.image(width / 2, isMobile ? 186 : Math.round(245 * uiScale), playerChar.id);
     const champSize = isMobile ? 64 : Math.round(80 * uiScale);
     avatar.setDisplaySize(champSize, champSize);
 
