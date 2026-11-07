@@ -1,12 +1,15 @@
 import Board from './Board';
 import Cursor from './Cursor';
 import { BOARD_WIDTH, BOARD_VISIBLE_HEIGHT } from '../utils/Constants';
+import { GameDifficulty, getDifficultyInfo } from '../utils/Difficulty';
 
-export enum AIDifficulty {
-  EASY = 'EASY',
-  NORMAL = 'NORMAL',
-  HARD = 'HARD'
-}
+export type AIDifficulty = GameDifficulty;
+export const AIDifficulty = {
+  ...GameDifficulty,
+  EASY: GameDifficulty.NOVICE,
+  NORMAL: GameDifficulty.ADEPT,
+  HARD: GameDifficulty.EXPERT
+};
 
 export interface AIPersonality {
   id: string;
@@ -212,25 +215,14 @@ export default class AIBot {
   }
 
   private recomputeActionInterval(): void {
-    let interval = this.personality.baseInterval;
-
-    switch (this.difficulty) {
-      case AIDifficulty.EASY:
-        interval *= 1.45;
-        break;
-      case AIDifficulty.NORMAL:
-        interval *= 1.0;
-        break;
-      case AIDifficulty.HARD:
-        interval *= 0.72;
-        break;
-    }
+    const diffInfo = getDifficultyInfo(this.difficulty);
+    let interval = this.personality.baseInterval * diffInfo.aiIntervalMultiplier;
 
     if (this.board.isDanger) {
-      interval /= this.personality.panicSpeedup;
+      interval /= (this.personality.panicSpeedup * diffInfo.aiPanicSpeedup);
     }
 
-    this.actionInterval = Math.max(90, interval);
+    this.actionInterval = Math.max(70, interval);
   }
 
   public update(delta: number): void {
@@ -267,7 +259,8 @@ export default class AIBot {
   }
 
   private updateOffensiveLift(delta: number): void {
-    let freq = this.personality.liftFrequency;
+    const diffInfo = getDifficultyInfo(this.difficulty);
+    let freq = this.personality.liftFrequency * diffInfo.aiLiftFrequencyMultiplier;
 
     // Salty's opportunism: If opponent is in danger, surge attacks!
     if (this.personality.id === 'salty' && this.opponentBoard?.isDanger) {
@@ -289,6 +282,10 @@ export default class AIBot {
   }
 
   private step(): void {
+    const diffInfo = getDifficultyInfo(this.difficulty);
+    const effectiveIndecisiveness = this.personality.indecisiveness * (diffInfo.aiIndecisiveness / 0.08);
+    const effectiveJitter = this.personality.jitterChance * (diffInfo.aiJitterChance / 0.08);
+
     // 1. Stack Management
     if (this.board.isDanger) {
       this.board.setLifting(false);
@@ -311,7 +308,7 @@ export default class AIBot {
     }
 
     // 2. Indecisiveness mechanic: Chance to abandon current target and change mind
-    if (this.targetMove && Math.random() < this.personality.indecisiveness) {
+    if (this.targetMove && Math.random() < effectiveIndecisiveness) {
       this.targetMove = null; // Changed mind!
     }
 
@@ -336,8 +333,8 @@ export default class AIBot {
         this.targetMove = null;
       }
     } else {
-      // Idle wander / jitter based on personality
-      if (Math.random() < this.personality.jitterChance) {
+      // Idle wander / jitter based on personality and difficulty tier
+      if (Math.random() < effectiveJitter) {
         const rand = Math.random();
         if (rand < 0.35) this.cursor.moveLeft();
         else if (rand < 0.70) this.cursor.moveRight();
@@ -345,7 +342,7 @@ export default class AIBot {
         else this.cursor.moveDown();
 
         // Mocha / Volt jitter swap: occasionally swap randomly while wandering
-        if (Math.random() < this.personality.jitterChance * 0.6) {
+        if (Math.random() < effectiveJitter * 0.6) {
           this.board.swap(this.cursor.gridX, this.cursor.gridY);
         }
       }
@@ -426,13 +423,14 @@ export default class AIBot {
       }
     }
 
-    // Cascade / Chain Potential evaluation (Weighted by personality chainBias: Mizu, Poppy)
+    // Cascade / Chain Potential evaluation (Weighted by personality chainBias and difficulty tier: Mizu, Poppy)
     if (score > 0 && y > 1) {
+      const diffInfo = getDifficultyInfo(this.difficulty);
       // Check if panels above will drop and create a secondary match
       const aboveLeft = this.board.getPanelAt(x, y - 1);
       const aboveRight = this.board.getPanelAt(x + 1, y - 1);
       if (aboveLeft || aboveRight) {
-        score += 350 * this.personality.chainBias;
+        score += 350 * this.personality.chainBias * diffInfo.aiChainBiasMultiplier;
       }
     }
 

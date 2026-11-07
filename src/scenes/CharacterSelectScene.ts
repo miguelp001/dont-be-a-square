@@ -4,12 +4,16 @@ import { AI_PERSONALITIES } from '../objects/AIBot';
 import { CuteUI } from '../utils/CuteUI';
 import { Settings } from '../utils/Settings';
 import { SoundFx } from '../utils/SoundFx';
+import { GameDifficulty, DIFFICULTY_ORDER, getDifficultyInfo } from '../utils/Difficulty';
 
 export default class CharacterSelectScene extends Phaser.Scene {
   private mode: string = 'challenge';
   private selectedIndex: number = 0;
+  private selectedDifficulty: GameDifficulty = Settings.difficulty || GameDifficulty.ADEPT;
   private charSprites: Phaser.GameObjects.Sprite[] = [];
   private charText!: Phaser.GameObjects.Text;
+  private diffCenterText?: Phaser.GameObjects.Text;
+  private diffDescText?: Phaser.GameObjects.Text;
   private padRepeatTimer: number = 0;
   private prevPadButtons: Map<number, boolean> = new Map();
   
@@ -86,15 +90,17 @@ export default class CharacterSelectScene extends Phaser.Scene {
     });
     
     // Responsive button and info positioning
-    const safeBottom = height - (isMobile ? 24 : Math.round(52 * Math.min(1.3, uiScale)));
-    const btnSpacing = isMobile ? 44 : Math.round(52 * uiScale);
-    const backBtnY = isMobile ? Math.min(safeBottom, height - 32) : Math.min(safeBottom, Math.max(464, height * 0.85));
+    const safeBottom = height - (isMobile ? 22 : Math.round(44 * Math.min(1.3, uiScale)));
+    const btnSpacing = isMobile ? 38 : Math.round(46 * uiScale);
+    const backBtnY = isMobile ? Math.min(safeBottom, height - 26) : Math.min(safeBottom, Math.max(470, height * 0.88));
     const startBtnY = backBtnY - btnSpacing;
-    const charTextY = Math.max(startGridY + rowSpacing + 42, startBtnY - (isMobile ? 48 : Math.round(62 * uiScale)));
+    const diffBtnY = startBtnY - (isMobile ? 50 : Math.round(54 * uiScale));
+    const diffDescY = diffBtnY + (isMobile ? 22 : Math.round(24 * uiScale));
+    const charTextY = Math.max(startGridY + rowSpacing + 36, (startGridY + rowSpacing + 42 + diffBtnY) / 2);
 
     // Character info
     this.charText = this.add.text(width / 2, charTextY, '', {
-      fontSize: `${Math.round((isMobile ? 12 : 13) * uiScale)}px`,
+      fontSize: `${Math.round((isMobile ? 11.5 : 13) * uiScale)}px`,
       color: '#ffffff',
       align: 'center',
       stroke: '#000000',
@@ -107,8 +113,39 @@ export default class CharacterSelectScene extends Phaser.Scene {
     
     // Action buttons
     const btnW = isMobile ? Math.min(220, width - 40) : Math.round(240 * uiScale);
-    const btnH = isMobile ? 38 : Math.round(44 * uiScale);
-    const btnFont = `${Math.round((isMobile ? 13 : 15) * uiScale)}px`;
+    const btnH = isMobile ? 36 : Math.round(42 * uiScale);
+    const btnFont = `${Math.round((isMobile ? 12.5 : 14.5) * uiScale)}px`;
+
+    // Difficulty Selector Row
+    const diffBtnW = isMobile ? Math.min(260, width - 36) : Math.round(280 * uiScale);
+    const arrowW = isMobile ? 36 : Math.round(40 * uiScale);
+    const centerW = diffBtnW - (arrowW * 2) - 8;
+    const diffFont = `${Math.round((isMobile ? 11 : 12.5) * uiScale)}px`;
+
+    CuteUI.createPillButton(this, (width / 2) - (diffBtnW / 2) + (arrowW / 2), diffBtnY, '◀', () => {
+      this.cycleDifficulty(-1);
+    }, { textureKey: 'pill_blue', width: arrowW, height: isMobile ? 32 : Math.round(36 * uiScale), fontSize: `${Math.round((isMobile ? 13 : 15) * uiScale)}px`, autoScale: false });
+
+    const centerPill = CuteUI.createPillButton(this, width / 2, diffBtnY, '', () => {
+      this.cycleDifficulty(1);
+    }, { textureKey: 'pill_pink', width: centerW, height: isMobile ? 32 : Math.round(36 * uiScale), fontSize: diffFont, autoScale: false });
+
+    this.diffCenterText = centerPill.list.find((c) => c instanceof Phaser.GameObjects.Text) as Phaser.GameObjects.Text;
+
+    CuteUI.createPillButton(this, (width / 2) + (diffBtnW / 2) - (arrowW / 2), diffBtnY, '▶', () => {
+      this.cycleDifficulty(1);
+    }, { textureKey: 'pill_blue', width: arrowW, height: isMobile ? 32 : Math.round(36 * uiScale), fontSize: `${Math.round((isMobile ? 13 : 15) * uiScale)}px`, autoScale: false });
+
+    this.diffDescText = this.add.text(width / 2, diffDescY, '', {
+      fontSize: `${Math.round((isMobile ? 10 : 11) * uiScale)}px`,
+      color: '#54a0ff',
+      align: 'center',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 2
+    }).setOrigin(0.5);
+
+    this.updateDifficultyDisplay();
 
     CuteUI.createPillButton(this, width / 2, startBtnY, 'START GAME', () => {
       this.startGame();
@@ -138,6 +175,10 @@ export default class CharacterSelectScene extends Phaser.Scene {
     this.input.keyboard!.on('keydown-W', () => moveSelection(0, -1));
     this.input.keyboard!.on('keydown-DOWN', () => moveSelection(0, 1));
     this.input.keyboard!.on('keydown-S', () => moveSelection(0, 1));
+
+    // Difficulty shortcuts
+    this.input.keyboard!.on('keydown-Q', () => this.cycleDifficulty(-1));
+    this.input.keyboard!.on('keydown-E', () => this.cycleDifficulty(1));
 
     this.input.keyboard!.on('keydown-ENTER', () => this.startGame());
     this.input.keyboard!.on('keydown-SPACE', () => this.startGame());
@@ -210,14 +251,57 @@ export default class CharacterSelectScene extends Phaser.Scene {
       this.scene.start('MenuScene');
     }
     this.prevPadButtons.set(1, backDown);
+
+    // Shoulder buttons (L1/R1 or LB/RB) cycle difficulty
+    const l1Down = pad.isButtonDown(4);
+    const prevL1 = this.prevPadButtons.get(4) || false;
+    if (l1Down && !prevL1) {
+      this.cycleDifficulty(-1);
+    }
+    this.prevPadButtons.set(4, l1Down);
+
+    const r1Down = pad.isButtonDown(5);
+    const prevR1 = this.prevPadButtons.get(5) || false;
+    if (r1Down && !prevR1) {
+      this.cycleDifficulty(1);
+    }
+    this.prevPadButtons.set(5, r1Down);
+  }
+
+  private cycleDifficulty(delta: number): void {
+    const currentIndex = DIFFICULTY_ORDER.indexOf(this.selectedDifficulty);
+    const newIndex = (currentIndex + delta + DIFFICULTY_ORDER.length) % DIFFICULTY_ORDER.length;
+    this.selectedDifficulty = DIFFICULTY_ORDER[newIndex];
+    Settings.setDifficulty(this.selectedDifficulty);
+    SoundFx.playCursor();
+    this.updateDifficultyDisplay();
+  }
+
+  private updateDifficultyDisplay(): void {
+    const info = getDifficultyInfo(this.selectedDifficulty);
+    if (this.diffCenterText) {
+      this.diffCenterText.setText(`DIFFICULTY: ${info.name.toUpperCase()}`);
+    }
+    if (this.diffDescText) {
+      this.diffDescText.setText(info.description);
+      this.diffDescText.setColor(info.hexColor);
+    }
   }
 
   private startGame(): void {
     const selectedChar = CHARACTERS[this.selectedIndex];
     if (this.mode === 'endless') {
-      this.scene.start('GameScene', { mode: 'endless', characterId: selectedChar.id });
+      this.scene.start('GameScene', {
+        mode: 'endless',
+        characterId: selectedChar.id,
+        difficulty: this.selectedDifficulty
+      });
     } else {
-      this.scene.start('ChallengeMapScene', { characterId: selectedChar.id, defeatedOpponents: [] });
+      this.scene.start('ChallengeMapScene', {
+        characterId: selectedChar.id,
+        defeatedOpponents: [],
+        difficulty: this.selectedDifficulty
+      });
     }
   }
   

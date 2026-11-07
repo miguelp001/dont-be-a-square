@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { SoundFx } from './SoundFx';
+import { GameDifficulty } from './Difficulty';
 
 export interface KeyBindings {
   moveUp: string;
@@ -26,6 +27,7 @@ export class Settings {
   public static musicVolume: number = 0.6; // 0.0 to 1.0
   public static sfxVolume: number = 0.6;   // 0.0 to 1.0
   public static keyBindings: KeyBindings = { ...DEFAULT_KEYBINDINGS };
+  public static difficulty: GameDifficulty = GameDifficulty.ADEPT;
 
   public static load(scene?: Phaser.Scene): void {
     try {
@@ -44,6 +46,9 @@ export class Settings {
             ...parsed.keyBindings
           };
         }
+        if (parsed.difficulty && Object.values(GameDifficulty).includes(parsed.difficulty)) {
+          this.difficulty = parsed.difficulty;
+        }
       }
     } catch (e) {
       console.warn('Failed to load settings from localStorage:', e);
@@ -58,12 +63,18 @@ export class Settings {
         JSON.stringify({
           musicVolume: this.musicVolume,
           sfxVolume: this.sfxVolume,
-          keyBindings: this.keyBindings
+          keyBindings: this.keyBindings,
+          difficulty: this.difficulty
         })
       );
     } catch (e) {
       console.warn('Failed to save settings to localStorage:', e);
     }
+  }
+
+  public static setDifficulty(diff: GameDifficulty): void {
+    this.difficulty = diff;
+    this.save();
   }
 
   public static setKeyBinding(action: keyof KeyBindings, key: string): void {

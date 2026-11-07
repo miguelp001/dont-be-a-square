@@ -4,10 +4,12 @@ import { AI_PERSONALITIES } from '../objects/AIBot';
 import { SoundFx } from '../utils/SoundFx';
 import { CuteUI } from '../utils/CuteUI';
 import { Settings } from '../utils/Settings';
+import { GameDifficulty, getDifficultyInfo } from '../utils/Difficulty';
 
 export default class ChallengeMapScene extends Phaser.Scene {
   public characterId: string = 'kiri';
   public defeatedOpponents: string[] = [];
+  public difficulty: GameDifficulty = GameDifficulty.ADEPT;
 
   private selectedIndex: number = 0;
   private selectableItems: {
@@ -24,6 +26,7 @@ export default class ChallengeMapScene extends Phaser.Scene {
   init(data: any): void {
     this.characterId = data?.characterId || 'kiri';
     this.defeatedOpponents = data?.defeatedOpponents || [];
+    this.difficulty = data?.difficulty || Settings.difficulty || GameDifficulty.ADEPT;
   }
 
   create(): void {
@@ -61,11 +64,12 @@ export default class ChallengeMapScene extends Phaser.Scene {
     });
     title.setOrigin(0.5);
 
-    // Subtitle instruction
+    // Subtitle instruction with Difficulty Badge
+    const diffInfo = getDifficultyInfo(this.difficulty);
     this.add
-      .text(width / 2, isMobile ? 46 : Math.round(54 * uiScale), 'Defeat all 7 challengers in any order to claim the crown!', {
+      .text(width / 2, isMobile ? 46 : Math.round(54 * uiScale), `[${diffInfo.badgeText}] • Defeat all 7 challengers in any order to claim the crown!`, {
         fontSize: isMobile ? '10px' : Math.round(11 * uiScale) + 'px',
-        color: '#c8d6e5',
+        color: diffInfo.hexColor,
         stroke: '#000000',
         strokeThickness: 2
       })
@@ -460,7 +464,8 @@ export default class ChallengeMapScene extends Phaser.Scene {
         mode: 'challenge',
         characterId: this.characterId,
         opponentCharacterId: char.id,
-        defeatedOpponents: this.defeatedOpponents
+        defeatedOpponents: this.defeatedOpponents,
+        difficulty: this.difficulty
       });
     };
 

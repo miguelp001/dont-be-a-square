@@ -13,6 +13,7 @@ import {
 } from '../utils/Constants';
 import { randomInt } from '../utils/Helpers';
 import { SoundFx } from '../utils/SoundFx';
+import { GameDifficulty, getDifficultyInfo } from '../utils/Difficulty';
 
 export interface MatchEvent {
   panels: Panel[];
@@ -49,6 +50,13 @@ export default class Board extends Phaser.Events.EventEmitter {
   public isTopOut: boolean = false;
   private dangerBeepTimer: number = 0;
 
+  /** 5-Step Difficulty settings */
+  public difficulty: GameDifficulty = GameDifficulty.ADEPT;
+  public colorCount: number = 5;
+  public riseSpeedMultiplier: number = 1.0;
+  public stopTimeMultiplier: number = 1.0;
+  public dangerGraceDuration: number = DANGER_GRACE_TIME;
+
   /** Input buffer queue (150ms window) so inputs during animations are never lost */
   public inputBuffer: { gridX: number; gridY: number; ttl: number }[] = [];
 
@@ -78,6 +86,17 @@ export default class Board extends Phaser.Events.EventEmitter {
     this.initializeBoard();
   }
 
+  /** Apply 5-step difficulty parameters to board physics and RNG */
+  public applyDifficulty(diff: GameDifficulty): void {
+    this.difficulty = diff;
+    const info = getDifficultyInfo(diff);
+    this.colorCount = info.colorCount;
+    this.riseSpeedMultiplier = info.baseRiseSpeedMultiplier;
+    this.stopTimeMultiplier = info.stopTimeMultiplier;
+    this.dangerGraceDuration = info.dangerGraceTimeMs;
+    this.dangerGraceTimer = this.dangerGraceDuration;
+  }
+
   private initializeBoard(): void {
     this.panels = [];
     this.garbageBlocks = [];
@@ -90,7 +109,7 @@ export default class Board extends Phaser.Events.EventEmitter {
   }
 
   /** Populate initial playing rows from bottom up without immediate matches */
-  public addInitialPanels(rows: number = 6): void {
+  public addInitialPanels(rows: number = 6, initialGarbageSlabs: number = 0): void {
     const startY = BOARD_VISIBLE_HEIGHT - 1;
     const endY = Math.max(1, BOARD_VISIBLE_HEIGHT - rows);
 
@@ -101,6 +120,13 @@ export default class Board extends Phaser.Events.EventEmitter {
         panel.setGridPosition(x, y);
         this.panels[y][x] = panel;
         this.container.add(panel);
+      }
+    }
+
+    // Spawn initial handicap garbage slabs on Master/Grandmaster difficulty
+    if (initialGarbageSlabs > 0) {
+      for (let s = 0; s < initialGarbageSlabs; s++) {
+        this.queueGarbage(BOARD_WIDTH, 1);
       }
     }
 
@@ -123,8 +149,9 @@ export default class Board extends Phaser.Events.EventEmitter {
   private getValidColor(x: number, y: number): number {
     let color: number;
     let attempts = 0;
+    const maxColor = Math.max(1, this.colorCount - 1);
     do {
-      color = randomInt(0, COLORS.COUNT - 1);
+      color = randomInt(0, maxColor);
       attempts++;
     } while (attempts < 15 && this.wouldCreateMatch(x, y, color));
     return color;
@@ -482,7 +509,7 @@ export default class Board extends Phaser.Events.EventEmitter {
     // Do NOT auto-rise while active cascades or clears are resolving
     if (this.isChainActive) return;
 
-    const currentSpeed = this.isLifting ? FAST_LIFT_SPEED : this.riseSpeed;
+    const currentSpeed = this.isLifting ? FAST_LIFT_SPEED : (this.riseSpeed * this.riseSpeedMultiplier);
     const deltaPixels = (currentSpeed * delta) / 1000;
     this.stackOffsetPixels += deltaPixels;
 
@@ -573,7 +600,7 @@ export default class Board extends Phaser.Events.EventEmitter {
     if (hasTopRowObstacle) {
       if (!this.isDanger) {
         this.isDanger = true;
-        this.dangerGraceTimer = DANGER_GRACE_TIME;
+        this.dangerGraceTimer = this.dangerGraceDuration;
         this.dangerBeepTimer = 0;
         this.emit('dangerStart');
       }
@@ -596,7 +623,7 @@ export default class Board extends Phaser.Events.EventEmitter {
     } else {
       if (this.isDanger) {
         this.isDanger = false;
-        this.dangerGraceTimer = DANGER_GRACE_TIME;
+        this.dangerGraceTimer = this.dangerGraceDuration;
         this.emit('dangerEnd');
       }
     }
@@ -611,7 +638,7 @@ export default class Board extends Phaser.Events.EventEmitter {
 
   public setLifting(lifting: boolean): void {
     if (this.isLifting && !lifting) {
-      this.stopTime = Math.max(this.stopTime, 280);
+      this.stopTime = Math.max(this.stopTime, Math.round(280 * this.stopTimeMultiplier));
     }
     this.isLifting = lifting;
   }
@@ -830,12 +857,13 @@ export default class Board extends Phaser.Events.EventEmitter {
     const chainBonus = this.activeChain > 1 ? (this.activeChain - 1) * 200 : 0;
     const totalScore = baseScore + comboBonus + chainBonus;
 
-    this.stopTime = 1800 + Math.min(comboSize * 250, 2500) + (this.activeChain > 1 ? 1400 : 0);
+    const rawStopTime = 1800 + Math.min(comboSize * 250, 2500) + (this.activeChain > 1 ? 1400 : 0);
+    this.stopTime = Math.round(rawStopTime * this.stopTimeMultiplier);
 
     if (this.isDanger) {
       // Matching while in danger awards bonus grace time and pauses danger!
-      this.dangerGraceTimer = Math.min(DANGER_GRACE_TIME, this.dangerGraceTimer + 2500);
-      this.stopTime = Math.max(this.stopTime, 2200);
+      this.dangerGraceTimer = Math.min(this.dangerGraceDuration, this.dangerGraceTimer + Math.round(2500 * this.stopTimeMultiplier));
+      this.stopTime = Math.max(this.stopTime, Math.round(2200 * this.stopTimeMultiplier));
     }
 
     if (this.activeChain > 1 || comboSize >= 4) {
@@ -891,8 +919,8 @@ export default class Board extends Phaser.Events.EventEmitter {
 
     if (blocksToTransform.size > 0 && this.isDanger) {
       // De-transforming garbage grants major survival recovery bonus!
-      this.dangerGraceTimer = Math.min(DANGER_GRACE_TIME, this.dangerGraceTimer + 3500);
-      this.stopTime = Math.max(this.stopTime, 2400);
+      this.dangerGraceTimer = Math.min(this.dangerGraceDuration, this.dangerGraceTimer + Math.round(3500 * this.stopTimeMultiplier));
+      this.stopTime = Math.max(this.stopTime, Math.round(2400 * this.stopTimeMultiplier));
     }
 
     for (const block of blocksToTransform) {
@@ -904,7 +932,7 @@ export default class Board extends Phaser.Events.EventEmitter {
             existing.destroy();
             this.panels[pos.gridY][pos.gridX] = null;
           }
-          const color = randomInt(0, COLORS.COUNT - 1);
+          const color = randomInt(0, Math.max(1, this.colorCount - 1));
           const panel = new Panel(this.scene, pos.gridX * PANEL_SIZE, pos.gridY * PANEL_SIZE, color);
           panel.setGridPosition(pos.gridX, pos.gridY);
           panel.chainEligible = true; // Enables counter-attacks!

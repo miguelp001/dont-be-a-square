@@ -14,12 +14,14 @@ import {
 import { SoundFx } from '../utils/SoundFx';
 import { CuteUI } from '../utils/CuteUI';
 import { Settings, KeyBindings } from '../utils/Settings';
+import { GameDifficulty, getDifficultyInfo } from '../utils/Difficulty';
 
 export default class GameScene extends Phaser.Scene {
   public gameMode: 'vs_cpu' | 'endless' | 'vs_online' | 'challenge' = 'challenge';
   public characterId: string = 'kiri';
   public opponentCharacterId: string = 'mizu';
   public defeatedOpponents: string[] = [];
+  public difficulty: GameDifficulty = GameDifficulty.ADEPT;
 
   // Player 1
   private playerBoard!: Board;
@@ -131,6 +133,9 @@ export default class GameScene extends Phaser.Scene {
     this.gameMode = data?.mode || 'challenge';
     this.characterId = data?.characterId || 'kiri';
     this.defeatedOpponents = data?.defeatedOpponents || [];
+    this.difficulty = this.gameMode === 'vs_online'
+      ? GameDifficulty.ADEPT
+      : (data?.difficulty || Settings.difficulty || GameDifficulty.ADEPT);
 
     if (this.gameMode === 'vs_online') {
       this.socketMgr = SocketManager.getInstance();
@@ -211,6 +216,7 @@ export default class GameScene extends Phaser.Scene {
     const p2Char = CHARACTERS.find((c) => c.id === this.opponentCharacterId) || CHARACTERS[1];
     const p2Label = this.gameMode === 'vs_online' ? 'P2' : 'CPU';
     const p2Color = 0x54a0ff;
+    const diffInfo = getDifficultyInfo(this.difficulty);
 
     if (isMobilePortrait) {
       // ===== PHASE 4 HERO & RADAR ASYMMETRIC MOBILE LAYOUT =====
@@ -235,7 +241,8 @@ export default class GameScene extends Phaser.Scene {
       this.cpuBorder.setDepth(21);
       this.drawBoardFrame(this.cpuBorder, p2X, p2Y, p2BoardW, p2BoardH, p2Color, false);
       this.cpuBoard = new Board(this, p2X, p2Y, this.cpuBoardScale);
-      this.cpuBoard.addInitialPanels(4);
+      this.cpuBoard.applyDifficulty(this.difficulty);
+      this.cpuBoard.addInitialPanels(Math.min(diffInfo.initialRows, 5), diffInfo.initialGarbageSlabs);
       this.cpuCursor = new Cursor(this, this.cpuBoard);
       this.cpuCursor.setStrokeStyle(3 * this.cpuBoardScale, p2Color);
 
@@ -356,7 +363,8 @@ export default class GameScene extends Phaser.Scene {
       this.playerBorder.setDepth(21);
       this.drawBoardFrame(this.playerBorder, p1X, p1Y, p1BoardW, p1BoardH, 0xff69b4, true);
       this.playerBoard = new Board(this, p1X, p1Y, this.playerBoardScale);
-      this.playerBoard.addInitialPanels(4);
+      this.playerBoard.applyDifficulty(this.difficulty);
+      this.playerBoard.addInitialPanels(Math.min(diffInfo.initialRows, 5), diffInfo.initialGarbageSlabs);
       this.playerCursor = new Cursor(this, this.playerBoard);
 
       // P1 Header Plaque above board
@@ -470,7 +478,8 @@ export default class GameScene extends Phaser.Scene {
       this.playerBorder.setDepth(21);
       this.drawBoardFrame(this.playerBorder, p1X, boardY, boardW, boardH, 0xff69b4, true);
       this.playerBoard = new Board(this, p1X, boardY, this.playerBoardScale);
-      this.playerBoard.addInitialPanels(4);
+      this.playerBoard.applyDifficulty(this.difficulty);
+      this.playerBoard.addInitialPanels(Math.min(diffInfo.initialRows, 5), diffInfo.initialGarbageSlabs);
       this.playerCursor = new Cursor(this, this.playerBoard);
 
       const p1PlaqueW = Math.min(boardW - 6, Math.round(280 * boardScaleRatio));
@@ -534,7 +543,8 @@ export default class GameScene extends Phaser.Scene {
       this.cpuBorder.setDepth(21);
       this.drawBoardFrame(this.cpuBorder, p2X, boardY, boardW, boardH, p2Color, false);
       this.cpuBoard = new Board(this, p2X, boardY, this.cpuBoardScale);
-      this.cpuBoard.addInitialPanels(4);
+      this.cpuBoard.applyDifficulty(this.difficulty);
+      this.cpuBoard.addInitialPanels(Math.min(diffInfo.initialRows, 5), diffInfo.initialGarbageSlabs);
       this.cpuCursor = new Cursor(this, this.cpuBoard);
       this.cpuCursor.setStrokeStyle(3 * this.cpuBoardScale, p2Color);
 
@@ -636,7 +646,7 @@ export default class GameScene extends Phaser.Scene {
       this.cpuBot = new AIBot(
         this.cpuBoard!,
         this.cpuCursor!,
-        AIDifficulty.NORMAL,
+        this.difficulty,
         this.opponentCharacterId,
         this.playerBoard
       );
@@ -656,7 +666,7 @@ export default class GameScene extends Phaser.Scene {
     this.playerBoard.on('chainEnd', () => this.playerChainText.setText(''));
     this.playerBoard.on('dangerStart', () => {
       this.triggerAvatarHurt(true);
-      this.updateDangerUI(true, true, 6.5);
+      this.updateDangerUI(true, true, this.playerBoard.dangerGraceDuration / 1000);
     });
     this.playerBoard.on('dangerPulse', (e: { remainingMs: number }) => {
       this.updateDangerUI(true, true, e.remainingMs / 1000);
@@ -686,7 +696,7 @@ export default class GameScene extends Phaser.Scene {
       this.cpuBoard.on('chainEnd', () => this.cpuChainText?.setText(''));
       this.cpuBoard.on('dangerStart', () => {
         this.triggerAvatarHurt(false);
-        this.updateDangerUI(false, true, 6.5);
+        this.updateDangerUI(false, true, this.cpuBoard!.dangerGraceDuration / 1000);
       });
       this.cpuBoard.on('dangerPulse', (e: { remainingMs: number }) => {
         this.updateDangerUI(false, true, e.remainingMs / 1000);
@@ -832,7 +842,9 @@ export default class GameScene extends Phaser.Scene {
     this.drawBoardFrame(this.playerBorder, boardX, boardY, boardW, boardH, 0xff69b4, true);
 
     this.playerBoard = new Board(this, boardX, boardY, this.playerBoardScale);
-    this.playerBoard.addInitialPanels(5);
+    this.playerBoard.applyDifficulty(this.difficulty);
+    const diffInfo = getDifficultyInfo(this.difficulty);
+    this.playerBoard.addInitialPanels(diffInfo.initialRows, diffInfo.initialGarbageSlabs);
     this.playerCursor = new Cursor(this, this.playerBoard);
 
     const charData = CHARACTERS.find((c) => c.id === this.characterId) || CHARACTERS[0];
@@ -947,7 +959,7 @@ export default class GameScene extends Phaser.Scene {
     this.playerBoard.on('chainEnd', () => this.playerChainText.setText(''));
     this.playerBoard.on('dangerStart', () => {
       this.triggerAvatarHurt(true);
-      this.updateDangerUI(true, true, 6.5);
+      this.updateDangerUI(true, true, this.playerBoard.dangerGraceDuration / 1000);
     });
     this.playerBoard.on('dangerPulse', (e: { remainingMs: number }) => {
       this.updateDangerUI(true, true, e.remainingMs / 1000);
@@ -2249,10 +2261,11 @@ export default class GameScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     // 5. Score summary pill
+    const diffInfo = getDifficultyInfo(this.difficulty);
     const scoreSummary =
       this.gameMode === 'endless'
-        ? `Final Score: ${this.playerScore.toLocaleString()}`
-        : `You: ${this.playerScore.toLocaleString()}   |   Opponent: ${this.cpuScore.toLocaleString()}`;
+        ? `[${diffInfo.badgeText}]  Score: ${this.playerScore.toLocaleString()}`
+        : `[${diffInfo.badgeText}]  You: ${this.playerScore.toLocaleString()}  |  Opponent: ${this.cpuScore.toLocaleString()}`;
 
     const scoreBox = this.add.graphics();
     scoreBox.fillStyle(0x0d071c, 0.92);
@@ -2283,7 +2296,8 @@ export default class GameScene extends Phaser.Scene {
         const claimBtn = CuteUI.createPillButton(this, 0, startBtnY, 'CLAIM CHAMPION CROWN 🏆', () => {
           this.scene.start('ChallengeMapScene', {
             characterId: this.characterId,
-            defeatedOpponents: this.defeatedOpponents
+            defeatedOpponents: this.defeatedOpponents,
+            difficulty: this.difficulty
           });
         }, { textureKey: 'pill_pink', fontSize: btnFont, width: btnW, height: btnH, autoScale: false });
 
@@ -2293,14 +2307,15 @@ export default class GameScene extends Phaser.Scene {
 
         this.gameOverButtons = [claimBtn, menuBtn];
         this.gameOverActions = [
-          () => this.scene.start('ChallengeMapScene', { characterId: this.characterId, defeatedOpponents: this.defeatedOpponents }),
+          () => this.scene.start('ChallengeMapScene', { characterId: this.characterId, defeatedOpponents: this.defeatedOpponents, difficulty: this.difficulty }),
           () => this.scene.start('MenuScene')
         ];
       } else if (isVictory) {
         const nextBtn = CuteUI.createPillButton(this, 0, startBtnY, `NEXT CHALLENGER (${this.defeatedOpponents.length}/7)`, () => {
           this.scene.start('ChallengeMapScene', {
             characterId: this.characterId,
-            defeatedOpponents: this.defeatedOpponents
+            defeatedOpponents: this.defeatedOpponents,
+            difficulty: this.difficulty
           });
         }, { textureKey: 'pill_green', fontSize: btnFont, width: btnW, height: btnH, autoScale: false });
 
@@ -2310,7 +2325,7 @@ export default class GameScene extends Phaser.Scene {
 
         this.gameOverButtons = [nextBtn, menuBtn];
         this.gameOverActions = [
-          () => this.scene.start('ChallengeMapScene', { characterId: this.characterId, defeatedOpponents: this.defeatedOpponents }),
+          () => this.scene.start('ChallengeMapScene', { characterId: this.characterId, defeatedOpponents: this.defeatedOpponents, difficulty: this.difficulty }),
           () => this.scene.start('MenuScene')
         ];
       } else {
@@ -2319,14 +2334,16 @@ export default class GameScene extends Phaser.Scene {
             mode: this.gameMode,
             characterId: this.characterId,
             opponentCharacterId: this.opponentCharacterId,
-            defeatedOpponents: this.defeatedOpponents
+            defeatedOpponents: this.defeatedOpponents,
+            difficulty: this.difficulty
           });
         }, { textureKey: 'pill_blue', fontSize: btnFont, width: btnW, height: btnH, autoScale: false });
 
         const mapBtn = CuteUI.createPillButton(this, 0, startBtnY + btnSpacing, 'CHALLENGE MAP', () => {
           this.scene.start('ChallengeMapScene', {
             characterId: this.characterId,
-            defeatedOpponents: this.defeatedOpponents
+            defeatedOpponents: this.defeatedOpponents,
+            difficulty: this.difficulty
           });
         }, { textureKey: 'pill_pink', fontSize: btnFont, width: btnW, height: btnH, autoScale: false });
 
@@ -2340,9 +2357,10 @@ export default class GameScene extends Phaser.Scene {
             mode: this.gameMode,
             characterId: this.characterId,
             opponentCharacterId: this.opponentCharacterId,
-            defeatedOpponents: this.defeatedOpponents
+            defeatedOpponents: this.defeatedOpponents,
+            difficulty: this.difficulty
           }),
-          () => this.scene.start('ChallengeMapScene', { characterId: this.characterId, defeatedOpponents: this.defeatedOpponents }),
+          () => this.scene.start('ChallengeMapScene', { characterId: this.characterId, defeatedOpponents: this.defeatedOpponents, difficulty: this.difficulty }),
           () => this.scene.start('MenuScene')
         ];
       }
@@ -2410,7 +2428,8 @@ export default class GameScene extends Phaser.Scene {
         this.scene.restart({
           mode: this.gameMode,
           characterId: this.characterId,
-          opponentCharacterId: this.opponentCharacterId
+          opponentCharacterId: this.opponentCharacterId,
+          difficulty: this.difficulty
         });
       }, { textureKey: 'pill_green', fontSize: btnFont, width: btnW, height: btnH, autoScale: false });
 
@@ -2423,7 +2442,8 @@ export default class GameScene extends Phaser.Scene {
         () => this.scene.restart({
           mode: this.gameMode,
           characterId: this.characterId,
-          opponentCharacterId: this.opponentCharacterId
+          opponentCharacterId: this.opponentCharacterId,
+          difficulty: this.difficulty
         }),
         () => this.scene.start('MenuScene')
       ];
