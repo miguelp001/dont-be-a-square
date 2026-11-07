@@ -24,6 +24,11 @@ export default class OptionsMenuScene extends Phaser.Scene {
   private mobileSubTabButtons: Phaser.GameObjects.Container[] = [];
   private onResizeListener?: () => void;
 
+  // Interactive Guide tab state
+  private guideSubTab: 'basics' | 'chains' | 'strategy' = 'basics';
+  private guideContainers: Map<'basics' | 'chains' | 'strategy', Phaser.GameObjects.Container> = new Map();
+  private guideSubTabButtons: Phaser.GameObjects.Container[] = [];
+
   // Audio tab text refs
   private musicVolumeText!: Phaser.GameObjects.Text;
   private musicBarGraphics!: Phaser.GameObjects.Graphics;
@@ -785,47 +790,153 @@ export default class OptionsMenuScene extends Phaser.Scene {
     cardBg.strokeRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 16);
     this.howToPlayTabContainer.add(cardBg);
 
-    const guideLines = [
-      {
-        title: '🎯 THE GOAL',
-        desc: 'Swap two horizontal slimes to connect 3+ of the same color in a row or column to clear them!'
-      },
-      {
-        title: '🎮 UNIVERSAL CONTROLS',
-        desc: '• Keyboard: Remappable keys in Controls tab (Arrows/WASD, Space, Shift).\n• Gamepad: Full native support (D-Pad, A to Swap, B to Lift, Start to Pause).\n• Touch: Swipe directly on slimes or use on-screen D-Pad and pill buttons!'
-      },
-      {
-        title: '💥 CHAINS & COMBOS',
-        desc: 'Clear 4+ slimes for Combos. Panels that fall into new matches form CHAINS! Chains pause stack rise and drop heavy garbage blocks on your rival!'
-      },
-      {
-        title: '⚠️ DANGER & SURVIVAL',
-        desc: 'When slimes reach the ceiling, you have 6.5s of Danger Grace! Make quick matches to pause danger and clear breathing room!'
-      }
+    this.guideContainers.clear();
+    this.guideSubTabButtons = [];
+
+    // 3 Category Sub-Tab Pills at top of card
+    const topics: { id: 'basics' | 'chains' | 'strategy'; label: string; color: number }[] = [
+      { id: 'basics', label: '🎯 BASICS', color: 0x2ed573 },
+      { id: 'chains', label: '💥 CHAINS', color: 0xff69b4 },
+      { id: 'strategy', label: '🏆 PRO TIPS', color: 0xfeca57 }
     ];
+
+    const subTabSpacing = 6;
+    const subTabW = Math.floor((cardW - 32 - (topics.length - 1) * subTabSpacing) / topics.length);
+    const subTabH = 24;
+    const subStartX = -cardW / 2 + 16 + subTabW / 2;
+    const subY = -cardH / 2 + 22;
+
+    topics.forEach((top, idx) => {
+      const topX = subStartX + idx * (subTabW + subTabSpacing);
+      const topContainer = this.add.container(topX, subY);
+      const topBg = this.add.graphics();
+
+      const drawTopicTab = (active: boolean) => {
+        topBg.clear();
+        topBg.fillStyle(active ? top.color : 0x110d20, active ? 0.95 : 0.75);
+        topBg.fillRoundedRect(-subTabW / 2, -subTabH / 2, subTabW, subTabH, 6);
+        topBg.lineStyle(1.5, active ? 0xffffff : 0x54a0ff, active ? 0.9 : 0.4);
+        topBg.strokeRoundedRect(-subTabW / 2, -subTabH / 2, subTabW, subTabH, 6);
+      };
+      drawTopicTab(top.id === this.guideSubTab);
+
+      const topText = this.add.text(0, -1, top.label, {
+        fontSize: isMobile ? '10px' : '10.5px',
+        color: '#ffffff',
+        fontStyle: 'bold'
+      }).setOrigin(0.5);
+
+      const hit = this.add.rectangle(0, 0, subTabW, subTabH, 0x000000, 0);
+      hit.setInteractive({ useHandCursor: true });
+      hit.on('pointerdown', () => {
+        SoundFx.playCursor();
+        this.switchGuideSubTab(top.id);
+      });
+
+      topContainer.add([topBg, topText, hit]);
+      (topContainer as any).drawTab = drawTopicTab;
+      (topContainer as any).tabId = top.id;
+      this.guideSubTabButtons.push(topContainer);
+      this.howToPlayTabContainer.add(topContainer);
+    });
+
+    // Content definitions for each topic
+    const guideData: Record<'basics' | 'chains' | 'strategy', { title: string; desc: string; iconColor: string }[]> = {
+      basics: [
+        {
+          title: '🎯 PANEL SWAPPING & MATCHING',
+          desc: 'Swap two horizontal slimes with Space / Button A / Drag. Align 3+ matching colors horizontally or vertically to pop them!',
+          iconColor: '#2ed573'
+        },
+        {
+          title: '⬆️ RISING STACK & FAST LIFT',
+          desc: 'The stack continuously ascends. Hold Shift / Button B / Flick Up on the board to raise new rows instantly when you need slimes.',
+          iconColor: '#00d2d3'
+        },
+        {
+          title: '⏱️ STOP TIME & DANGER GRACE',
+          desc: 'Matching animations freeze stack rise! When slimes reach the ceiling, a 6.5s Danger Grace countdown activates. Any match pauses danger!',
+          iconColor: '#ff9ff3'
+        }
+      ],
+      chains: [
+        {
+          title: '🌟 COMBOS (4+ SLIMES)',
+          desc: 'Clear 4, 5, or 6 slimes in a single swap to launch solid combo garbage slabs directly onto your opponent\'s grid!',
+          iconColor: '#ff9f43'
+        },
+        {
+          title: '⚡ CASCADING CHAINS (x2, x3...)',
+          desc: 'Panels falling into new matches trigger CHAINS! Chains multiply score, freeze your stack, and drop massive full-board garbage!',
+          iconColor: '#ff6b6b'
+        },
+        {
+          title: '💥 SHATTERING GARBAGE',
+          desc: 'Make any match touching a garbage block. The garbage flashes and shatters, transforming into normal matching slimes to clear your board!',
+          iconColor: '#54a0ff'
+        }
+      ],
+      strategy: [
+        {
+          title: '📡 RADAR & THREAT BUFFER',
+          desc: 'In VS mode, watch the opponent radar mini-grid! The flashing threat bar reveals pending garbage drop timers so you can prepare counters.',
+          iconColor: '#feca57'
+        },
+        {
+          title: '🦅 MID-AIR SWAPPING',
+          desc: 'You can swap slimes mid-air as they fall! Use mid-air swaps to catch cascading drops before they land for clutch last-second saves.',
+          iconColor: '#1dd1a1'
+        },
+        {
+          title: '🔄 INSTANT ONLINE REMATCH',
+          desc: 'After an Online Multiplayer match, tap "PLAY AGAIN" to immediately vote for a rematch with the same player with synchronized seed generation!',
+          iconColor: '#a55eea'
+        }
+      ]
+    };
 
     const contentX = -cardW / 2 + (isMobile ? 14 : 20);
     const wrapW = cardW - (isMobile ? 28 : 40);
-    let startY = -cardH / 2 + 15;
 
-    guideLines.forEach((item) => {
-      const heading = this.add.text(contentX, startY, item.title, {
-        fontSize: isMobile ? '10.5px' : '11.5px',
-        color: '#ff9ff3',
-        fontStyle: 'bold',
-        stroke: '#000000',
-        strokeThickness: 2
+    (['basics', 'chains', 'strategy'] as const).forEach((topicKey) => {
+      const topicContainer = this.add.container(0, 0);
+      let itemY = -cardH / 2 + 46;
+
+      guideData[topicKey].forEach((item) => {
+        const heading = this.add.text(contentX, itemY, item.title, {
+          fontSize: isMobile ? '10.5px' : '11px',
+          color: item.iconColor,
+          fontStyle: 'bold',
+          stroke: '#000000',
+          strokeThickness: 2
+        });
+
+        const body = this.add.text(contentX, itemY + (isMobile ? 13 : 15), item.desc, {
+          fontSize: isMobile ? '9px' : '9.5px',
+          color: '#d2dae2',
+          lineSpacing: isMobile ? 1.5 : 2,
+          wordWrap: { width: wrapW }
+        });
+
+        topicContainer.add([heading, body]);
+        itemY += body.height + (isMobile ? 12 : 14);
       });
 
-      const body = this.add.text(contentX, startY + (isMobile ? 13 : 15), item.desc, {
-        fontSize: isMobile ? '9px' : '10px',
-        color: '#d2dae2',
-        lineSpacing: isMobile ? 1.5 : 2,
-        wordWrap: { width: wrapW }
-      });
+      this.guideContainers.set(topicKey, topicContainer);
+      this.howToPlayTabContainer.add(topicContainer);
+    });
 
-      this.howToPlayTabContainer.add([heading, body]);
-      startY += body.height + (isMobile ? 12 : 18);
+    this.switchGuideSubTab('basics');
+  }
+
+  private switchGuideSubTab(subTab: 'basics' | 'chains' | 'strategy'): void {
+    this.guideSubTab = subTab;
+    this.guideSubTabButtons.forEach((btn) => {
+      const active = (btn as any).tabId === subTab;
+      (btn as any).drawTab(active);
+    });
+    this.guideContainers.forEach((container, key) => {
+      container.setVisible(key === subTab);
     });
   }
 

@@ -1,113 +1,212 @@
-# Don't Be A Square
+# Don't Be A Square 🟩✨
 
-An action puzzle game inspired by *Panel de Pon* and *Tetris Attack*, built with **Phaser 3**, **TypeScript**, and **Vite**. Features 8 unique anime chibi Slime Catchers, distinct AI bot personalities, real-time online multiplayer, full mobile touch controls, and candy-themed aesthetics.
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-dbas.aredpanic.com-ff69b4?style=for-the-badge&logo=google-chrome&logoColor=white)](https://dbas.aredpanic.com)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.5-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Phaser 3](https://img.shields.io/badge/Phaser-3.80-e056fd?style=for-the-badge&logo=html5&logoColor=white)](https://phaser.io/)
+[![Vite](https://img.shields.io/badge/Vite-5.4-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
+[![Socket.IO](https://img.shields.io/badge/Socket.IO-4.7-010101?style=for-the-badge&logo=socketdotio&logoColor=white)](https://socket.io/)
+[![Tests](https://img.shields.io/badge/Vitest-39%20Passing-2ed573?style=for-the-badge&logo=vitest&logoColor=white)](https://vitest.dev/)
+[![PWA Ready](https://img.shields.io/badge/PWA-Installable-20bf6b?style=for-the-badge&logo=pwa&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps)
 
----
+An action puzzle game inspired by the legendary mechanics of *Panel de Pon* and *Tetris Attack*, reimagined with modern web technology. Built from scratch with **Phaser 3**, **TypeScript**, and **Vite**, featuring 8 unique anime chibi Slime Catchers, distinct AI bot personalities, real-time WebSocket online multiplayer, universal gamepad/keyboard/touch controls, and candy-themed audiovisual aesthetics.
 
-## ✨ Features
-
-- **Classic Action Puzzle Gameplay**:
-  - Horizontal panel swapping with instant gravity and air swaps.
-  - Combos (4+ matching slimes) and Chains (cascading falls into new matches).
-  - Stop Time & 6.5s Danger Grace counter to survive top-out pressure.
-  - Squishy, procedural jelly slime animations and juicy particle effects.
-
-- **Game Modes**:
-  - **Challenge Mode (Road to Champion)**: Select your fighter and battle through 8 distinct AI bot personalities in any order to claim the champion crown.
-  - **Endless Marathon**: High-score survival mode with escalating speed and periodic garbage drops.
-  - **Online Multiplayer**: Real-time 2-player battles powered by Socket.IO with 6-letter private room codes and cross-player garbage attacks.
-
-- **Full Mobile & Touch Support**:
-  - Direct board swiping: tap to position cursor, swipe left/right to swap instantly, tap to switch, flick up to lift.
-  - On-screen virtual gamepad: compact D-pad (◀ ▶ ▲ ▼), dedicated Mint Green Lift button, and Candy Pink Swap pill button.
-  - Touch-optimized viewport with zero rubber-banding or accidental zoom.
-
-- **Audio & Customization**:
-  - Full BGM soundtrack for menus, character select, battles, and panic danger states.
-  - Zero-latency procedural Web Audio sound synthesizer for swaps, matches, combos, and chains.
-  - In-game Options Menu with persistent volume controls and AI disclosure.
+> 📖 **Looking for in-depth gameplay mechanics, combo setups, and master strategies?** Check out the [Player Manual & Strategy Guide](docs/GUIDE.md)!
 
 ---
 
-## 🎮 Controls
+## 🎮 Play Instantly in Your Browser
 
-| Action | Desktop Keyboard | Mobile / Touch |
+* 🌐 **Live Web App:** [https://dbas.aredpanic.com](https://dbas.aredpanic.com)
+* 📱 **PWA Installable:** Tap *"Install App"* or *"Add to Home Screen"* on Android, iPhone/Safari, Chrome, or Edge for fullscreen offline play with zero address bar distractions.
+
+---
+
+## ✨ Key Features
+
+### 🧩 Classic Action Puzzle Mechanics
+* **Horizontal Panel Swapping:** Fast, responsive horizontal tile swaps with instant gravity and fluid squishy animations.
+* **Cascading Chain Reactions ($x2, x3, \dots, x14+$):** Panels dropping into new matches trigger dynamic chain multipliers that pause stack rise and send colossal garbage blocks to opponents.
+* **Simultaneous Combos (4+, 5+, 6+):** Multi-slime matches send targeted combo slabs.
+* **Stop Time & 6.5s Danger Grace:** Whenever slimes reach the ceiling, a high-tension emergency alarm sounds with a 6.5s survival countdown. Making quick matches halts the rise and buys precious breathing room.
+* **Mid-Air Catch Swapping:** Catch falling slimes mid-air to clutch buzzer-beating saves before they hit the stack.
+
+### 🕹️ Universal Controls & Input Architecture
+* **Desktop Keyboard:** Fully customizable key remapping with persistent `localStorage` storage (WASD, Arrow Keys, Space, Shift, Esc).
+* **Native Gamepad API Integration:** Plug-and-play controller support for Xbox, PlayStation, and generic USB/Bluetooth gamepads with live status indicator and haptic rumble.
+* **Zero-Offset Mobile Touch:** Touch controls engineered for precision—direct tile swiping with selection glow, plus an on-screen virtual D-Pad and Mint/Pink action pills.
+
+### ⚔️ Game Modes
+* **Challenge Mode (Road to Champion):** Select your fighter and battle through 8 distinct AI bot personalities on an interactive storybook map to claim the Champion Crown.
+* **Endless Marathon:** Classic high-score survival mode with escalating speed levels and periodic hazard drops.
+* **Real-Time Online Multiplayer:** Low-latency 2-player battles powered by Socket.IO with 6-letter private room codes, public quick match, and instant **Play Again** rematch voting.
+
+### 📱 Mobile-First Responsive Design (Phase 4 VS Layout)
+* **Asymmetric Mobile VS Layout:** Tailored for vertical mobile screens (iPhone SE, 13/14/15, Pixel 7/8). Features a top-mounted mini-radar grid showing opponent board state, a flashing Threat Buffer bar for incoming garbage, and generous tap gutters.
+* **Responsive Options & Guide Screen:** Dynamic geometric scaling that guarantees zero overlap between tab navigation and controls across mobile and widescreen desktop displays.
+
+### 🎵 Procedural Audio & Soundtrack
+* Zero-latency Web Audio API procedural synthesizer for mechanical clicks, pops, swaps, combo chimes, and panic sirens.
+* Nostalgic retro arcade BGM tracks composed with generative AI assistance for menus, character select, battles, and danger panic.
+
+---
+
+## 👥 The 8 Slime Catchers
+
+Meet the colorful cast of chibi puzzle fighters in the enchanted Candy Forest:
+
+| Character | Theme & Color | Personality & Playstyle |
 | :--- | :--- | :--- |
-| **Move Cursor** | Arrow Keys / `W`, `A`, `S`, `D` | Tap on any tile OR use on-screen D-Pad |
-| **Swap Slimes** | `Space` / `X` / `C` | Swipe left/right on tiles OR tap `SWAP 🔄` |
-| **Fast Lift** | Hold `Shift` / `R` | Hold `⬆ LIFT` button OR flick up on board |
-| **Pause / Menu** | `Esc` | Tap `⏸` at top-right |
+| **Sparky** 🐰 | Yellow Spark | Hyperactive bunny trainer with blistering speed and rapid stack lifts. |
+| **Poppy** 🍓 | Strawberry Pink | Fierce, spunky attacker who prioritizes 4- and 5-slime combos. |
+| **Salty** 🌊 | Ocean Blue | Cool, collected ocean tactician who excels at defensive patience. |
+| **Volt** ⚡ | Neon Yellow | Electric genius with advanced chain-seeking pattern recognition. |
+| **Ember** 🔥 | Flame Red | High-risk, aggressive attacker who plays constantly on the brink of danger. |
+| **Mocha** ☕ | Coffee Brown | Methodical counter-puncher who shatters heavy garbage into retaliatory chains. |
+| **Riff** 🎸 | Violet Punk | Chaotic rocker who varies speed unexpectedly to disrupt opponent rhythm. |
+| **Luna** 🌙 | Celestial Teal | The Grand Champion. Master of mid-air swaps and gargantuan cascades. |
 
 ---
 
-## 🛠️ Tech Stack
+## 🎯 Quick Controls Reference
 
-- **Client**: [Phaser 3.80](https://phaser.io/), [TypeScript 5.5](https://www.typescriptlang.org/), [Vite 5.4](https://vitejs.dev/)
-- **Multiplayer Server**: [Node.js](https://nodejs.org/), [Socket.IO 4.7](https://socket.io/), [tsx](https://github.com/privatenumber/tsx)
-- **Audio**: Procedural Web Audio API synthesizer + Lyria generative BGM
-- **Art**: Kawaii procedural canvas slimes + generative chibi character art
+| Action | Desktop Keyboard | Gamepad (Xbox / PS) | Mobile Touchscreen |
+| :--- | :--- | :--- | :--- |
+| **Move Cursor** | Arrow Keys / `W`, `A`, `S`, `D` | D-Pad / Left Stick | Tap any tile or use virtual D-Pad |
+| **Swap Slimes** | `Space` / `X` | Button A / ✕ | Drag horizontally across tiles or tap `SWAP 🔄` |
+| **Fast Lift** | `Shift` / `R` | Button B / ◯ / L1 | Flick upward on board or hold `⬆ LIFT` |
+| **Pause / Menu**| `Esc` | Start / Options | Tap `⏸` pause button at top-right |
 
 ---
 
-## 🚀 Getting Started
+## 🛠️ Technical Architecture & Stack
+
+```
+                       ┌──────────────────────────────────────────────┐
+                       │            Browser Client (PWA)             │
+                       │  • Phaser 3.80 Canvas / WebGL Game Engine    │
+                       │  • TypeScript 5.5 + Vite 5.4 Build System    │
+                       │  • Web Audio API Procedural SFX Synthesizer  │
+                       │  • Service Worker v32 Offline App Shell Cache│
+                       └──────────────────────┬───────────────────────┘
+                                              │
+                                 WebSockets / Socket.IO
+                                              │
+                       ┌──────────────────────▼───────────────────────┐
+                       │           Multiplayer Server                │
+                       │  • Node.js 18+ Backend (dist-server/index.cjs)│
+                       │  • Socket.IO 4.7 Real-Time Room Manager      │
+                       │  • Seed Synchronization for Deterministic RNG│
+                       │  • Automated Keepalive Cron & Process Daemon │
+                       └──────────────────────────────────────────────┘
+```
+
+* **Client Engine:** [Phaser 3.80](https://phaser.io/) with `Phaser.Scale.RESIZE` for seamless cross-resolution adaptation.
+* **Language & Tooling:** [TypeScript 5.5](https://www.typescriptlang.org/) in strict mode, bundled via [Vite](https://vitejs.dev/) and [esbuild](https://esbuild.github.io/).
+* **Multiplayer Protocol:** [Socket.IO](https://socket.io/) rooms with synchronized random seed generation, rematch voting sets, and graceful disconnect management.
+* **Testing Suite:** [Vitest](https://vitest.dev/) with 39 automated unit tests verifying game engine physics, garbage collision, rematch synchronization, touch precision, and layout geometry.
+
+---
+
+## 🚀 Getting Started (Local Development)
 
 ### Prerequisites
-
-- [Node.js](https://nodejs.org/) v18 or higher
-- npm or yarn
+* [Node.js](https://nodejs.org/) v18.0.0 or higher
+* npm v9.0.0 or higher
 
 ### Installation
-
 ```bash
+# 1. Clone repository
 git clone https://github.com/miguelp001/dont-be-a-square.git
 cd dont-be-a-square
+
+# 2. Install dependencies
 npm install
 ```
 
 ### Running Locally
-
-Run both the Vite dev server and WebSocket multiplayer server concurrently:
+To run both the Vite client dev server and the WebSocket multiplayer server concurrently:
 ```bash
 npm run dev:all
 ```
+* **Client Game:** [http://localhost:5173](http://localhost:5173)
+* **Multiplayer Server:** `http://localhost:3001`
 
-Or run them in separate terminals:
+Alternatively, run them in separate terminals:
 ```bash
-# Terminal 1: Client web server (http://localhost:5173)
+# Terminal 1: Client Dev Server
 npm run dev
 
-# Terminal 2: Multiplayer WebSocket server (http://localhost:3001)
+# Terminal 2: Multiplayer WebSocket Server
 npm run server
 ```
 
-### Building for Production
-
+### Running Automated Tests
 ```bash
+# Run Vitest unit test suite (39 tests)
+npm test
+
+# Run tests in interactive UI mode
+npm run test:ui
+```
+
+### Building for Production
+```bash
+# Type check, bundle client (Vite), and bundle server (esbuild)
 npm run build
+
+# Preview production build locally
 npm run preview
+```
+
+### Deployment
+Deployment to Dreamhost VPS is automated via `scripts/deploy.py`:
+```bash
+# Deploy static client assets and restart backend server daemon
+python scripts/deploy.py
 ```
 
 ---
 
-## 📁 Project Structure
+## 📂 Project Structure
 
 ```
-├── assets/              # Chibi character portraits and BGM audio tracks
-├── server/              # Socket.IO multiplayer room server
+dont-be-a-square/
+├── assets/                  # High-res character portraits, icons, and audio
+├── docs/
+│   └── GUIDE.md             # Comprehensive Player Manual & Strategy Guide
+├── public/
+│   ├── favicon.png
+│   ├── manifest.webmanifest # PWA Web App Manifest
+│   └── sw.js                # Service Worker cache controller (v32)
+├── scripts/
+│   └── deploy.py            # Automated SFTP deployment & server keepalive runner
+├── server/
+│   └── index.ts             # Socket.IO multiplayer matchmaking & room manager
 ├── src/
-│   ├── main.ts          # Game entry point and Phaser configuration
-│   ├── objects/         # Board, Panel, Cursor, GarbageBlock, AIBot
-│   ├── scenes/          # BootScene, PreloadScene, MenuScene, CharacterSelectScene,
-│   │                    # ChallengeMapScene, GameScene, LobbyScene, OptionsMenuScene
-│   ├── net/             # Socket.IO client manager
-│   └── utils/           # Constants, CuteUI, Settings, SoundFx
-├── index.html           # HTML entry point with mobile touch optimization
+│   ├── main.ts              # Phaser 3 Game entry point & config
+│   ├── input/               # TouchController with zero-offset precision
+│   ├── net/                 # SocketManager multiplayer client
+│   ├── objects/             # Board, Panel, Cursor, GarbageBlock, AIBot
+│   ├── scenes/              # GameScene, MenuScene, OptionsMenuScene, LobbyScene,
+│   │                        # ChallengeMapScene, CharacterSelectScene, BootScene
+│   ├── ui/                  # OptionsMenuLayout, VsLayout
+│   └── utils/               # Settings, SoundFx, CuteUI, Constants
+├── tests/                   # Vitest unit test suites (39 passing tests)
 ├── package.json
 └── tsconfig.json
 ```
 
 ---
 
-## 📜 License
+## 🤖 AI Disclosure & Transparency
 
-This project is created for educational and entertainment purposes. Inspired by *Panel de Pon* and *Tetris Attack* (© Nintendo / Intelligent Systems).
+In alignment with responsible AI development:
+* **Character Concept Art & Chibi Portraits:** Generated and styled with the assistance of Google DeepMind AI models.
+* **Music Themes & Procedural Synthesizers:** Composed and synthesized with generative AI assistance for authentic retro arcade vibes.
+* **Code & Game Engine:** Full physics simulation, panel matching algorithms, WebSocket multiplayer networking, and universal controls engineered with AI pair-programming in TypeScript & Phaser 3.
+
+---
+
+## 📜 License & Acknowledgments
+
+This project is created for educational and entertainment purposes. Inspired by the timeless puzzle designs of *Panel de Pon* and *Tetris Attack* (© Nintendo / Intelligent Systems).
