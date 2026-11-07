@@ -39,6 +39,7 @@ export default class Board extends Phaser.Events.EventEmitter {
 
   /** Current active chain counter (1 = standard clear, 2+ = chain) */
   public activeChain: number = 1;
+  public maxChain: number = 1;
   public isChainActive: boolean = false;
 
   /** Stack freeze/stop time in milliseconds */
@@ -888,6 +889,7 @@ export default class Board extends Phaser.Events.EventEmitter {
       panel.startMatch(380, i * 40);
     });
 
+    this.maxChain = Math.max(this.maxChain, this.activeChain);
     const matchEvent: MatchEvent = {
       panels: matchedList,
       comboSize,

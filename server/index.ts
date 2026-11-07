@@ -1,7 +1,68 @@
 import { Server } from 'socket.io';
-import { createServer } from 'http';
+import { createServer, IncomingMessage, ServerResponse } from 'http';
+import { LeaderboardManager, SubmitScorePayload } from './leaderboard';
 
-const httpServer = createServer();
+const leaderboard = new LeaderboardManager();
+
+const httpServer = createServer((req: IncomingMessage, res: ServerResponse) => {
+  // Simple CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204);
+    res.end();
+    return;
+  }
+
+  const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
+
+  if (url.pathname === '/api/leaderboard') {
+    if (req.method === 'GET') {
+      const mode = url.searchParams.get('mode') || 'endless';
+      const difficulty = url.searchParams.get('difficulty') || 'adept';
+      const playerId = url.searchParams.get('playerId') || undefined;
+      const limit = Number(url.searchParams.get('limit')) || 20;
+
+      const data = leaderboard.getLeaderboard(mode, difficulty, playerId, limit);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(data));
+      return;
+    }
+
+    if (req.method === 'POST') {
+      let body = '';
+      req.on('data', (chunk) => {
+        body += chunk;
+        if (body.length > 50000) req.destroy();
+      });
+      req.on('end', () => {
+        try {
+          const payload = JSON.parse(body) as SubmitScorePayload;
+          const result = leaderboard.submitScore(payload);
+          res.writeHead(result.success ? 200 : 400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(result));
+        } catch (e) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'Malformed JSON payload' }));
+        }
+      });
+      return;
+    }
+  }
+
+  // Default healthcheck
+  if (url.pathname === '/health' || url.pathname === '/') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ status: 'ok', service: 'Panel de Pon Server' }));
+    return;
+  }
+
+  res.writeHead(404);
+  res.end('Not Found');
+});
+
 const io = new Server(httpServer, {
   cors: {
     origin: '*',
@@ -182,6 +243,36 @@ io.on('connection', (socket) => {
         }
         console.log(`Player ${socket.id} left room ${roomId}`);
       }
+    }
+  });
+
+  // Leaderboard Socket.IO Events
+  socket.on(
+    'get_leaderboard',
+    (
+      data: { mode?: string; difficulty?: string; playerId?: string; limit?: number } = {},
+      callback?: (res: any) => void
+    ) => {
+      const mode = data.mode || 'endless';
+      const difficulty = data.difficulty || 'adept';
+      const playerId = data.playerId;
+      const limit = Number(data.limit) || 20;
+
+      const result = leaderboard.getLeaderboard(mode, difficulty, playerId, limit);
+      if (typeof callback === 'function') {
+        callback(result);
+      } else {
+        socket.emit('leaderboard_data', result);
+      }
+    }
+  );
+
+  socket.on('submit_score', (data: SubmitScorePayload, callback?: (res: any) => void) => {
+    const result = leaderboard.submitScore(data);
+    if (typeof callback === 'function') {
+      callback(result);
+    } else {
+      socket.emit('score_submitted', result);
     }
   });
 

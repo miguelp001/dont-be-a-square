@@ -16,6 +16,7 @@ import { CuteUI } from '../utils/CuteUI';
 import { Settings, KeyBindings } from '../utils/Settings';
 import { GameDifficulty, getDifficultyInfo } from '../utils/Difficulty';
 import { RecordManager } from '../utils/DifficultyRecords';
+import { LeaderboardClient } from '../utils/LeaderboardClient';
 
 export default class GameScene extends Phaser.Scene {
   public gameMode: 'vs_cpu' | 'endless' | 'vs_online' | 'challenge' = 'challenge';
@@ -2277,6 +2278,13 @@ export default class GameScene extends Phaser.Scene {
       if (isNewRecord) {
         SoundFx.playVictory();
       }
+      LeaderboardClient.submitScore(
+        'endless',
+        this.difficulty,
+        this.characterId,
+        this.playerScore,
+        this.playerBoard.maxChain
+      ).catch(() => {});
     } else if (isChampion) {
       const elapsedSeconds = Math.max(1, 240 - this.gameTime);
       RecordManager.recordChallengeClear(this.difficulty, this.characterId, elapsedSeconds);
@@ -2286,6 +2294,13 @@ export default class GameScene extends Phaser.Scene {
       if (this.opponentCharacterId === 'nano_banana' || this.defeatedOpponents.includes('nano_banana')) {
         RecordManager.recordNanoBananaDefeat();
       }
+      LeaderboardClient.submitScore(
+        'challenge',
+        this.difficulty,
+        this.characterId,
+        elapsedSeconds,
+        this.playerBoard.maxChain
+      ).catch(() => {});
     }
 
     const finalBanner = isChampion
@@ -2304,7 +2319,9 @@ export default class GameScene extends Phaser.Scene {
 
     // 2. Themed Modal Box
     const uiScale = CuteUI.getUIScale(this);
-    const hasThreeButtons = this.gameMode === 'challenge' && !isVictory;
+    const hasThreeButtons = (this.gameMode === 'challenge' && !isVictory) ||
+                            (this.gameMode === 'challenge' && isChampion) ||
+                            (this.gameMode === 'endless');
     const cardW = Math.min(width - 36, Math.round(380 * uiScale));
     const cardH = Math.round((hasThreeButtons ? 390 : 330) * uiScale);
     const halfW = cardW / 2;
@@ -2409,13 +2426,22 @@ export default class GameScene extends Phaser.Scene {
           });
         }, { textureKey: 'pill_pink', fontSize: btnFont, width: btnW, height: btnH, autoScale: false });
 
-        const menuBtn = CuteUI.createPillButton(this, 0, startBtnY + btnSpacing, 'MAIN MENU', () => {
+        const lbBtn = CuteUI.createPillButton(this, 0, startBtnY + btnSpacing, 'GLOBAL LEADERBOARD 🏆', () => {
+          this.scene.start('LeaderboardScene', {
+            returnScene: 'MenuScene',
+            initialMode: 'challenge',
+            initialDifficulty: this.difficulty
+          });
+        }, { textureKey: 'pill_blue', fontSize: btnFont, width: btnW, height: btnH, autoScale: false });
+
+        const menuBtn = CuteUI.createPillButton(this, 0, startBtnY + btnSpacing * 2, 'MAIN MENU', () => {
           this.scene.start('MenuScene');
         }, { textureKey: 'pill_grey', fontSize: btnFont, width: btnW, height: btnH, autoScale: false });
 
-        this.gameOverButtons = [claimBtn, menuBtn];
+        this.gameOverButtons = [claimBtn, lbBtn, menuBtn];
         this.gameOverActions = [
           () => this.scene.start('ChallengeMapScene', { characterId: this.characterId, defeatedOpponents: this.defeatedOpponents, difficulty: this.difficulty }),
+          () => this.scene.start('LeaderboardScene', { returnScene: 'MenuScene', initialMode: 'challenge', initialDifficulty: this.difficulty }),
           () => this.scene.start('MenuScene')
         ];
       } else if (isVictory) {
@@ -2534,6 +2560,39 @@ export default class GameScene extends Phaser.Scene {
 
       this.gameOverButtons = [playAgainBtn, menuBtn];
       this.gameOverActions = [handlePlayAgain, handleMainMenu];
+    } else if (this.gameMode === 'endless') {
+      const playAgainBtn = CuteUI.createPillButton(this, 0, startBtnY, 'PLAY AGAIN', () => {
+        this.scene.restart({
+          mode: this.gameMode,
+          characterId: this.characterId,
+          opponentCharacterId: this.opponentCharacterId,
+          difficulty: this.difficulty
+        });
+      }, { textureKey: 'pill_green', fontSize: btnFont, width: btnW, height: btnH, autoScale: false });
+
+      const lbBtn = CuteUI.createPillButton(this, 0, startBtnY + btnSpacing, 'GLOBAL LEADERBOARD 🏆', () => {
+        this.scene.start('LeaderboardScene', {
+          returnScene: 'GameScene',
+          initialMode: 'endless',
+          initialDifficulty: this.difficulty
+        });
+      }, { textureKey: 'pill_blue', fontSize: btnFont, width: btnW, height: btnH, autoScale: false });
+
+      const menuBtn = CuteUI.createPillButton(this, 0, startBtnY + btnSpacing * 2, 'MAIN MENU', () => {
+        this.scene.start('MenuScene');
+      }, { textureKey: 'pill_grey', fontSize: btnFont, width: btnW, height: btnH, autoScale: false });
+
+      this.gameOverButtons = [playAgainBtn, lbBtn, menuBtn];
+      this.gameOverActions = [
+        () => this.scene.restart({
+          mode: this.gameMode,
+          characterId: this.characterId,
+          opponentCharacterId: this.opponentCharacterId,
+          difficulty: this.difficulty
+        }),
+        () => this.scene.start('LeaderboardScene', { returnScene: 'MenuScene', initialMode: 'endless', initialDifficulty: this.difficulty }),
+        () => this.scene.start('MenuScene')
+      ];
     } else {
       const playAgainBtn = CuteUI.createPillButton(this, 0, startBtnY, 'PLAY AGAIN', () => {
         this.scene.restart({

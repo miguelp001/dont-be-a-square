@@ -77,14 +77,14 @@ export default class MenuScene extends Phaser.Scene {
     const charHeadingY = isNarrow ? showcaseY - 68 : showcaseY - Math.round(52 * uiScale);
 
     const btnW = Math.round(250 * uiScale);
-    const btnH = Math.round(42 * uiScale);
-    const btnSpacing = Math.round(58 * uiScale);
-    const btnFont = `${Math.round(14.5 * uiScale)}px`;
-    const totalBtnSpan = btnSpacing * 3;
+    const btnH = Math.round((isMobile ? 36 : 40) * uiScale);
+    const btnSpacing = Math.round((isMobile ? 46 : 50) * uiScale);
+    const btnFont = `${Math.round((isMobile ? 12.5 : 13.5) * uiScale)}px`;
+    const totalBtnSpan = btnSpacing * 4;
 
-    const titleBottom = titleY + Math.round(30 * (isMobile ? 1.0 : Math.min(1.3, uiScale)));
+    const titleBottom = titleY + Math.round(28 * (isMobile ? 1.0 : Math.min(1.3, uiScale)));
     const availableSpace = charHeadingY - titleBottom;
-    const startY = Math.round(titleBottom + Math.max(16, (availableSpace - totalBtnSpan) / 2));
+    const startY = Math.round(titleBottom + Math.max(12, (availableSpace - totalBtnSpan) / 2));
 
     const btn1 = CuteUI.createPillButton(
       this,
@@ -123,6 +123,17 @@ export default class MenuScene extends Phaser.Scene {
       this,
       width / 2,
       startY + btnSpacing * 3,
+      '🏆 LEADERBOARDS',
+      () => {
+        this.scene.start('LeaderboardScene', { returnScene: 'MenuScene' });
+      },
+      { textureKey: 'pill_orange', fontSize: btnFont, width: btnW, height: btnH, autoScale: false }
+    );
+
+    const btn5 = CuteUI.createPillButton(
+      this,
+      width / 2,
+      startY + btnSpacing * 4,
       '⚙️ OPTIONS & GUIDE',
       () => {
         this.scene.start('OptionsMenuScene', { returnScene: 'MenuScene' });
@@ -130,11 +141,12 @@ export default class MenuScene extends Phaser.Scene {
       { textureKey: 'pill_purple', fontSize: btnFont, width: btnW, height: btnH, autoScale: false }
     );
 
-    this.menuButtons = [btn1, btn2, btn3, btn4];
+    this.menuButtons = [btn1, btn2, btn3, btn4, btn5];
     this.menuActions = [
       () => this.scene.start('CharacterSelectScene', { mode: 'challenge' }),
       () => this.scene.start('CharacterSelectScene', { mode: 'endless' }),
       () => this.scene.start('LobbyScene'),
+      () => this.scene.start('LeaderboardScene', { returnScene: 'MenuScene' }),
       () => this.scene.start('OptionsMenuScene', { returnScene: 'MenuScene' })
     ];
 

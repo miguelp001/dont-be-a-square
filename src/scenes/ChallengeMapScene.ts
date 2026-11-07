@@ -882,19 +882,29 @@ export default class ChallengeMapScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     // Action buttons
-    const btnW = isMobile ? Math.min(140, Math.floor((width - 32) / 2)) : Math.round(150 * uiScale);
+    const btnW = isMobile ? Math.min(108, Math.floor((width - 32) / 3)) : Math.round(135 * uiScale);
     const btnH = isMobile ? 32 : Math.round(34 * uiScale);
-    const btnSpacing = isMobile ? btnW / 2 + 6 : Math.round(125 * uiScale);
+    const totalW = btnW * 3 + (isMobile ? 12 : 24);
+    const startX = width / 2 - totalW / 2 + btnW / 2;
+    const btnGap = btnW + (isMobile ? 6 : 12);
     const btnY = isMobile ? 320 : Math.round(410 * uiScale);
 
-    this.createFooterButton(width / 2 - btnSpacing, btnY, 'PLAY AGAIN', () => {
+    this.createFooterButton(startX, btnY, 'PLAY AGAIN', () => {
       this.scene.start('ChallengeMapScene', {
         characterId: this.characterId,
         defeatedOpponents: []
       });
     }, uiScale, btnW, btnH);
 
-    this.createFooterButton(width / 2 + btnSpacing, btnY, 'MAIN MENU', () => {
+    this.createFooterButton(startX + btnGap, btnY, 'LEADERBOARD 🏆', () => {
+      this.scene.start('LeaderboardScene', {
+        returnScene: 'ChallengeMapScene',
+        initialMode: 'challenge',
+        initialDifficulty: this.difficulty
+      });
+    }, uiScale, btnW, btnH);
+
+    this.createFooterButton(startX + btnGap * 2, btnY, 'MAIN MENU', () => {
       this.scene.start('MenuScene');
     }, uiScale, btnW, btnH);
   }

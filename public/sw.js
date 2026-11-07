@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dont-be-a-square-v38';
+const CACHE_NAME = 'dont-be-a-square-v39';
 
 const PRECACHE_URLS = [
   '/',
@@ -38,8 +38,14 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Bypass non-GET requests and WebSocket/Socket.io traffic
-  if (request.method !== 'GET' || url.pathname.startsWith('/socket.io') || url.protocol === 'ws:' || url.protocol === 'wss:') {
+  // Bypass non-GET requests, API calls, and WebSocket/Socket.io traffic
+  if (
+    request.method !== 'GET' ||
+    url.pathname.startsWith('/api') ||
+    url.pathname.startsWith('/socket.io') ||
+    url.protocol === 'ws:' ||
+    url.protocol === 'wss:'
+  ) {
     return;
   }
 

@@ -123,4 +123,34 @@ export default class SocketManager {
     this.socket.off('room_error');
     this.socket.on('room_error', callback);
   }
+
+  public getLeaderboard(data: { mode: string; difficulty: string; playerId?: string; limit?: number }): Promise<any> {
+    return new Promise((resolve) => {
+      if (!this.socket.connected) {
+        this.socket.connect();
+      }
+      this.socket.timeout(4000).emit('get_leaderboard', data, (err: any, response: any) => {
+        if (err) {
+          resolve(null);
+        } else {
+          resolve(response);
+        }
+      });
+    });
+  }
+
+  public submitLeaderboardScore(data: any): Promise<any> {
+    return new Promise((resolve) => {
+      if (!this.socket.connected) {
+        this.socket.connect();
+      }
+      this.socket.timeout(4000).emit('submit_score', data, (err: any, response: any) => {
+        if (err) {
+          resolve({ success: false, error: 'Network timeout' });
+        } else {
+          resolve(response);
+        }
+      });
+    });
+  }
 }
