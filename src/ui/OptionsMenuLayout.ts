@@ -6,6 +6,10 @@ export interface OptionsMenuLayout {
   starOffset: number;
   starScale: number;
   tabY: number;
+  tabY2?: number;
+  isTwoRowTabs: boolean;
+  row1TabWidth?: number;
+  row2TabWidth?: number;
   tabHeight: number;
   tabWidth: number;
   tabSpacing: number;
@@ -34,29 +38,39 @@ export function computeOptionsMenuLayout(
   const uiScale = isMobile ? 1.0 : rawUiScale;
 
   // Title
-  const titleY = Math.round((isMobile ? 36 : 42) * (isMobile ? 1.0 : Math.min(1.3, uiScale)));
-  const titleSize = isMobile ? (width < 380 ? 18 : 20) : Math.round(24 * uiScale);
+  const titleY = Math.round((isMobile ? 32 : 42) * (isMobile ? 1.0 : Math.min(1.3, uiScale)));
+  const titleSize = isMobile ? (width < 380 ? 17 : 19) : Math.round(24 * uiScale);
 
   // Sparkle stars
   const starOffset = isMobile ? Math.min(160, Math.round(width * 0.38)) : Math.round(160 * uiScale);
-  const starScale = (isMobile ? 0.9 : 1.2) * (isMobile ? 1.0 : uiScale);
+  const starScale = (isMobile ? 0.85 : 1.2) * (isMobile ? 1.0 : uiScale);
 
-  // Navigation Tabs (5 tabs: Audio, Controls, Guide, AI, Stats)
-  const tabHeight = Math.round(32 * (isMobile ? 1.0 : Math.min(1.2, uiScale)));
-  const tabY = titleY + Math.round((isMobile ? 36 : 44) * (isMobile ? 1.0 : Math.min(1.2, uiScale)));
-  const tabBottom = tabY + tabHeight / 2;
-
-  const tabCount = 5;
-  const tabMargin = isMobile ? 8 : 16;
+  // Two-row navigation tabs on mobile for generous, touch-friendly, unmissable buttons
+  const isTwoRowTabs = isMobile;
+  const tabHeight = Math.round((isMobile ? 26 : 32) * (isMobile ? 1.0 : Math.min(1.2, uiScale)));
+  const tabSpacing = isMobile ? (width < 390 ? 5 : 6) : Math.round(6 * uiScale);
+  const tabMargin = isMobile ? 10 : 16;
   const availableW = width - tabMargin * 2;
-  const tabSpacing = isMobile ? (width < 390 ? 4 : 5) : Math.round(6 * uiScale);
+
+  const tabY = titleY + Math.round((isMobile ? 30 : 44) * (isMobile ? 1.0 : Math.min(1.2, uiScale)));
+  const tabY2 = isTwoRowTabs ? tabY + tabHeight + 5 : tabY;
+  const tabBottom = isTwoRowTabs ? tabY2 + tabHeight / 2 : tabY + tabHeight / 2;
+
+  // On mobile: Row 1 has 3 tabs (Audio, Controls, Guide), Row 2 has 2 tabs (AI, Stats)
+  const row1TabWidth = isTwoRowTabs ? Math.floor((availableW - 2 * tabSpacing) / 3) : 0;
+  const row2TabWidth = isTwoRowTabs ? Math.floor((availableW - 1 * tabSpacing) / 2) : 0;
+
+  // Desktop single-row metrics (5 tabs):
+  const tabCount = 5;
   const maxTabW = isMobile
-    ? Math.floor((availableW - (tabCount - 1) * tabSpacing) / tabCount)
-    : Math.round(112 * uiScale);
+    ? row1TabWidth
+    : Math.floor((availableW - (tabCount - 1) * tabSpacing) / tabCount);
   const tabWidth = isMobile
-    ? Math.min(maxTabW, 90)
-    : Math.max(100, Math.min(maxTabW, Math.round(108 * uiScale)));
-  const totalTabWidth = tabCount * tabWidth + (tabCount - 1) * tabSpacing;
+    ? row1TabWidth
+    : Math.max(90, Math.min(maxTabW, Math.round(110 * uiScale)));
+  const totalTabWidth = isTwoRowTabs
+    ? Math.max(row1TabWidth * 3 + tabSpacing * 2, row2TabWidth * 2 + tabSpacing)
+    : tabCount * tabWidth + (tabCount - 1) * tabSpacing;
   const useShortLabels = isMobile && width < 480;
 
   // Card dimensions & scale
@@ -74,7 +88,7 @@ export function computeOptionsMenuLayout(
   const scaledHalfH = (cardH / 2) * cardScale;
 
   // Card Y positioning: top of card MUST sit strictly below tabs with a clean margin
-  const gapBelowTabs = Math.round((isMobile ? 14 : 20) * cardScale);
+  const gapBelowTabs = Math.round((isMobile ? 12 : 20) * cardScale);
   const cardTop = tabBottom + gapBelowTabs;
   const cardY = cardTop + scaledHalfH;
   const cardBottom = cardY + scaledHalfH;
@@ -82,8 +96,8 @@ export function computeOptionsMenuLayout(
   const useMobileControlsSubTabs = isMobile || cardW < 420;
 
   // Back Button
-  const safeBottom = height - Math.round(30 * (isMobile ? 1.0 : Math.min(1.2, uiScale)));
-  const preferredBackY = cardBottom + Math.round(32 * cardScale);
+  const safeBottom = height - Math.round(28 * (isMobile ? 1.0 : Math.min(1.2, uiScale)));
+  const preferredBackY = cardBottom + Math.round((isMobile ? 26 : 32) * cardScale);
   const backBtnY = Math.min(safeBottom, preferredBackY);
   const backBtnWidth = Math.round((isMobile ? Math.min(200, width - 40) : 220) * (isMobile ? 1.0 : cardScale));
 
@@ -95,6 +109,10 @@ export function computeOptionsMenuLayout(
     starOffset,
     starScale,
     tabY,
+    tabY2,
+    isTwoRowTabs,
+    row1TabWidth,
+    row2TabWidth,
     tabHeight,
     tabWidth,
     tabSpacing,

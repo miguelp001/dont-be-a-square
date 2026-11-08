@@ -160,56 +160,91 @@ export default class OptionsMenuScene extends Phaser.Scene {
     layout: OptionsMenuLayout
   ): void {
     this.tabButtons = [];
-    const tabs = [
-      { id: 'audio', label: '🔊 AUDIO', shortLabel: '🔊 AUD' },
-      { id: 'controls', label: '🎮 CONTROLS', shortLabel: '🎮 KEYS' },
-      { id: 'howToPlay', label: '❓ GUIDE', shortLabel: '❓ GUIDE' },
-      { id: 'ai', label: '🤖 AI', shortLabel: '🤖 AI' },
-      { id: 'stats', label: '📊 STATS', shortLabel: '📊 STATS' }
+    const tabs: { id: 'audio' | 'controls' | 'howToPlay' | 'ai' | 'stats'; label: string; color: number }[] = [
+      { id: 'audio', label: '🔊 AUDIO', color: 0xff69b4 },
+      { id: 'controls', label: '🎮 CONTROLS', color: 0x54a0ff },
+      { id: 'howToPlay', label: '❓ GUIDE', color: 0x2ed573 },
+      { id: 'ai', label: layout.isTwoRowTabs ? '🤖 AI STATEMENT' : '🤖 AI', color: 0xa55eea },
+      { id: 'stats', label: layout.isTwoRowTabs ? '📊 STATISTICS' : '📊 STATS', color: 0x00d2d3 }
     ];
 
-    const tabWidth = layout.tabWidth;
-    const tabHeight = layout.tabHeight;
-    const halfH = tabHeight / 2;
-    const spacing = layout.tabSpacing;
-    const startX = centerX - layout.totalTabWidth / 2 + tabWidth / 2;
+    if (layout.isTwoRowTabs) {
+      // Row 1: Audio, Controls, Guide (3 tabs)
+      const row1Tabs = tabs.slice(0, 3);
+      const row1W = layout.row1TabWidth || layout.tabWidth;
+      const row1Total = 3 * row1W + 2 * layout.tabSpacing;
+      const row1StartX = centerX - row1Total / 2 + row1W / 2;
 
-    tabs.forEach((tab, index) => {
-      const x = startX + index * (tabWidth + spacing);
-      const container = this.add.container(x, layout.tabY);
-
-      const bg = this.add.graphics();
-      const drawTab = (active: boolean) => {
-        bg.clear();
-        bg.fillStyle(active ? 0xff69b4 : 0x1e272e, active ? 0.95 : 0.75);
-        bg.fillRoundedRect(-tabWidth / 2, -halfH, tabWidth, tabHeight, halfH);
-        bg.lineStyle(2, active ? 0xffffff : 0x54a0ff, active ? 1 : 0.6);
-        bg.strokeRoundedRect(-tabWidth / 2, -halfH, tabWidth, tabHeight, halfH);
-      };
-
-      drawTab(tab.id === this.currentTab);
-
-      const labelText = layout.useShortLabels ? tab.shortLabel : tab.label;
-      const text = this.add.text(0, -1, labelText, {
-        fontSize: `${layout.useShortLabels ? 9.5 : Math.round(11 * (layout.isMobile ? 1.0 : Math.min(1.2, layout.uiScale)))}px`,
-        color: '#ffffff',
-        fontStyle: 'bold',
-        stroke: '#000000',
-        strokeThickness: 2
-      }).setOrigin(0.5);
-
-      const hit = this.add.rectangle(0, 0, tabWidth, tabHeight, 0x000000, 0);
-      hit.setInteractive({ useHandCursor: true });
-      hit.on('pointerdown', () => {
-        SoundFx.playCursor();
-        this.switchTab(tab.id as any);
+      row1Tabs.forEach((tab, index) => {
+        const x = row1StartX + index * (row1W + layout.tabSpacing);
+        this.createTabButton(x, layout.tabY, row1W, layout.tabHeight, tab);
       });
 
-      container.add([bg, text, hit]);
-      (container as any).drawTab = drawTab;
-      (container as any).tabId = tab.id;
-      this.tabButtons.push(container);
+      // Row 2: AI, Stats (2 tabs)
+      const row2Tabs = tabs.slice(3, 5);
+      const row2W = layout.row2TabWidth || layout.tabWidth;
+      const row2Total = 2 * row2W + 1 * layout.tabSpacing;
+      const row2StartX = centerX - row2Total / 2 + row2W / 2;
+
+      row2Tabs.forEach((tab, index) => {
+        const x = row2StartX + index * (row2W + layout.tabSpacing);
+        this.createTabButton(x, layout.tabY2 || layout.tabY + 32, row2W, layout.tabHeight, tab);
+      });
+    } else {
+      // Desktop: Single row of 5 tabs
+      const tabWidth = layout.tabWidth;
+      const tabHeight = layout.tabHeight;
+      const spacing = layout.tabSpacing;
+      const startX = centerX - layout.totalTabWidth / 2 + tabWidth / 2;
+
+      tabs.forEach((tab, index) => {
+        const x = startX + index * (tabWidth + spacing);
+        this.createTabButton(x, layout.tabY, tabWidth, tabHeight, tab);
+      });
+    }
+  }
+
+  private createTabButton(
+    x: number,
+    y: number,
+    tabWidth: number,
+    tabHeight: number,
+    tab: { id: 'audio' | 'controls' | 'howToPlay' | 'ai' | 'stats'; label: string; color: number }
+  ): void {
+    const container = this.add.container(x, y);
+    container.setDepth(25);
+    const halfH = tabHeight / 2;
+
+    const bg = this.add.graphics();
+    const drawTab = (active: boolean) => {
+      bg.clear();
+      bg.fillStyle(active ? tab.color : 0x1e272e, active ? 0.95 : 0.75);
+      bg.fillRoundedRect(-tabWidth / 2, -halfH, tabWidth, tabHeight, 7);
+      bg.lineStyle(2, active ? 0xffffff : tab.color, active ? 1 : 0.5);
+      bg.strokeRoundedRect(-tabWidth / 2, -halfH, tabWidth, tabHeight, 7);
+    };
+
+    drawTab(tab.id === this.currentTab);
+
+    const text = this.add.text(0, -1, tab.label, {
+      fontSize: `${Math.round(tabHeight * 0.42)}px`,
+      color: '#ffffff',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 2
+    }).setOrigin(0.5);
+
+    const hit = this.add.rectangle(0, 0, tabWidth, tabHeight, 0x000000, 0);
+    hit.setInteractive({ useHandCursor: true });
+    hit.on('pointerdown', () => {
+      SoundFx.playCursor();
+      this.switchTab(tab.id);
     });
+
+    container.add([bg, text, hit]);
+    (container as any).drawTab = drawTab;
+    (container as any).tabId = tab.id;
+    this.tabButtons.push(container);
   }
 
   private switchTab(tabId: 'audio' | 'controls' | 'howToPlay' | 'ai' | 'stats'): void {
@@ -345,13 +380,15 @@ export default class OptionsMenuScene extends Phaser.Scene {
 
     this.updateDifficultyDisplay();
 
-    // Install App button
-    const installBtnW = Math.min(190, cardW - 40);
+    // Install App button & Direct Stats shortcut button
+    const actionBtnW = Math.min(170, Math.floor((cardW - 44) / 2));
+    const btnRowY = 104;
+
     const installBtn = CuteUI.createPillButton(
       this,
-      0,
-      104,
-      '📲 INSTALL APP (PWA)',
+      -actionBtnW / 2 - 5,
+      btnRowY,
+      '📲 INSTALL APP',
       () => {
         if ((window as any).deferredInstallPrompt && (window as any).promptPwaInstall) {
           (window as any).promptPwaInstall();
@@ -359,7 +396,19 @@ export default class OptionsMenuScene extends Phaser.Scene {
           alert("To install as an app:\n• On Chrome/Edge/Android: Tap browser menu (⋮) -> 'Install App'\n• On iPhone/Safari: Tap Share icon (⎋) -> 'Add to Home Screen'");
         }
       },
-      { textureKey: 'pill_green', fontSize: '11.5px', width: installBtnW, height: 28 }
+      { textureKey: 'pill_green', fontSize: isMobile ? '10px' : '11.5px', width: actionBtnW, height: 28 }
+    );
+
+    const statsShortcutBtn = CuteUI.createPillButton(
+      this,
+      actionBtnW / 2 + 5,
+      btnRowY,
+      '📊 GAME STATS',
+      () => {
+        SoundFx.playDecide();
+        this.switchTab('stats');
+      },
+      { textureKey: 'pill_cyan', fontSize: isMobile ? '10px' : '11.5px', width: actionBtnW, height: 28 }
     );
 
     this.audioTabContainer.add([
@@ -378,7 +427,8 @@ export default class OptionsMenuScene extends Phaser.Scene {
       diffCenterPill,
       diffPlusBtn,
       this.diffDescText,
-      installBtn
+      installBtn,
+      statsShortcutBtn
     ]);
 
     this.updateAudioDisplays();
