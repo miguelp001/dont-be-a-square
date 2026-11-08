@@ -788,16 +788,6 @@ export default class ChallengeMapScene extends Phaser.Scene {
 
     SoundFx.playVictory();
 
-    // Themed Victory Royale background backdrop if loaded
-    if (this.textures.exists('victory_royale_bg')) {
-      const bgImg = this.add.image(width / 2, height / 2, 'victory_royale_bg');
-      const scale = Math.max(width / bgImg.width, height / bgImg.height);
-      bgImg.setScale(scale);
-      bgImg.setDepth(0);
-      const darkDim = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.4);
-      darkDim.setDepth(0);
-    }
-
     // Confetti shower
     for (let i = 0; i < 40; i++) {
       const x = Math.random() * width;

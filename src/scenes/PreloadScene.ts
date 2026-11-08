@@ -58,7 +58,6 @@ export default class PreloadScene extends Phaser.Scene {
     this.load.image('board_wood_backdrop', 'assets/ui/board_wood_backdrop.png?v=wood_v2');
     this.load.image('wood_plaque_sign', 'assets/ui/wood_plaque_sign.png');
     this.load.image('wood_clock_icon', 'assets/ui/wood_clock_icon.png');
-    this.load.image('victory_royale_bg', 'assets/ui/victory_royale.jpg?v=v2');
 
     // 3D Parallax Menu Layers
     this.load.image('parallax_sky', 'assets/ui/parallax/sky.png?v=v1');
