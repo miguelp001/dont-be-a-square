@@ -17,6 +17,7 @@ export default class GarbageBlock {
   public width: number;
   public height: number;
   public state: GarbageState = GarbageState.FALLING;
+  public startFallGridY: number = 0;
   public sprites: Phaser.GameObjects.Sprite[][] = [];
 
   constructor(
@@ -33,6 +34,7 @@ export default class GarbageBlock {
     this.gridY = gridY;
     this.width = width;
     this.height = height;
+    this.startFallGridY = gridY;
 
     this.createSprites();
   }
@@ -59,18 +61,23 @@ export default class GarbageBlock {
   /** Check if this garbage block occupies a specific cell */
   public occupies(x: number, y: number): boolean {
     if (this.state === GarbageState.CLEARED) return false;
-    return (
-      x >= this.gridX &&
-      x < this.gridX + this.width &&
-      y >= this.gridY &&
-      y < this.gridY + this.height
-    );
+    if (x < this.gridX || x >= this.gridX + this.width) return false;
+
+    // While falling, reserve the entire vertical corridor traversed so panels cannot swap or drop into the path
+    if (this.state === GarbageState.FALLING) {
+      const minY = Math.min(this.startFallGridY, this.gridY);
+      const maxY = Math.max(this.startFallGridY, this.gridY) + this.height - 1;
+      return y >= minY && y <= maxY;
+    }
+
+    return y >= this.gridY && y < this.gridY + this.height;
   }
 
   /** Animate falling down by cells */
   public fallTo(targetGridY: number, duration: number = 90): Promise<void> {
     return new Promise((resolve) => {
       this.state = GarbageState.FALLING;
+      this.startFallGridY = this.gridY;
       this.gridY = targetGridY;
 
       const promises: Promise<void>[] = [];
