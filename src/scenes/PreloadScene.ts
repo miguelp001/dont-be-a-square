@@ -76,9 +76,9 @@ export default class PreloadScene extends Phaser.Scene {
       this.load.image(char.id, `assets/sprites/characters/${char.id}.png?v=fullbody_v2`);
     });
 
-    // Load Riff Power Chord attack animation frames
+    // Load Riff Power Chord attack animation frames (transparent PNGs)
     for (let i = 1; i <= 6; i++) {
-      this.load.image(`riff_chord_${i}`, `assets/sprites/characters/riff_power_chord_frame_${i}.png`);
+      this.load.image(`riff_chord_${i}`, `assets/sprites/characters/riff_power_chord_frame_${i}.png?v=trans_v1`);
     }
 
     // Load BGM tracks (from assets/audio/bgm/)
