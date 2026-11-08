@@ -471,16 +471,32 @@ export default class Board extends Phaser.Events.EventEmitter {
     this.updateChainState();
     this.updateDangerAndTopOut(delta);
     this.updateStackRising(delta);
+    this.updatePanelAnimations(delta);
 
     // Continuous safety synchronization: snap any resting IDLE panels to their authoritative grid coordinates
     for (let y = 0; y <= BOARD_VISIBLE_HEIGHT; y++) {
       for (let x = 0; x < BOARD_WIDTH; x++) {
         const panel = this.panels[y][x];
-        if (panel && panel.state === PanelState.IDLE) {
+        if (panel && panel.state === PanelState.IDLE && !panel.isAnimatingSquish && !panel.isPanicShaking) {
           const expectedX = x * PANEL_SIZE;
           const expectedY = y * PANEL_SIZE;
           if (panel.x !== expectedX) panel.x = expectedX;
           if (panel.y !== expectedY) panel.y = expectedY;
+        }
+      }
+    }
+  }
+
+  /** Update squishy slime animations: idle breathing, blinking, and ceiling danger panics */
+  private updatePanelAnimations(delta: number): void {
+    for (let y = 0; y <= BOARD_VISIBLE_HEIGHT; y++) {
+      for (let x = 0; x < BOARD_WIDTH; x++) {
+        const panel = this.panels[y][x];
+        if (panel) {
+          // If in danger and panel is in top 2 rows, tremble in panic!
+          const inDangerZone = this.isDanger && (y <= 1);
+          panel.setDangerPanic(inDangerZone);
+          panel.updateIdleAnimation(delta);
         }
       }
     }
