@@ -605,8 +605,21 @@ export default class BattleRoyaleScene extends Phaser.Scene {
     const modal = this.add.container(width / 2, height / 2);
     modal.setDepth(100);
 
-    const backdrop = this.add.rectangle(0, 0, width, height, 0x000000, 0.82);
-    backdrop.setInteractive();
+    let backdrop: Phaser.GameObjects.GameObject;
+    if (this.textures.exists('victory_royale_bg')) {
+      const bgImg = this.add.image(0, 0, 'victory_royale_bg');
+      const scale = Math.max(width / bgImg.width, height / bgImg.height);
+      bgImg.setScale(scale);
+      modal.add(bgImg);
+
+      const overlay = this.add.rectangle(0, 0, width, height, 0x000000, 0.65);
+      overlay.setInteractive();
+      backdrop = overlay;
+    } else {
+      const darkRect = this.add.rectangle(0, 0, width, height, 0x000000, 0.82);
+      darkRect.setInteractive();
+      backdrop = darkRect;
+    }
 
     const boxW = Math.min(width - 32, Math.round(360 * uiScale));
     const boxH = Math.round(250 * uiScale);
@@ -679,8 +692,22 @@ export default class BattleRoyaleScene extends Phaser.Scene {
     const modal = this.add.container(width / 2, height / 2);
     modal.setDepth(100);
 
-    const backdrop = this.add.rectangle(0, 0, width, height, 0x000000, 0.85);
-    backdrop.setInteractive();
+    // Fullscreen victory royale artwork background
+    let backdrop: Phaser.GameObjects.GameObject;
+    if (this.textures.exists('victory_royale_bg')) {
+      const bgImg = this.add.image(0, 0, 'victory_royale_bg');
+      const scale = Math.max(width / bgImg.width, height / bgImg.height);
+      bgImg.setScale(scale);
+      modal.add(bgImg);
+
+      const overlay = this.add.rectangle(0, 0, width, height, 0x000000, 0.42);
+      overlay.setInteractive();
+      backdrop = overlay;
+    } else {
+      const darkRect = this.add.rectangle(0, 0, width, height, 0x000000, 0.85);
+      darkRect.setInteractive();
+      backdrop = darkRect;
+    }
 
     const boxW = Math.min(width - 32, Math.round(380 * uiScale));
     const boxH = Math.round(260 * uiScale);

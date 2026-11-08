@@ -2323,8 +2323,21 @@ export default class GameScene extends Phaser.Scene {
     this.gameOverModalContainer.setDepth(200);
 
     // 1. Dark fullscreen backdrop to shield underlying game and absorb touch/pointer input
-    const backdrop = this.add.rectangle(0, 0, width, height, 0x000000, 0.78);
-    backdrop.setInteractive();
+    let backdrop: Phaser.GameObjects.GameObject;
+    if (isVictory && this.textures.exists('victory_royale_bg')) {
+      const bgImg = this.add.image(0, 0, 'victory_royale_bg');
+      const scale = Math.max(width / bgImg.width, height / bgImg.height);
+      bgImg.setScale(scale);
+      this.gameOverModalContainer.add(bgImg);
+
+      const overlay = this.add.rectangle(0, 0, width, height, 0x000000, 0.45);
+      overlay.setInteractive();
+      backdrop = overlay;
+    } else {
+      const darkRect = this.add.rectangle(0, 0, width, height, 0x000000, 0.78);
+      darkRect.setInteractive();
+      backdrop = darkRect;
+    }
 
     // 2. Themed Modal Box
     const uiScale = CuteUI.getUIScale(this);
