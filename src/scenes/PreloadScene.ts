@@ -78,15 +78,17 @@ export default class PreloadScene extends Phaser.Scene {
     // Load character attack animation frames (transparent PNGs)
     for (let i = 1; i <= 6; i++) {
       this.load.image(`riff_chord_${i}`, `assets/sprites/characters/riff_power_chord_frame_${i}.png?v=trans_v1`);
+      this.load.image(`kiri_attack_${i}`, `assets/sprites/characters/kiri_attack_frame_${i}.png?v=trans_v1`);
+      this.load.image(`mizu_attack_${i}`, `assets/sprites/characters/mizu_attack_frame_${i}.png?v=trans_v1`);
+      this.load.image(`salty_attack_${i}`, `assets/sprites/characters/salty_attack_frame_${i}.png?v=trans_v1`);
     }
 
-    // Load available attack frames for other characters
-    const attackFrames = [
-      { key: 'kiri_attack_1', path: 'assets/sprites/characters/kiri_attack_frame_1.png?v=trans_v1' },
-      { key: 'mizu_attack_1', path: 'assets/sprites/characters/mizu_attack_frame_1.png?v=trans_v1' },
-      { key: 'salty_attack_1', path: 'assets/sprites/characters/salty_attack_frame_1.png?v=trans_v1' },
+    // Available attack frames for characters in progress
+    const inProgressFrames = [
+      { key: 'mocha_attack_1', path: 'assets/sprites/characters/mocha_attack_frame_1.png?v=trans_v1' },
+      { key: 'mocha_attack_2', path: 'assets/sprites/characters/mocha_attack_frame_2.png?v=trans_v1' },
     ];
-    attackFrames.forEach((f) => {
+    inProgressFrames.forEach((f) => {
       this.load.image(f.key, f.path);
     });
 
