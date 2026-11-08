@@ -1745,9 +1745,7 @@ export default class GameScene extends Phaser.Scene {
     }
 
     const charId = isPlayer1 ? this.characterId : this.opponentCharacterId;
-    if (charId === 'riff') {
-      this.playRiffPowerChord(isPlayer1);
-    }
+    this.playCharacterGarbageAttack(charId, isPlayer1);
 
     const charData = CHARACTERS.find((c) => c.id === charId);
     if (charData && charData.quote) {
@@ -1755,14 +1753,141 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
-  /** Play 6-frame power chord animation when Riff sends garbage out */
-  private playRiffPowerChord(isPlayer1: boolean): void {
+  /** Character Garbage Attack profiles containing SFX, comic banners, particles and animation sequences */
+  private getCharacterAttackProfile(charId: string) {
+    switch (charId) {
+      case 'kiri':
+        return {
+          banner: '🔧 WRENCH SLAM! ⚙️',
+          bannerColor: '#ffa502',
+          ringColorPrimary: 0xffa502,
+          ringColorSecondary: 0xffffff,
+          particles: ['⚙️', '💥', '🔩'],
+          particleColors: ['#ffa502', '#eccc68'],
+          playSfx: () => SoundFx.playWrenchClank(),
+          framePrefix: 'kiri_attack_',
+          totalFrames: 6
+        };
+      case 'mizu':
+        return {
+          banner: '🌊 TIDAL SLASH! ⚔️',
+          bannerColor: '#70a1ff',
+          ringColorPrimary: 0x70a1ff,
+          ringColorSecondary: 0x00d2d3,
+          particles: ['💧', '🌊', '✨'],
+          particleColors: ['#70a1ff', '#00d2d3'],
+          playSfx: () => SoundFx.playWaterSlash(),
+          framePrefix: 'mizu_attack_',
+          totalFrames: 6
+        };
+      case 'mocha':
+        return {
+          banner: '✨ MAGIC BREW! 🧪',
+          bannerColor: '#ff9ff3',
+          ringColorPrimary: 0xff9ff3,
+          ringColorSecondary: 0xfeca57,
+          particles: ['🫧', '✨', '⭐'],
+          particleColors: ['#ff9ff3', '#54a0ff'],
+          playSfx: () => SoundFx.playPotionBubble(),
+          framePrefix: 'mocha_attack_',
+          totalFrames: 6
+        };
+      case 'ember':
+        return {
+          banner: '🔥 FIRE VORTEX! 🪭',
+          bannerColor: '#ff6b6b',
+          ringColorPrimary: 0xff6b6b,
+          ringColorSecondary: 0xff9f43,
+          particles: ['🔥', '✨', '💥'],
+          particleColors: ['#ff6b6b', '#ff9f43'],
+          playSfx: () => SoundFx.playFireWhoosh(),
+          framePrefix: 'ember_attack_',
+          totalFrames: 6
+        };
+      case 'volt':
+        return {
+          banner: '⚡ TESLA ZAP! 🔋',
+          bannerColor: '#1dd1a1',
+          ringColorPrimary: 0x1dd1a1,
+          ringColorSecondary: 0x54a0ff,
+          particles: ['⚡', '✨', '💡'],
+          particleColors: ['#1dd1a1', '#feca57'],
+          playSfx: () => SoundFx.playElectricZap(),
+          framePrefix: 'volt_attack_',
+          totalFrames: 6
+        };
+      case 'salty':
+        return {
+          banner: '💣 CANNON BLAST! 🪙',
+          bannerColor: '#eccc68',
+          ringColorPrimary: 0xeccc68,
+          ringColorSecondary: 0xff6348,
+          particles: ['🪙', '💨', '💣'],
+          particleColors: ['#eccc68', '#f1f2f6'],
+          playSfx: () => SoundFx.playCannonBoom(),
+          framePrefix: 'salty_attack_',
+          totalFrames: 6
+        };
+      case 'poppy':
+        return {
+          banner: '💖 IDOL SPARKLE! 🎤',
+          bannerColor: '#ff78ae',
+          ringColorPrimary: 0xff78ae,
+          ringColorSecondary: 0xffd32a,
+          particles: ['💖', '⭐', '🎶'],
+          particleColors: ['#ff78ae', '#ffd32a'],
+          playSfx: () => SoundFx.playSparkleIdol(),
+          framePrefix: 'poppy_attack_',
+          totalFrames: 6
+        };
+      case 'void_slime':
+        return {
+          banner: '🌌 COSMIC VOID! 🪐',
+          bannerColor: '#a55eea',
+          ringColorPrimary: 0xa55eea,
+          ringColorSecondary: 0x48dbfb,
+          particles: ['✨', '🪐', '💫'],
+          particleColors: ['#a55eea', '#48dbfb'],
+          playSfx: () => SoundFx.playMatch(),
+          framePrefix: 'void_slime_attack_',
+          totalFrames: 6
+        };
+      case 'nano_banana':
+        return {
+          banner: '🍌 GLITCH PEEL! 👾',
+          bannerColor: '#feca57',
+          ringColorPrimary: 0xfeca57,
+          ringColorSecondary: 0x1dd1a1,
+          particles: ['🍌', '👾', '⚡'],
+          particleColors: ['#feca57', '#1dd1a1'],
+          playSfx: () => SoundFx.playCombo(3),
+          framePrefix: 'nano_banana_attack_',
+          totalFrames: 6
+        };
+      case 'riff':
+      default:
+        return {
+          banner: '🎸 POWER CHORD! ⚡',
+          bannerColor: '#fffa65',
+          ringColorPrimary: 0xfffa65,
+          ringColorSecondary: 0x00d2d3,
+          particles: ['⚡', '♪'],
+          particleColors: ['#fffa65', '#00d2d3'],
+          playSfx: () => SoundFx.playPowerChord(),
+          framePrefix: 'riff_chord_',
+          totalFrames: 6
+        };
+    }
+  }
+
+  /** Play character attack animation and thematic effects when garbage is launched */
+  private playCharacterGarbageAttack(charId: string, isPlayer1: boolean): void {
     const now = this.time.now;
     if (now - this.lastRiffPowerChordTime < 650) return;
     this.lastRiffPowerChordTime = now;
 
-    // Rock power chord audio synthesizer
-    SoundFx.playPowerChord();
+    const profile = this.getCharacterAttackProfile(charId);
+    profile.playSfx();
 
     const mascot = isPlayer1 ? this.playerMascot : this.cpuMascot;
     if (!mascot || !mascot.active) return;
@@ -1790,27 +1915,34 @@ export default class GameScene extends Phaser.Scene {
     }
 
     // 6-frame sequential animation stepping
-    const frames = [
-      { key: 'riff_chord_1', delay: 0 },
-      { key: 'riff_chord_2', delay: 110 },
-      { key: 'riff_chord_3', delay: 190 },
-      { key: 'riff_chord_4', delay: 300 },
-      { key: 'riff_chord_5', delay: 500 },
-      { key: 'riff_chord_6', delay: 700 }
-    ];
+    const frameDelays = [0, 110, 190, 300, 500, 700];
 
-    frames.forEach((f) => {
-      this.time.delayedCall(f.delay, () => {
+    frameDelays.forEach((delay, idx) => {
+      this.time.delayedCall(delay, () => {
         if (!mascot.active) return;
-        mascot.setTexture(f.key);
+        const frameKey = `${profile.framePrefix}${idx + 1}`;
+        if (this.textures.exists(frameKey)) {
+          mascot.setTexture(frameKey);
+        } else if (idx === 0) {
+          // If frame sprite not loaded, perform dynamic mascot action punch
+          this.tweens.add({
+            targets: mascot,
+            scaleX: origScaleX * 1.35,
+            scaleY: origScaleY * 1.35,
+            angle: isPlayer1 ? -12 : 12,
+            duration: 150,
+            yoyo: true,
+            ease: 'Back.easeOut'
+          });
+        }
 
-        if (f.key === 'riff_chord_3') {
-          // String Strike Flash
-          this.createPowerChordSparks(worldX, worldY, mascot.depth + 1);
-        } else if (f.key === 'riff_chord_4') {
-          // Power Chord Roar Apex & Screen Micro-Shake
+        if (idx === 2) {
+          // Strike Flash & Particle Burst
+          this.createAttackSparks(worldX, worldY, mascot.depth + 1, profile);
+        } else if (idx === 3) {
+          // Attack Apex Roar & Screen Micro-Shake
           this.cameras.main.shake(120, 0.005);
-          this.showPowerChordBanner(worldX, worldY, mascot.depth + 2);
+          this.showAttackBanner(worldX, worldY, mascot.depth + 2, profile);
         }
       });
     });
@@ -1818,9 +1950,10 @@ export default class GameScene extends Phaser.Scene {
     // Reset back to idle texture
     this.time.delayedCall(960, () => {
       if (!mascot.active) return;
-      mascot.setTexture('riff');
+      mascot.setTexture(charId);
       mascot.setDisplaySize(origDisplayW, origDisplayH);
       mascot.setScale(origScaleX, origScaleY);
+      mascot.setAngle(0);
       mascot.y = origY;
 
       this.tweens.add({
@@ -1834,8 +1967,8 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
-  /** Visual FX: Shockwave ring and electric spark particles */
-  private createPowerChordSparks(x: number, y: number, depth: number): void {
+  /** Visual FX: Shockwave ring and character-themed particle sparks */
+  private createAttackSparks(x: number, y: number, depth: number, profile: any): void {
     const ring = this.add.graphics();
     ring.setDepth(depth);
 
@@ -1849,21 +1982,23 @@ export default class GameScene extends Phaser.Scene {
       onUpdate: () => {
         if (!ring.active) return;
         ring.clear();
-        ring.lineStyle(3, 0xfffa65, tweenObj.alpha);
+        ring.lineStyle(3, profile.ringColorPrimary, tweenObj.alpha);
         ring.strokeCircle(x, y, tweenObj.radius);
-        ring.lineStyle(1.5, 0x00d2d3, tweenObj.alpha * 0.8);
+        ring.lineStyle(1.5, profile.ringColorSecondary, tweenObj.alpha * 0.8);
         ring.strokeCircle(x, y, tweenObj.radius * 0.7);
       },
       onComplete: () => ring.destroy()
     });
 
-    // Burst 8 musical electric spark particles
+    // Burst 8 character-themed particles
     for (let i = 0; i < 8; i++) {
       const angle = (i / 8) * Math.PI * 2 + Math.random() * 0.4;
       const dist = 32 + Math.random() * 26;
-      const spark = this.add.text(x, y, i % 2 === 0 ? '⚡' : '♪', {
+      const particleChar = profile.particles[i % profile.particles.length];
+      const particleColor = profile.particleColors[i % profile.particleColors.length];
+      const spark = this.add.text(x, y, particleChar, {
         fontSize: '11px',
-        color: i % 2 === 0 ? '#fffa65' : '#00d2d3'
+        color: particleColor
       }).setOrigin(0.5).setDepth(depth + 1);
 
       this.tweens.add({
@@ -1880,11 +2015,11 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
-  /** Visual FX: Floating animated Power Chord banner */
-  private showPowerChordBanner(x: number, y: number, depth: number): void {
-    const banner = this.add.text(x, y - 28, '🎸 POWER CHORD! ⚡', {
+  /** Visual FX: Floating animated Attack banner */
+  private showAttackBanner(x: number, y: number, depth: number, profile: any): void {
+    const banner = this.add.text(x, y - 28, profile.banner, {
       fontSize: '12.5px',
-      color: '#fffa65',
+      color: profile.bannerColor,
       fontStyle: 'bold',
       stroke: '#000000',
       strokeThickness: 3

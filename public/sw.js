@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dont-be-a-square-v59';
+const CACHE_NAME = 'dont-be-a-square-v60';
 
 const PRECACHE_URLS = [
   '/',

@@ -83,4 +83,41 @@ describe('SoundFx - Phase 3 Procedural Web Audio Engine', () => {
     // Root note E3 ~ 164.81 Hz
     expect(Math.round(createdOscillators[0].frequency.setValueAtTime.mock.calls[0][0])).toBe(165);
   });
+
+  it('4. plays character signature attack sounds correctly', () => {
+    // Kiri: Wrench Clank
+    createdOscillators = [];
+    SoundFx.playWrenchClank();
+    expect(createdOscillators.length).toBe(3);
+
+    // Mizu: Water Slash
+    createdOscillators = [];
+    SoundFx.playWaterSlash();
+    expect(createdOscillators.length).toBe(2);
+
+    // Mocha: Potion Bubble
+    createdOscillators = [];
+    SoundFx.playPotionBubble();
+    expect(createdOscillators.length).toBe(4);
+
+    // Ember: Fire Whoosh
+    createdOscillators = [];
+    SoundFx.playFireWhoosh();
+    expect(createdOscillators.length).toBe(2);
+
+    // Volt: Electric Zap
+    createdOscillators = [];
+    SoundFx.playElectricZap();
+    expect(createdOscillators.length).toBe(1);
+
+    // Salty: Cannon Boom
+    createdOscillators = [];
+    SoundFx.playCannonBoom();
+    expect(createdOscillators.length).toBe(3);
+
+    // Poppy: Idol Sparkle
+    createdOscillators = [];
+    SoundFx.playSparkleIdol();
+    expect(createdOscillators.length).toBe(4);
+  });
 });

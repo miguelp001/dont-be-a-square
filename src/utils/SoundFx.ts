@@ -441,4 +441,252 @@ export class SoundFx {
       osc.stop(startTime + 0.65);
     });
   }
+
+  /** Kiri: Heavy metallic wrench clank & gear impact */
+  public static playWrenchClank(): void {
+    const ctx = this.getContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+
+    // Metallic hit: transient click + dual resonant square tones
+    const freqs = [520, 1040, 1560];
+    const masterGain = ctx.createGain();
+    masterGain.gain.setValueAtTime(this.volume * 0.45, now);
+    masterGain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+    masterGain.connect(ctx.destination);
+
+    freqs.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const noteGain = ctx.createGain();
+      osc.type = i === 0 ? 'sawtooth' : 'square';
+      osc.frequency.setValueAtTime(freq, now);
+      osc.frequency.exponentialRampToValueAtTime(freq * 0.6, now + 0.35);
+
+      noteGain.gain.setValueAtTime(0.3 / (i + 1), now);
+      noteGain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+
+      osc.connect(noteGain);
+      noteGain.connect(masterGain);
+      osc.start(now);
+      osc.stop(now + 0.4);
+    });
+  }
+
+  /** Mizu: Fluid katana unsheathe & tidal water slash */
+  public static playWaterSlash(): void {
+    const ctx = this.getContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+
+    const masterGain = ctx.createGain();
+    masterGain.gain.setValueAtTime(this.volume * 0.4, now);
+    masterGain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+    masterGain.connect(ctx.destination);
+
+    // Blade shine ping
+    const pingOsc = ctx.createOscillator();
+    const pingGain = ctx.createGain();
+    pingOsc.type = 'sine';
+    pingOsc.frequency.setValueAtTime(1480, now);
+    pingOsc.frequency.exponentialRampToValueAtTime(880, now + 0.2);
+    pingGain.gain.setValueAtTime(0.4, now);
+    pingGain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+    pingOsc.connect(pingGain);
+    pingGain.connect(masterGain);
+    pingOsc.start(now);
+    pingOsc.stop(now + 0.2);
+
+    // Water wave swoosh
+    const waveOsc = ctx.createOscillator();
+    const waveGain = ctx.createGain();
+    waveOsc.type = 'triangle';
+    waveOsc.frequency.setValueAtTime(580, now + 0.05);
+    waveOsc.frequency.exponentialRampToValueAtTime(160, now + 0.4);
+    waveGain.gain.setValueAtTime(0.35, now + 0.05);
+    waveGain.gain.exponentialRampToValueAtTime(0.001, now + 0.42);
+    waveOsc.connect(waveGain);
+    waveGain.connect(masterGain);
+    waveOsc.start(now + 0.05);
+    waveOsc.stop(now + 0.45);
+  }
+
+  /** Mocha: Playful bubbly potion brew cork pop & effervescent fizz */
+  public static playPotionBubble(): void {
+    const ctx = this.getContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+
+    const masterGain = ctx.createGain();
+    masterGain.gain.setValueAtTime(this.volume * 0.4, now);
+    masterGain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+    masterGain.connect(ctx.destination);
+
+    // 3 ascending bubbly chirps
+    const bubblePitches = [340, 480, 680];
+    bubblePitches.forEach((pitch, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const startTime = now + i * 0.07;
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(pitch, startTime);
+      osc.frequency.exponentialRampToValueAtTime(pitch * 1.5, startTime + 0.09);
+
+      gain.gain.setValueAtTime(0.35, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.09);
+
+      osc.connect(gain);
+      gain.connect(masterGain);
+      osc.start(startTime);
+      osc.stop(startTime + 0.1);
+    });
+
+    // Magic chime sparkle at apex
+    const chimeOsc = ctx.createOscillator();
+    const chimeGain = ctx.createGain();
+    chimeOsc.type = 'triangle';
+    chimeOsc.frequency.setValueAtTime(1320, now + 0.22);
+    chimeGain.gain.setValueAtTime(0.3, now + 0.22);
+    chimeGain.gain.exponentialRampToValueAtTime(0.001, now + 0.48);
+    chimeOsc.connect(chimeGain);
+    chimeGain.connect(masterGain);
+    chimeOsc.start(now + 0.22);
+    chimeOsc.stop(now + 0.5);
+  }
+
+  /** Ember: Blazing fire dancer fan whoosh & crackling embers */
+  public static playFireWhoosh(): void {
+    const ctx = this.getContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+
+    const masterGain = ctx.createGain();
+    masterGain.gain.setValueAtTime(this.volume * 0.42, now);
+    masterGain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+    masterGain.connect(ctx.destination);
+
+    // Low flame roar
+    const roarOsc = ctx.createOscillator();
+    const roarGain = ctx.createGain();
+    roarOsc.type = 'sawtooth';
+    roarOsc.frequency.setValueAtTime(90, now);
+    roarOsc.frequency.exponentialRampToValueAtTime(45, now + 0.45);
+    roarGain.gain.setValueAtTime(0.4, now);
+    roarGain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+    roarOsc.connect(roarGain);
+    roarGain.connect(masterGain);
+    roarOsc.start(now);
+    roarOsc.stop(now + 0.5);
+
+    // Swirling whoosh
+    const whooshOsc = ctx.createOscillator();
+    const whooshGain = ctx.createGain();
+    whooshOsc.type = 'triangle';
+    whooshOsc.frequency.setValueAtTime(260, now + 0.04);
+    whooshOsc.frequency.exponentialRampToValueAtTime(540, now + 0.2);
+    whooshOsc.frequency.exponentialRampToValueAtTime(120, now + 0.45);
+    whooshGain.gain.setValueAtTime(0.35, now + 0.04);
+    whooshGain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+    whooshOsc.connect(whooshGain);
+    whooshGain.connect(masterGain);
+    whooshOsc.start(now + 0.04);
+    whooshOsc.stop(now + 0.5);
+  }
+
+  /** Volt: High-voltage electric arc & lightning zap */
+  public static playElectricZap(): void {
+    const ctx = this.getContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+
+    const masterGain = ctx.createGain();
+    masterGain.gain.setValueAtTime(this.volume * 0.4, now);
+    masterGain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+    masterGain.connect(ctx.destination);
+
+    // Electric zap frequency jitter
+    const zapOsc = ctx.createOscillator();
+    const zapGain = ctx.createGain();
+    zapOsc.type = 'square';
+    zapOsc.frequency.setValueAtTime(780, now);
+    zapOsc.frequency.setValueAtTime(1120, now + 0.04);
+    zapOsc.frequency.setValueAtTime(420, now + 0.08);
+    zapOsc.frequency.setValueAtTime(890, now + 0.12);
+    zapOsc.frequency.exponentialRampToValueAtTime(110, now + 0.38);
+
+    zapGain.gain.setValueAtTime(0.35, now);
+    zapGain.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
+    zapOsc.connect(zapGain);
+    zapGain.connect(masterGain);
+    zapOsc.start(now);
+    zapOsc.stop(now + 0.4);
+  }
+
+  /** Salty: Deep pirate cannon BOOM & sparkling treasure clink */
+  public static playCannonBoom(): void {
+    const ctx = this.getContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+
+    const masterGain = ctx.createGain();
+    masterGain.gain.setValueAtTime(this.volume * 0.5, now);
+    masterGain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+    masterGain.connect(ctx.destination);
+
+    // Heavy bass boom
+    const boomOsc = ctx.createOscillator();
+    const boomGain = ctx.createGain();
+    boomOsc.type = 'triangle';
+    boomOsc.frequency.setValueAtTime(140, now);
+    boomOsc.frequency.exponentialRampToValueAtTime(32, now + 0.45);
+    boomGain.gain.setValueAtTime(0.6, now);
+    boomGain.gain.exponentialRampToValueAtTime(0.001, now + 0.48);
+    boomOsc.connect(boomGain);
+    boomGain.connect(masterGain);
+    boomOsc.start(now);
+    boomOsc.stop(now + 0.5);
+
+    // Gold coin clink
+    const coinFreqs = [1860, 2480];
+    coinFreqs.forEach((freq, idx) => {
+      const coinOsc = ctx.createOscillator();
+      const coinGain = ctx.createGain();
+      const startTime = now + 0.16 + idx * 0.08;
+      coinOsc.type = 'sine';
+      coinOsc.frequency.setValueAtTime(freq, startTime);
+      coinGain.gain.setValueAtTime(0.25, startTime);
+      coinGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.2);
+      coinOsc.connect(coinGain);
+      coinGain.connect(masterGain);
+      coinOsc.start(startTime);
+      coinOsc.stop(startTime + 0.22);
+    });
+  }
+
+  /** Poppy: Sweet anime idol sparkle arpeggio & glitter chime */
+  public static playSparkleIdol(): void {
+    const ctx = this.getContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+
+    const masterGain = ctx.createGain();
+    masterGain.gain.setValueAtTime(this.volume * 0.35, now);
+    masterGain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+    masterGain.connect(ctx.destination);
+
+    // Radiant 4-note idol arpeggio (C6, E6, G6, C7)
+    const idolNotes = [1046.5, 1318.5, 1568.0, 2093.0];
+    idolNotes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const noteGain = ctx.createGain();
+      const startTime = now + i * 0.06;
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, startTime);
+      noteGain.gain.setValueAtTime(0.3, startTime);
+      noteGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.25);
+      osc.connect(noteGain);
+      noteGain.connect(masterGain);
+      osc.start(startTime);
+      osc.stop(startTime + 0.28);
+    });
+  }
 }
