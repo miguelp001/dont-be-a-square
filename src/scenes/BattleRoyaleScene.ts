@@ -63,11 +63,22 @@ export default class BattleRoyaleScene extends Phaser.Scene {
   private currentBgm?: Phaser.Sound.BaseSound;
   private isTop5MusicPlaying: boolean = false;
 
+  // Gameplay Input Controllers
+  private keydownHandler?: (e: KeyboardEvent) => void;
+  private keyupHandler?: (e: KeyboardEvent) => void;
+  private gamepadRepeatTimer: number = 0;
+  private gamepadLastDir: 'up' | 'down' | 'left' | 'right' | null = null;
+  private gamepadPrevButtons: Map<number, boolean> = new Map();
+
   // End Modal Navigation State
   private endModalActive: boolean = false;
   private endModalIndex: number = 0;
   private endModalButtons: Phaser.GameObjects.Container[] = [];
   private endModalKeyHandler?: (e: KeyboardEvent) => void;
+  private endModalTitleText?: Phaser.GameObjects.Text;
+  private endModalSubText?: Phaser.GameObjects.Text;
+  private endModalKillerText?: Phaser.GameObjects.Text;
+  private endModalStatsText?: Phaser.GameObjects.Text;
   private padRepeatTimer: number = 0;
   private prevPadButtons: Map<number, boolean> = new Map();
 
@@ -136,42 +147,70 @@ export default class BattleRoyaleScene extends Phaser.Scene {
     const boardX = this.boardCenterX - boardPixelW / 2;
     const boardY = this.boardCenterY - boardPixelH / 2;
 
-    // Draw board frame
+    // 1. Board Backdrop (drawn behind panels at depth 1)
+    const boardBackdrop = this.add.graphics();
+    boardBackdrop.setDepth(1);
+    boardBackdrop.fillStyle(0x0a0518, 0.65);
+    boardBackdrop.fillRoundedRect(boardX - 6, boardY - 6, boardPixelW + 12, boardPixelH + 12, 10);
+
+    // 2. Board Frame (outline only at depth 20 - NO opaque fill on top of panels!)
     const boardFrame = this.add.graphics();
     boardFrame.setDepth(20);
     this.drawBoardFrame(boardFrame, boardX, boardY, boardPixelW, boardPixelH, 0xff69b4);
 
-    // Player Board instance
+    // 3. Player Board instance
     this.playerBoard = new Board(this, boardX, boardY, this.boardScale);
     this.playerBoard.applyDifficulty(GameDifficulty.ADEPT);
     this.playerBoard.addInitialPanels(4, 0);
+    this.playerBoard.container.setDepth(10);
 
-    // Player Cursor
+    // 4. Player Cursor
     this.playerCursor = new Cursor(this, this.playerBoard);
+    this.playerCursor.setDepth(25);
 
-    // Touch controls on mobile
-    if (this.sys.game.device.input.touch) {
-      this.touchController = new TouchController(this, this.playerBoard, this.playerCursor);
-    }
-
-    // Header Plaque
+    // 5. Header Plaque
     this.createHeaderHUD(width / 2, Math.round(28 * uiScale), uiScale);
 
-    // 4-Way Tactical Targeter Bar directly below board
+    // 6. 4-Way Tactical Targeter Bar directly below board
     this.targeter = new BattleRoyaleTargeter(this, (mode, manualId) => {
       this.socketMgr.setBRTarget(this.roomId, mode, manualId);
     });
     const targeterW = Math.min(width - 24, Math.round(300 * uiScale));
-    const targeterY = boardY + boardPixelH + Math.round(20 * uiScale);
+    const targeterY = boardY + boardPixelH + Math.round(18 * uiScale);
     this.targeter.createUI(width / 2, targeterY, targeterW, uiScale);
 
-    // Thumbnail Matrix
+    // 7. Fast Lift Button directly below targeter
+    const liftBtnW = Math.min(width - 32, Math.round(180 * uiScale));
+    const liftBtnH = Math.round(28 * uiScale);
+    const liftBtnY = targeterY + Math.round(26 * uiScale);
+    const liftBtn = CuteUI.createPillButton(this, width / 2, liftBtnY, '⚡ FAST LIFT', () => {}, {
+      textureKey: 'pill_blue',
+      width: liftBtnW,
+      height: liftBtnH,
+      fontSize: `${Math.round(11 * uiScale)}px`,
+      autoScale: false
+    });
+    liftBtn.setDepth(30);
+    liftBtn.on('pointerdown', () => {
+      if (this.playerBoard && !this.isEliminated && !this.endModalActive) {
+        this.playerBoard.isLifting = true;
+      }
+    });
+    liftBtn.on('pointerup', () => {
+      if (this.playerBoard) this.playerBoard.isLifting = false;
+    });
+    liftBtn.on('pointerout', () => {
+      if (this.playerBoard) this.playerBoard.isLifting = false;
+    });
+
+    // 8. Gameplay Input Setup (Keyboard, Touch/Mouse, Gamepad)
+    this.setupGameplayInput();
+
+    // 9. Thumbnail Matrix
     this.createThumbnailMatrix(width, height, boardX, boardPixelW, isMobile, uiScale);
 
-    // Setup Board Events
+    // 10. Setup Board Events & Socket Listeners
     this.setupBoardEvents();
-
-    // Setup Socket.IO Event Listeners
     this.setupSocketListeners();
 
     // Scene teardown
@@ -181,11 +220,10 @@ export default class BattleRoyaleScene extends Phaser.Scene {
 
   private drawBoardFrame(graphics: Phaser.GameObjects.Graphics, x: number, y: number, w: number, h: number, color: number): void {
     graphics.clear();
-    graphics.fillStyle(0x0c0618, 0.88);
-    graphics.fillRoundedRect(x - 6, y - 6, w + 12, h + 12, 10);
+    // Stroke outline ONLY. Do NOT fill with opaque rectangle so panels underneath are crisp and bright!
     graphics.lineStyle(3, color, 1.0);
     graphics.strokeRoundedRect(x - 6, y - 6, w + 12, h + 12, 10);
-    graphics.lineStyle(1.5, 0xffffff, 0.5);
+    graphics.lineStyle(1.5, 0xffffff, 0.6);
     graphics.strokeRoundedRect(x - 3, y - 3, w + 6, h + 6, 8);
   }
 
@@ -393,6 +431,171 @@ export default class BattleRoyaleScene extends Phaser.Scene {
     bg.strokeRoundedRect(-halfW, -halfH, w, h, 4);
   }
 
+  private setupGameplayInput(): void {
+    // Touch & reciprocal gesture controller
+    this.touchController = new TouchController(this, this.playerBoard, this.playerCursor, {
+      occlusionOffsetY: 0
+    });
+
+    // Pointer events on scene
+    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      if (this.isEliminated || this.isVictory || this.endModalActive) return;
+
+      // Right-click or middle-click fast lift
+      if (pointer.rightButtonDown() || pointer.button === 2 || pointer.button === 1) {
+        this.playerBoard.isLifting = true;
+        return;
+      }
+
+      if (this.touchController) {
+        this.touchController.handlePointerDown(pointer);
+      }
+    });
+
+    this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+      if (this.isEliminated || this.isVictory || this.endModalActive) return;
+
+      if (this.touchController) {
+        this.touchController.handlePointerMove(pointer);
+      }
+    });
+
+    this.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
+      if (this.isEliminated || this.isVictory || this.endModalActive) return;
+
+      this.playerBoard.isLifting = false;
+
+      if (this.touchController) {
+        this.touchController.handlePointerUp(pointer);
+      }
+    });
+
+    // Mouse Wheel Scroll -> Quick lift impulse
+    this.input.on('wheel', (_pointer: Phaser.Input.Pointer, _gameObjects: any, _deltaX: number, deltaY: number) => {
+      if (this.isEliminated || this.isVictory || this.endModalActive) return;
+      if (deltaY > 0) {
+        this.playerBoard.isLifting = true;
+        this.time.delayedCall(160, () => {
+          if (this.playerBoard) this.playerBoard.isLifting = false;
+        });
+      }
+    });
+
+    // Keyboard listeners
+    this.keydownHandler = (event: KeyboardEvent) => {
+      if (this.endModalActive || this.isEliminated || this.isVictory) return;
+
+      const code = event.code;
+      const key = event.key;
+
+      // Cursor movement
+      if (key === 'ArrowLeft' || code === 'KeyA') {
+        this.playerCursor.moveLeft();
+      } else if (key === 'ArrowRight' || code === 'KeyD') {
+        this.playerCursor.moveRight();
+      } else if (key === 'ArrowUp' || code === 'KeyW') {
+        this.playerCursor.moveUp();
+      } else if (key === 'ArrowDown' || code === 'KeyS') {
+        this.playerCursor.moveDown();
+      }
+
+      // Slime Swap
+      if (code === 'Space' || key === ' ' || code === 'KeyX' || code === 'KeyC') {
+        this.triggerPlayerSwap();
+      }
+
+      // Fast Lift
+      if (code === 'ShiftLeft' || code === 'ShiftRight' || code === 'KeyR' || key === 'Shift') {
+        this.playerBoard.isLifting = true;
+      }
+    };
+
+    this.keyupHandler = (event: KeyboardEvent) => {
+      const code = event.code;
+      const key = event.key;
+      if (code === 'ShiftLeft' || code === 'ShiftRight' || code === 'KeyR' || key === 'Shift') {
+        if (this.playerBoard) {
+          this.playerBoard.isLifting = false;
+        }
+      }
+    };
+
+    window.addEventListener('keydown', this.keydownHandler);
+    window.addEventListener('keyup', this.keyupHandler);
+  }
+
+  private triggerPlayerSwap(): void {
+    if (this.isEliminated || this.isVictory || this.endModalActive) return;
+    this.playerBoard.swap(this.playerCursor.gridX, this.playerCursor.gridY);
+  }
+
+  private handleGameplayGamepadInput(delta: number): void {
+    if (!this.input.gamepad || this.input.gamepad.total === 0) return;
+    const pad = this.input.gamepad.gamepads[0];
+    if (!pad || !pad.connected) return;
+
+    // Movement: D-pad & Left Stick with DAS repeat
+    let dir: 'up' | 'down' | 'left' | 'right' | null = null;
+    const stickX = pad.leftStick ? pad.leftStick.x : 0;
+    const stickY = pad.leftStick ? pad.leftStick.y : 0;
+
+    if (pad.left || pad.isButtonDown(14) || stickX < -0.45) {
+      dir = 'left';
+    } else if (pad.right || pad.isButtonDown(15) || stickX > 0.45) {
+      dir = 'right';
+    } else if (pad.up || pad.isButtonDown(12) || stickY < -0.45) {
+      dir = 'up';
+    } else if (pad.down || pad.isButtonDown(13) || stickY > 0.45) {
+      dir = 'down';
+    }
+
+    if (dir) {
+      if (this.gamepadLastDir !== dir) {
+        this.gamepadLastDir = dir;
+        this.executePadMove(dir);
+        this.gamepadRepeatTimer = 160;
+      } else {
+        this.gamepadRepeatTimer -= delta;
+        if (this.gamepadRepeatTimer <= 0) {
+          this.executePadMove(dir);
+          this.gamepadRepeatTimer = 75;
+        }
+      }
+    } else {
+      this.gamepadLastDir = null;
+      this.gamepadRepeatTimer = 0;
+    }
+
+    // Swap: A (btn 0) or X (btn 2)
+    const swapDown = pad.A || pad.X || pad.isButtonDown(0) || pad.isButtonDown(2);
+    const prevSwap = this.gamepadPrevButtons.get(0) || false;
+    if (swapDown && !prevSwap) {
+      this.triggerPlayerSwap();
+    }
+    this.gamepadPrevButtons.set(0, swapDown);
+
+    // Lift: B (1), Y (3), L1/R1 (4/5), L2/R2
+    const liftDown = Boolean(
+      pad.B || pad.Y || pad.L1 || pad.R1 ||
+      pad.isButtonDown(1) || pad.isButtonDown(3) || pad.isButtonDown(4) || pad.isButtonDown(5) ||
+      (pad.L2 > 0.3) || (pad.R2 > 0.3)
+    );
+    const prevLift = this.gamepadPrevButtons.get(1) || false;
+    if (liftDown && !prevLift) {
+      this.playerBoard.isLifting = true;
+    } else if (!liftDown && prevLift) {
+      this.playerBoard.isLifting = false;
+    }
+    this.gamepadPrevButtons.set(1, liftDown);
+  }
+
+  private executePadMove(dir: 'up' | 'down' | 'left' | 'right'): void {
+    if (dir === 'left') this.playerCursor.moveLeft();
+    else if (dir === 'right') this.playerCursor.moveRight();
+    else if (dir === 'up') this.playerCursor.moveUp();
+    else if (dir === 'down') this.playerCursor.moveDown();
+  }
+
   private setupBoardEvents(): void {
     // 1. Combo / Chain Attack
     this.playerBoard.on('match', (event: MatchEvent) => {
@@ -417,6 +620,7 @@ export default class BattleRoyaleScene extends Phaser.Scene {
       this.isEliminated = true;
       SoundFx.playTopOut();
       this.socketMgr.sendBRTopout(this.roomId);
+      this.showChampionScreen(this.aliveCount, '', this.myKOs, this.myBadges);
     });
   }
 
@@ -608,7 +812,21 @@ export default class BattleRoyaleScene extends Phaser.Scene {
   }
 
   private showChampionScreen(placement: number, killerName: string, kos: number, badges: number): void {
-    if (this.endModalActive) return;
+    if (this.endModalActive) {
+      // If already open, update text with official server values
+      const subStr = placement === 1
+        ? 'SLIME MONARCH CONQUEROR!'
+        : `FINISHED #${placement} / 30 • SLIME CONTENDER!`;
+      if (this.endModalSubText) this.endModalSubText.setText(subStr);
+      if (this.endModalKillerText && placement > 1 && killerName && killerName !== 'none') {
+        this.endModalKillerText.setText(`Eliminated by: ${killerName}`);
+      }
+      if (this.endModalStatsText) {
+        this.endModalStatsText.setText(`Total KOs: ${kos}  •  Final Badges: ${badges}`);
+      }
+      return;
+    }
+
     this.endModalActive = true;
     this.isEliminated = true;
     if (placement === 1) this.isVictory = true;
@@ -670,7 +888,7 @@ export default class BattleRoyaleScene extends Phaser.Scene {
       ? 'SLIME MONARCH CONQUEROR!'
       : `FINISHED #${placement} / 30 • SLIME CONTENDER!`;
 
-    this.add.text(boxX, boxY - boxH / 2 + Math.round(34 * uiScale), titleStr, {
+    this.endModalTitleText = this.add.text(boxX, boxY - boxH / 2 + Math.round(34 * uiScale), titleStr, {
       fontFamily: CUTE_FONT,
       fontSize: `${Math.round(20 * uiScale)}px`,
       color: '#feca57',
@@ -679,7 +897,7 @@ export default class BattleRoyaleScene extends Phaser.Scene {
       strokeThickness: 4
     }).setOrigin(0.5).setDepth(156);
 
-    this.add.text(boxX, boxY - boxH / 2 + Math.round(68 * uiScale), subStr, {
+    this.endModalSubText = this.add.text(boxX, boxY - boxH / 2 + Math.round(68 * uiScale), subStr, {
       fontFamily: CUTE_FONT,
       fontSize: `${Math.round(13 * uiScale)}px`,
       color: placement === 1 ? '#2ed573' : '#ff9ff3',
@@ -690,7 +908,7 @@ export default class BattleRoyaleScene extends Phaser.Scene {
 
     let statsY = boxY - boxH / 2 + Math.round(108 * uiScale);
     if (placement > 1 && killerName && killerName !== 'none') {
-      this.add.text(boxX, boxY - boxH / 2 + Math.round(92 * uiScale), `Eliminated by: ${killerName}`, {
+      this.endModalKillerText = this.add.text(boxX, boxY - boxH / 2 + Math.round(92 * uiScale), `Eliminated by: ${killerName}`, {
         fontFamily: CUTE_FONT,
         fontSize: `${Math.round(11.5 * uiScale)}px`,
         color: '#ff6b6b'
@@ -698,7 +916,7 @@ export default class BattleRoyaleScene extends Phaser.Scene {
       statsY = boxY - boxH / 2 + Math.round(118 * uiScale);
     }
 
-    this.add.text(boxX, statsY, `Total KOs: ${kos}  •  Final Badges: ${badges}`, {
+    this.endModalStatsText = this.add.text(boxX, statsY, `Total KOs: ${kos}  •  Final Badges: ${badges}`, {
       fontFamily: CUTE_FONT,
       fontSize: `${Math.round(14 * uiScale)}px`,
       color: '#ffffff',
@@ -828,6 +1046,7 @@ export default class BattleRoyaleScene extends Phaser.Scene {
     }
     if (this.isEliminated || this.isVictory) return;
 
+    this.handleGameplayGamepadInput(delta);
     this.playerCursor.update(delta);
     this.playerBoard.update(time, delta);
 
@@ -841,9 +1060,24 @@ export default class BattleRoyaleScene extends Phaser.Scene {
   }
 
   private cleanup(): void {
+    if (this.keydownHandler) {
+      window.removeEventListener('keydown', this.keydownHandler);
+      this.keydownHandler = undefined;
+    }
+    if (this.keyupHandler) {
+      window.removeEventListener('keyup', this.keyupHandler);
+      this.keyupHandler = undefined;
+    }
     if (this.endModalKeyHandler) {
       window.removeEventListener('keydown', this.endModalKeyHandler);
       this.endModalKeyHandler = undefined;
+    }
+    if (this.touchController) {
+      this.touchController.destroy();
+      this.touchController = undefined;
+    }
+    if (this.targeter) {
+      this.targeter.destroy();
     }
     if (this.currentBgm) {
       this.currentBgm.stop();

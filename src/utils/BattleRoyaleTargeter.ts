@@ -110,18 +110,39 @@ export class BattleRoyaleTargeter {
     }
   }
 
+  private keyListeners: { event: string; fn: () => void }[] = [];
+
+  public destroy(): void {
+    const k = this.scene.input.keyboard;
+    if (k) {
+      for (const kl of this.keyListeners) {
+        k.off(kl.event, kl.fn);
+      }
+    }
+    this.keyListeners = [];
+  }
+
   private setupKeyboardListeners(): void {
     const k = this.scene.input.keyboard;
     if (!k) return;
 
-    k.on('keydown-ONE', () => this.setMode('random'));
-    k.on('keydown-TWO', () => this.setMode('attackers'));
-    k.on('keydown-THREE', () => this.setMode('kos'));
-    k.on('keydown-FOUR', () => this.setMode('badges'));
+    // Numerical keys 1-4 for quick target mode switching (tetris 99 style)
+    // NOTE: Arrow keys are preserved strictly for player board cursor navigation!
+    const binds: [string, BRTargetMode][] = [
+      ['keydown-ONE', 'random'],
+      ['keydown-TWO', 'attackers'],
+      ['keydown-THREE', 'kos'],
+      ['keydown-FOUR', 'badges'],
+      ['keydown-NUMPAD_ONE', 'random'],
+      ['keydown-NUMPAD_TWO', 'attackers'],
+      ['keydown-NUMPAD_THREE', 'kos'],
+      ['keydown-NUMPAD_FOUR', 'badges']
+    ];
 
-    k.on('keydown-UP', () => this.setMode('attackers'));
-    k.on('keydown-DOWN', () => this.setMode('kos'));
-    k.on('keydown-LEFT', () => this.setMode('random'));
-    k.on('keydown-RIGHT', () => this.setMode('badges'));
+    for (const [evt, mode] of binds) {
+      const fn = () => this.setMode(mode);
+      k.on(evt, fn);
+      this.keyListeners.push({ event: evt, fn });
+    }
   }
 }
