@@ -9,6 +9,7 @@ import LobbyScene from './scenes/LobbyScene';
 import OptionsMenuScene from './scenes/OptionsMenuScene';
 import CharacterProfileScene from './scenes/CharacterProfileScene';
 import LeaderboardScene from './scenes/LeaderboardScene';
+import BattleRoyaleScene from './scenes/BattleRoyaleScene';
 import { GAME_WIDTH, GAME_HEIGHT, CUTE_FONT } from './utils/Constants';
 
 // Globally set the default font family for all Phaser text objects to our cute & legible font
@@ -55,7 +56,8 @@ const config: Phaser.Types.Core.GameConfig = {
     LobbyScene,
     OptionsMenuScene,
     CharacterProfileScene,
-    LeaderboardScene
+    LeaderboardScene,
+    BattleRoyaleScene
   ],
   scale: {
     mode: Phaser.Scale.RESIZE,

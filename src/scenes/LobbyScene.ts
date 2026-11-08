@@ -1,9 +1,10 @@
 import Phaser from 'phaser';
 import SocketManager, { GameStartPayload } from '../net/SocketManager';
-import { CHARACTERS } from '../utils/Constants';
+import { CHARACTERS, CUTE_FONT } from '../utils/Constants';
 import { SoundFx } from '../utils/SoundFx';
 import { CuteUI } from '../utils/CuteUI';
 import { RecordManager } from '../utils/DifficultyRecords';
+import { LeaderboardClient } from '../utils/LeaderboardClient';
 
 export default class LobbyScene extends Phaser.Scene {
   private socketMgr!: SocketManager;
@@ -17,6 +18,10 @@ export default class LobbyScene extends Phaser.Scene {
   private mainButtonsContainer!: Phaser.GameObjects.Container;
   private waitingRoomContainer!: Phaser.GameObjects.Container;
   private joinModalContainer!: Phaser.GameObjects.Container;
+  private privateModalContainer!: Phaser.GameObjects.Container;
+  private brQueueContainer!: Phaser.GameObjects.Container;
+  private brCountdownText!: Phaser.GameObjects.Text;
+  private brPlayerCountText!: Phaser.GameObjects.Text;
 
   // Waiting Room Elements
   private roomCodeDisplay!: Phaser.GameObjects.Text;
@@ -118,6 +123,12 @@ export default class LobbyScene extends Phaser.Scene {
 
     // Join Code Modal UI (hidden by default)
     this.createJoinModalUI(width / 2, height / 2, uiScale);
+
+    // Private Match Choice Modal (hidden by default)
+    this.createPrivateMatchModal(width / 2, height / 2, uiScale);
+
+    // Battle Royale Queue Modal (hidden by default)
+    this.createBRQueueModal(width / 2, height / 2, uiScale);
 
     // Wire Socket Events
     this.setupSocketEvents();
@@ -222,16 +233,16 @@ export default class LobbyScene extends Phaser.Scene {
     // 1. QUICK MATCH
     const quickBtn = CuteUI.createPillButton(this, x, startY, 'QUICK MATCH ⚡', () => {
       this.handleQuickMatch();
+    }, { textureKey: 'pill_green', fontSize, width: btnW, height: btnH, autoScale: false });
+
+    // 2. BATTLE ROYALE
+    const brBtn = CuteUI.createPillButton(this, x, startY + btnSpacing, 'BATTLE ROYALE 👑', () => {
+      this.openBRQueueModal();
     }, { textureKey: 'pill_pink', fontSize, width: btnW, height: btnH, autoScale: false });
 
-    // 2. CREATE PRIVATE ROOM
-    const createBtn = CuteUI.createPillButton(this, x, startY + btnSpacing, 'CREATE PRIVATE ROOM 🔑', () => {
-      this.handleCreateRoom();
-    }, { textureKey: 'pill_green', fontSize: subFontSize, width: btnW, height: btnH, autoScale: false });
-
-    // 3. JOIN BY CODE
-    const joinBtn = CuteUI.createPillButton(this, x, startY + btnSpacing * 2, 'JOIN BY CODE 🚪', () => {
-      this.openJoinModal();
+    // 3. PRIVATE MATCH
+    const privateBtn = CuteUI.createPillButton(this, x, startY + btnSpacing * 2, 'PRIVATE MATCH 🔒', () => {
+      this.openPrivateMatchModal();
     }, { textureKey: 'pill_blue', fontSize, width: btnW, height: btnH, autoScale: false });
 
     // 4. BACK TO MENU
@@ -239,7 +250,7 @@ export default class LobbyScene extends Phaser.Scene {
       this.handleBackToMenu();
     }, { textureKey: 'pill_grey', fontSize, width: btnW, height: btnH, autoScale: false });
 
-    this.mainPillButtons = [quickBtn, createBtn, joinBtn, backBtn];
+    this.mainPillButtons = [quickBtn, brBtn, privateBtn, backBtn];
     this.mainPillButtons.forEach((btn, idx) => {
       btn.on('pointerover', () => {
         this.focusIndex = idx + 1;
@@ -247,7 +258,7 @@ export default class LobbyScene extends Phaser.Scene {
       });
     });
 
-    this.mainButtonsContainer.add([quickBtn, createBtn, joinBtn, backBtn]);
+    this.mainButtonsContainer.add([quickBtn, brBtn, privateBtn, backBtn]);
   }
 
   /** Waiting Room card shown after clicking CREATE ROOM */
@@ -448,6 +459,7 @@ export default class LobbyScene extends Phaser.Scene {
 
   private openJoinModal(): void {
     SoundFx.playCursor();
+    this.mainButtonsContainer.setVisible(false);
     this.inputCode = '';
     this.updateCodeSlotsDisplay();
     this.joinErrorText.setText('');
@@ -488,6 +500,156 @@ export default class LobbyScene extends Phaser.Scene {
       this.keydownHandler = undefined;
     }
     this.joinModalContainer.setVisible(false);
+    this.mainButtonsContainer.setVisible(true);
+  }
+
+  /** Modal offering CREATE PRIVATE ROOM or JOIN BY CODE */
+  private createPrivateMatchModal(x: number, y: number, uiScale: number = 1.0): void {
+    this.privateModalContainer = this.add.container(x, y);
+    this.privateModalContainer.setVisible(false);
+    this.privateModalContainer.setDepth(50);
+
+    const backdrop = this.add.rectangle(0, 0, this.cameras.main.width, this.cameras.main.height, 0x000000, 0.7);
+    backdrop.setInteractive();
+
+    const modalW = Math.round(340 * uiScale);
+    const modalH = Math.round(230 * uiScale);
+
+    const box = this.add.graphics();
+    box.fillStyle(0x1e272e, 0.98);
+    box.fillRoundedRect(-modalW / 2, -modalH / 2, modalW, modalH, 14);
+    box.lineStyle(2.5, 0x54a0ff, 1);
+    box.strokeRoundedRect(-modalW / 2, -modalH / 2, modalW, modalH, 14);
+
+    const title = this.add.text(0, -Math.round(80 * uiScale), 'PRIVATE MATCH 🔒', {
+      fontSize: Math.round(18 * uiScale) + 'px',
+      color: '#54a0ff',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 3
+    }).setOrigin(0.5);
+
+    const sub = this.add.text(0, -Math.round(54 * uiScale), 'Play a 1v1 match with a friend', {
+      fontSize: Math.round(12 * uiScale) + 'px',
+      color: '#a4b0be'
+    }).setOrigin(0.5);
+
+    const btnW = Math.round(220 * uiScale);
+    const btnH = Math.round(38 * uiScale);
+    const fontSize = Math.round(13 * uiScale) + 'px';
+
+    const createBtn = CuteUI.createPillButton(this, 0, -Math.round(10 * uiScale), 'CREATE ROOM 🔑', () => {
+      this.closePrivateMatchModal();
+      this.handleCreateRoom();
+    }, { textureKey: 'pill_green', fontSize, width: btnW, height: btnH, autoScale: false });
+
+    const joinBtn = CuteUI.createPillButton(this, 0, Math.round(36 * uiScale), 'JOIN BY CODE 🚪', () => {
+      this.closePrivateMatchModal();
+      this.openJoinModal();
+    }, { textureKey: 'pill_blue', fontSize, width: btnW, height: btnH, autoScale: false });
+
+    const cancelBtn = this.createSmallButton(0, Math.round(82 * uiScale), 'CANCEL', 0xff4757, () => {
+      this.closePrivateMatchModal();
+    }, uiScale);
+
+    this.privateModalContainer.add([backdrop, box, title, sub, createBtn, joinBtn, cancelBtn]);
+  }
+
+  private openPrivateMatchModal(): void {
+    SoundFx.playCursor();
+    this.mainButtonsContainer.setVisible(false);
+    this.privateModalContainer.setVisible(true);
+  }
+
+  private closePrivateMatchModal(): void {
+    SoundFx.playCursor();
+    this.privateModalContainer.setVisible(false);
+    this.mainButtonsContainer.setVisible(true);
+  }
+
+  /** Modal showing Battle Royale queue status & countdown */
+  private createBRQueueModal(x: number, y: number, uiScale: number = 1.0): void {
+    this.brQueueContainer = this.add.container(x, y);
+    this.brQueueContainer.setVisible(false);
+    this.brQueueContainer.setDepth(50);
+
+    const backdrop = this.add.rectangle(0, 0, this.cameras.main.width, this.cameras.main.height, 0x000000, 0.75);
+    backdrop.setInteractive();
+
+    const modalW = Math.round(360 * uiScale);
+    const modalH = Math.round(250 * uiScale);
+
+    const box = this.add.graphics();
+    box.fillStyle(0x130a24, 0.98);
+    box.fillRoundedRect(-modalW / 2, -modalH / 2, modalW, modalH, 16);
+    box.lineStyle(3, 0xfeca57, 1);
+    box.strokeRoundedRect(-modalW / 2, -modalH / 2, modalW, modalH, 16);
+
+    const crown = this.add.text(0, -Math.round(88 * uiScale), '👑 BATTLE ROYALE 👑', {
+      fontSize: Math.round(18 * uiScale) + 'px',
+      color: '#feca57',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 3
+    }).setOrigin(0.5);
+
+    const subtitle = this.add.text(0, -Math.round(62 * uiScale), '30-Player Free-For-All Arena', {
+      fontSize: Math.round(12 * uiScale) + 'px',
+      color: '#ff9ff3',
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+
+    this.brPlayerCountText = this.add.text(0, -Math.round(20 * uiScale), 'Players: 1 / 30', {
+      fontSize: Math.round(22 * uiScale) + 'px',
+      color: '#ffffff',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 3
+    }).setOrigin(0.5);
+
+    this.brCountdownText = this.add.text(0, Math.round(18 * uiScale), 'Match starts in 15s', {
+      fontSize: Math.round(15 * uiScale) + 'px',
+      color: '#2ed573',
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+
+    const botNote = this.add.text(0, Math.round(48 * uiScale), '(AI slimes backfill if queue timer finishes)', {
+      fontSize: Math.round(11 * uiScale) + 'px',
+      color: '#a4b0be'
+    }).setOrigin(0.5);
+
+    const leaveBtn = this.createSmallButton(0, Math.round(88 * uiScale), 'LEAVE QUEUE', 0xff4757, () => {
+      this.cancelBRQueue();
+    }, uiScale);
+
+    this.brQueueContainer.add([
+      backdrop,
+      box,
+      crown,
+      subtitle,
+      this.brPlayerCountText,
+      this.brCountdownText,
+      botNote,
+      leaveBtn
+    ]);
+  }
+
+  private openBRQueueModal(): void {
+    SoundFx.playCursor();
+    this.mainButtonsContainer.setVisible(false);
+    this.brQueueContainer.setVisible(true);
+    this.brPlayerCountText.setText('Players: 1 / 30');
+    this.brCountdownText.setText('Match starts in 15s');
+
+    const char = CHARACTERS[this.characterIndex];
+    this.socketMgr.joinBRQueue(this.selectedCharacterId, char.name);
+  }
+
+  private cancelBRQueue(): void {
+    SoundFx.playCursor();
+    this.socketMgr.leaveBRQueue();
+    this.brQueueContainer.setVisible(false);
+    this.mainButtonsContainer.setVisible(true);
   }
 
   private submitJoinCode(): void {
@@ -597,6 +759,50 @@ export default class LobbyScene extends Phaser.Scene {
         });
       });
     });
+
+    // Battle Royale Events
+    this.socketMgr.onBRQueueJoined((data) => {
+      if (this.brPlayerCountText?.active) {
+        this.brPlayerCountText.setText(`Players: ${data.playersCount} / 30`);
+      }
+      if (this.brCountdownText?.active) {
+        this.brCountdownText.setText(`Match starts in ${data.countdown}s`);
+      }
+    });
+
+    this.socketMgr.onBRQueueUpdate((data) => {
+      if (this.brPlayerCountText?.active) {
+        this.brPlayerCountText.setText(`Players: ${data.playersCount} / 30`);
+      }
+      if (this.brCountdownText?.active) {
+        this.brCountdownText.setText(`Match starts in ${data.countdown}s`);
+      }
+    });
+
+    this.socketMgr.onBRQueueLeft(() => {
+      if (this.brQueueContainer?.active) {
+        this.brQueueContainer.setVisible(false);
+      }
+      if (this.mainButtonsContainer?.active) {
+        this.mainButtonsContainer.setVisible(true);
+      }
+    });
+
+    this.socketMgr.onBRMatchStart((data) => {
+      if (this.brCountdownText?.active) {
+        this.brCountdownText.setText('LAUNCHING BATTLE ROYALE!').setColor('#2ed573');
+      }
+      SoundFx.playMatch();
+      this.time.delayedCall(600, () => {
+        this.scene.start('BattleRoyaleScene', {
+          roomId: data.roomId,
+          seed: data.seed,
+          characterId: this.selectedCharacterId,
+          totalPlayers: data.totalPlayers,
+          competitors: data.competitors
+        });
+      });
+    });
   }
 
   /** Helper to create styled main buttons */
@@ -682,15 +888,19 @@ export default class LobbyScene extends Phaser.Scene {
       if (this.joinModalContainer?.visible) return;
 
       if (e.key === 'Escape') {
-        if (this.waitingRoomContainer?.visible) {
-          this.handleBackToMenu();
+        if (this.brQueueContainer?.visible) {
+          this.cancelBRQueue();
+        } else if (this.privateModalContainer?.visible) {
+          this.closePrivateMatchModal();
+        } else if (this.waitingRoomContainer?.visible) {
+          this.cancelWaitingRoom();
         } else {
           this.handleBackToMenu();
         }
         return;
       }
 
-      if (this.waitingRoomContainer?.visible) return;
+      if (this.waitingRoomContainer?.visible || this.brQueueContainer?.visible || this.privateModalContainer?.visible) return;
 
       if (e.key === 'ArrowUp' || e.code === 'KeyW') {
         SoundFx.playCursor();
@@ -724,9 +934,9 @@ export default class LobbyScene extends Phaser.Scene {
     } else if (this.focusIndex === 1) {
       this.handleQuickMatch();
     } else if (this.focusIndex === 2) {
-      this.handleCreateRoom();
+      this.openBRQueueModal();
     } else if (this.focusIndex === 3) {
-      this.openJoinModal();
+      this.openPrivateMatchModal();
     } else if (this.focusIndex === 4) {
       this.handleBackToMenu();
     }
@@ -775,12 +985,34 @@ export default class LobbyScene extends Phaser.Scene {
       return;
     }
 
+    // Battle Royale Queue Modal handling
+    if (this.brQueueContainer?.visible) {
+      const backDown = pad.B || pad.isButtonDown(1);
+      const prevBack = this.prevPadButtons.get(1) || false;
+      if (backDown && !prevBack) {
+        this.cancelBRQueue();
+      }
+      this.prevPadButtons.set(1, backDown);
+      return;
+    }
+
+    // Private Match Modal handling
+    if (this.privateModalContainer?.visible) {
+      const backDown = pad.B || pad.isButtonDown(1);
+      const prevBack = this.prevPadButtons.get(1) || false;
+      if (backDown && !prevBack) {
+        this.closePrivateMatchModal();
+      }
+      this.prevPadButtons.set(1, backDown);
+      return;
+    }
+
     // Waiting Room handling
     if (this.waitingRoomContainer?.visible) {
       const backDown = pad.B || pad.isButtonDown(1);
       const prevBack = this.prevPadButtons.get(1) || false;
       if (backDown && !prevBack) {
-        this.handleBackToMenu();
+        this.cancelWaitingRoom();
       }
       this.prevPadButtons.set(1, backDown);
       return;

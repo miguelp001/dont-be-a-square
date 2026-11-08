@@ -1077,4 +1077,16 @@ export default class Board extends Phaser.Events.EventEmitter {
       }
     }
   }
+
+  /** Return current visible stack height (0 to BOARD_VISIBLE_HEIGHT) */
+  public getStackHeight(): number {
+    for (let r = 0; r < BOARD_VISIBLE_HEIGHT; r++) {
+      for (let c = 0; c < BOARD_WIDTH; c++) {
+        if (this.panels[r][c] !== null) {
+          return BOARD_VISIBLE_HEIGHT - r;
+        }
+      }
+    }
+    return 0;
+  }
 }

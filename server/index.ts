@@ -1,6 +1,7 @@
 import { Server } from 'socket.io';
 import { createServer, IncomingMessage, ServerResponse } from 'http';
 import { LeaderboardManager, SubmitScorePayload } from './leaderboard';
+import { BattleRoyaleManager } from './battle_royale';
 
 const leaderboard = new LeaderboardManager();
 
@@ -84,9 +85,11 @@ interface Room {
 }
 
 const rooms = new Map<string, Room>();
+const brManager = new BattleRoyaleManager(io);
 
 io.on('connection', (socket) => {
   console.log('Player connected:', socket.id);
+  brManager.handleSocketConnection(socket);
 
   // Create a room (private or public for quick match)
   socket.on('create_room', (data: { characterId?: string; isPublic?: boolean } = {}) => {
