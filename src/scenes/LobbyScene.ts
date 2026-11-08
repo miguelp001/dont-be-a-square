@@ -19,9 +19,6 @@ export default class LobbyScene extends Phaser.Scene {
   private waitingRoomContainer!: Phaser.GameObjects.Container;
   private joinModalContainer!: Phaser.GameObjects.Container;
   private privateModalContainer!: Phaser.GameObjects.Container;
-  private brQueueContainer!: Phaser.GameObjects.Container;
-  private brCountdownText!: Phaser.GameObjects.Text;
-  private brPlayerCountText!: Phaser.GameObjects.Text;
 
   // Waiting Room Elements
   private roomCodeDisplay!: Phaser.GameObjects.Text;
@@ -126,9 +123,6 @@ export default class LobbyScene extends Phaser.Scene {
 
     // Private Match Choice Modal (hidden by default)
     this.createPrivateMatchModal(width / 2, height / 2, uiScale);
-
-    // Battle Royale Queue Modal (hidden by default)
-    this.createBRQueueModal(width / 2, height / 2, uiScale);
 
     // Wire Socket Events
     this.setupSocketEvents();
@@ -235,22 +229,17 @@ export default class LobbyScene extends Phaser.Scene {
       this.handleQuickMatch();
     }, { textureKey: 'pill_green', fontSize, width: btnW, height: btnH, autoScale: false });
 
-    // 2. BATTLE ROYALE
-    const brBtn = CuteUI.createPillButton(this, x, startY + btnSpacing, 'BATTLE ROYALE 👑', () => {
-      this.openBRQueueModal();
-    }, { textureKey: 'pill_pink', fontSize, width: btnW, height: btnH, autoScale: false });
-
-    // 3. PRIVATE MATCH
-    const privateBtn = CuteUI.createPillButton(this, x, startY + btnSpacing * 2, 'PRIVATE MATCH 🔒', () => {
+    // 2. PRIVATE MATCH
+    const privateBtn = CuteUI.createPillButton(this, x, startY + btnSpacing, 'PRIVATE MATCH 🔒', () => {
       this.openPrivateMatchModal();
     }, { textureKey: 'pill_blue', fontSize, width: btnW, height: btnH, autoScale: false });
 
-    // 4. BACK TO MENU
-    const backBtn = CuteUI.createPillButton(this, x, startY + btnSpacing * 3, 'BACK TO MENU', () => {
+    // 3. BACK TO MENU
+    const backBtn = CuteUI.createPillButton(this, x, startY + btnSpacing * 2, 'BACK TO MENU', () => {
       this.handleBackToMenu();
     }, { textureKey: 'pill_grey', fontSize, width: btnW, height: btnH, autoScale: false });
 
-    this.mainPillButtons = [quickBtn, brBtn, privateBtn, backBtn];
+    this.mainPillButtons = [quickBtn, privateBtn, backBtn];
     this.mainPillButtons.forEach((btn, idx) => {
       btn.on('pointerover', () => {
         this.focusIndex = idx + 1;
@@ -258,7 +247,7 @@ export default class LobbyScene extends Phaser.Scene {
       });
     });
 
-    this.mainButtonsContainer.add([quickBtn, brBtn, privateBtn, backBtn]);
+    this.mainButtonsContainer.add([quickBtn, privateBtn, backBtn]);
   }
 
   /** Waiting Room card shown after clicking CREATE ROOM */
@@ -567,91 +556,6 @@ export default class LobbyScene extends Phaser.Scene {
     this.mainButtonsContainer.setVisible(true);
   }
 
-  /** Modal showing Battle Royale queue status & countdown */
-  private createBRQueueModal(x: number, y: number, uiScale: number = 1.0): void {
-    this.brQueueContainer = this.add.container(x, y);
-    this.brQueueContainer.setVisible(false);
-    this.brQueueContainer.setDepth(50);
-
-    const backdrop = this.add.rectangle(0, 0, this.cameras.main.width, this.cameras.main.height, 0x000000, 0.75);
-    backdrop.setInteractive();
-
-    const modalW = Math.round(360 * uiScale);
-    const modalH = Math.round(250 * uiScale);
-
-    const box = this.add.graphics();
-    box.fillStyle(0x130a24, 0.98);
-    box.fillRoundedRect(-modalW / 2, -modalH / 2, modalW, modalH, 16);
-    box.lineStyle(3, 0xfeca57, 1);
-    box.strokeRoundedRect(-modalW / 2, -modalH / 2, modalW, modalH, 16);
-
-    const crown = this.add.text(0, -Math.round(88 * uiScale), '👑 BATTLE ROYALE 👑', {
-      fontSize: Math.round(18 * uiScale) + 'px',
-      color: '#feca57',
-      fontStyle: 'bold',
-      stroke: '#000000',
-      strokeThickness: 3
-    }).setOrigin(0.5);
-
-    const subtitle = this.add.text(0, -Math.round(62 * uiScale), '30-Player Free-For-All Arena', {
-      fontSize: Math.round(12 * uiScale) + 'px',
-      color: '#ff9ff3',
-      fontStyle: 'bold'
-    }).setOrigin(0.5);
-
-    this.brPlayerCountText = this.add.text(0, -Math.round(20 * uiScale), 'Players: 1 / 30', {
-      fontSize: Math.round(22 * uiScale) + 'px',
-      color: '#ffffff',
-      fontStyle: 'bold',
-      stroke: '#000000',
-      strokeThickness: 3
-    }).setOrigin(0.5);
-
-    this.brCountdownText = this.add.text(0, Math.round(18 * uiScale), 'Match starts in 15s', {
-      fontSize: Math.round(15 * uiScale) + 'px',
-      color: '#2ed573',
-      fontStyle: 'bold'
-    }).setOrigin(0.5);
-
-    const botNote = this.add.text(0, Math.round(48 * uiScale), '(AI slimes backfill if queue timer finishes)', {
-      fontSize: Math.round(11 * uiScale) + 'px',
-      color: '#a4b0be'
-    }).setOrigin(0.5);
-
-    const leaveBtn = this.createSmallButton(0, Math.round(88 * uiScale), 'LEAVE QUEUE', 0xff4757, () => {
-      this.cancelBRQueue();
-    }, uiScale);
-
-    this.brQueueContainer.add([
-      backdrop,
-      box,
-      crown,
-      subtitle,
-      this.brPlayerCountText,
-      this.brCountdownText,
-      botNote,
-      leaveBtn
-    ]);
-  }
-
-  private openBRQueueModal(): void {
-    SoundFx.playCursor();
-    this.mainButtonsContainer.setVisible(false);
-    this.brQueueContainer.setVisible(true);
-    this.brPlayerCountText.setText('Players: 1 / 30');
-    this.brCountdownText.setText('Match starts in 15s');
-
-    const char = CHARACTERS[this.characterIndex];
-    this.socketMgr.joinBRQueue(this.selectedCharacterId, char.name);
-  }
-
-  private cancelBRQueue(): void {
-    SoundFx.playCursor();
-    this.socketMgr.leaveBRQueue();
-    this.brQueueContainer.setVisible(false);
-    this.mainButtonsContainer.setVisible(true);
-  }
-
   private submitJoinCode(): void {
     if (this.inputCode.length !== 6) {
       this.joinErrorText.setText('Please enter a full 6-letter room code!');
@@ -759,50 +663,6 @@ export default class LobbyScene extends Phaser.Scene {
         });
       });
     });
-
-    // Battle Royale Events
-    this.socketMgr.onBRQueueJoined((data) => {
-      if (this.brPlayerCountText?.active) {
-        this.brPlayerCountText.setText(`Players: ${data.playersCount} / 30`);
-      }
-      if (this.brCountdownText?.active) {
-        this.brCountdownText.setText(`Match starts in ${data.countdown}s`);
-      }
-    });
-
-    this.socketMgr.onBRQueueUpdate((data) => {
-      if (this.brPlayerCountText?.active) {
-        this.brPlayerCountText.setText(`Players: ${data.playersCount} / 30`);
-      }
-      if (this.brCountdownText?.active) {
-        this.brCountdownText.setText(`Match starts in ${data.countdown}s`);
-      }
-    });
-
-    this.socketMgr.onBRQueueLeft(() => {
-      if (this.brQueueContainer?.active) {
-        this.brQueueContainer.setVisible(false);
-      }
-      if (this.mainButtonsContainer?.active) {
-        this.mainButtonsContainer.setVisible(true);
-      }
-    });
-
-    this.socketMgr.onBRMatchStart((data) => {
-      if (this.brCountdownText?.active) {
-        this.brCountdownText.setText('LAUNCHING BATTLE ROYALE!').setColor('#2ed573');
-      }
-      SoundFx.playMatch();
-      this.time.delayedCall(600, () => {
-        this.scene.start('BattleRoyaleScene', {
-          roomId: data.roomId,
-          seed: data.seed,
-          characterId: this.selectedCharacterId,
-          totalPlayers: data.totalPlayers,
-          competitors: data.competitors
-        });
-      });
-    });
   }
 
   /** Helper to create styled main buttons */
@@ -888,9 +748,7 @@ export default class LobbyScene extends Phaser.Scene {
       if (this.joinModalContainer?.visible) return;
 
       if (e.key === 'Escape') {
-        if (this.brQueueContainer?.visible) {
-          this.cancelBRQueue();
-        } else if (this.privateModalContainer?.visible) {
+        if (this.privateModalContainer?.visible) {
           this.closePrivateMatchModal();
         } else if (this.waitingRoomContainer?.visible) {
           this.cancelWaitingRoom();
@@ -900,15 +758,15 @@ export default class LobbyScene extends Phaser.Scene {
         return;
       }
 
-      if (this.waitingRoomContainer?.visible || this.brQueueContainer?.visible || this.privateModalContainer?.visible) return;
+      if (this.waitingRoomContainer?.visible || this.privateModalContainer?.visible) return;
 
       if (e.key === 'ArrowUp' || e.code === 'KeyW') {
         SoundFx.playCursor();
-        this.focusIndex = (this.focusIndex - 1 + 5) % 5;
+        this.focusIndex = (this.focusIndex - 1 + 4) % 4;
         this.updateFocusVisuals();
       } else if (e.key === 'ArrowDown' || e.code === 'KeyS') {
         SoundFx.playCursor();
-        this.focusIndex = (this.focusIndex + 1) % 5;
+        this.focusIndex = (this.focusIndex + 1) % 4;
         this.updateFocusVisuals();
       } else if (this.focusIndex === 0 && (e.key === 'ArrowLeft' || e.code === 'KeyA')) {
         this.cycleCharacter(-1);
@@ -934,10 +792,8 @@ export default class LobbyScene extends Phaser.Scene {
     } else if (this.focusIndex === 1) {
       this.handleQuickMatch();
     } else if (this.focusIndex === 2) {
-      this.openBRQueueModal();
-    } else if (this.focusIndex === 3) {
       this.openPrivateMatchModal();
-    } else if (this.focusIndex === 4) {
+    } else if (this.focusIndex === 3) {
       this.handleBackToMenu();
     }
   }
@@ -985,17 +841,6 @@ export default class LobbyScene extends Phaser.Scene {
       return;
     }
 
-    // Battle Royale Queue Modal handling
-    if (this.brQueueContainer?.visible) {
-      const backDown = pad.B || pad.isButtonDown(1);
-      const prevBack = this.prevPadButtons.get(1) || false;
-      if (backDown && !prevBack) {
-        this.cancelBRQueue();
-      }
-      this.prevPadButtons.set(1, backDown);
-      return;
-    }
-
     // Private Match Modal handling
     if (this.privateModalContainer?.visible) {
       const backDown = pad.B || pad.isButtonDown(1);
@@ -1030,11 +875,11 @@ export default class LobbyScene extends Phaser.Scene {
       if (this.padRepeatTimer <= 0) {
         if (isUp) {
           SoundFx.playCursor();
-          this.focusIndex = (this.focusIndex - 1 + 5) % 5;
+          this.focusIndex = (this.focusIndex - 1 + 4) % 4;
           this.updateFocusVisuals();
         } else if (isDown) {
           SoundFx.playCursor();
-          this.focusIndex = (this.focusIndex + 1) % 5;
+          this.focusIndex = (this.focusIndex + 1) % 4;
           this.updateFocusVisuals();
         } else if (this.focusIndex === 0 && isLeft) {
           this.cycleCharacter(-1);

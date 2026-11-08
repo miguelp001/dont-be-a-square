@@ -64,7 +64,6 @@ export default class PreloadScene extends Phaser.Scene {
     this.load.image('parallax_far_hills', 'assets/ui/parallax/far_hills.png?v=v1');
     this.load.image('parallax_mid_forest', 'assets/ui/parallax/mid_forest.png?v=v1');
     this.load.image('parallax_near_canopy', 'assets/ui/parallax/near_canopy.png?v=v1');
-    this.load.image('victory_royale_bg', 'assets/ui/victory_royale.jpg');
 
     // Load custom kawaii slime sprites for puzzle panels (panel_0 .. panel_5)
     for (let i = 0; i < 6; i++) {
@@ -83,12 +82,6 @@ export default class PreloadScene extends Phaser.Scene {
     bgmTracks.forEach(track => {
       this.load.audio(track, `assets/audio/bgm/${track}.mp3`);
     });
-
-    // Battle Royale BGM tracks
-    this.load.audio('br_bgm', 'assets/audio/bgm/Pixel_Shuffle.mp3');
-    this.load.audio('br_stress_bgm', 'assets/audio/bgm/Pixel_stress.mp3');
-    this.load.audio('Pixel_Shuffle', 'assets/audio/bgm/Pixel_Shuffle.mp3');
-    this.load.audio('Pixel_stress', 'assets/audio/bgm/Pixel_stress.mp3');
   }
 
   create(): void {
