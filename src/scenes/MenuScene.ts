@@ -80,14 +80,14 @@ export default class MenuScene extends Phaser.Scene {
     const charHeadingY = isNarrow ? showcaseY - 68 : showcaseY - Math.round(52 * uiScale);
 
     const btnW = Math.round(250 * uiScale);
-    const btnH = Math.round((isMobile ? 32 : 38) * uiScale);
-    const btnSpacing = Math.round((isMobile ? 40 : 46) * uiScale);
-    const btnFont = `${Math.round((isMobile ? 12 : 13) * uiScale)}px`;
-    const totalBtnSpan = btnSpacing * 5;
+    const btnH = Math.round((isMobile ? 36 : 40) * uiScale);
+    const btnSpacing = Math.round((isMobile ? 46 : 50) * uiScale);
+    const btnFont = `${Math.round((isMobile ? 12.5 : 13.5) * uiScale)}px`;
+    const totalBtnSpan = btnSpacing * 4;
 
     const titleBottom = titleY + Math.round(28 * (isMobile ? 1.0 : Math.min(1.3, uiScale)));
     const availableSpace = charHeadingY - titleBottom;
-    const startY = Math.round(titleBottom + Math.max(8, (availableSpace - totalBtnSpan) / 2));
+    const startY = Math.round(titleBottom + Math.max(12, (availableSpace - totalBtnSpan) / 2));
 
     const btn1 = CuteUI.createPillButton(
       this,
@@ -144,25 +144,13 @@ export default class MenuScene extends Phaser.Scene {
       { textureKey: 'pill_purple', fontSize: btnFont, width: btnW, height: btnH, autoScale: false }
     );
 
-    const btn6 = CuteUI.createPillButton(
-      this,
-      width / 2,
-      startY + btnSpacing * 5,
-      '📊 GAME STATISTICS',
-      () => {
-        this.scene.start('OptionsMenuScene', { returnScene: 'MenuScene', defaultTab: 'stats' });
-      },
-      { textureKey: 'pill_cyan', fontSize: btnFont, width: btnW, height: btnH, autoScale: false }
-    );
-
-    this.menuButtons = [btn1, btn2, btn3, btn4, btn5, btn6];
+    this.menuButtons = [btn1, btn2, btn3, btn4, btn5];
     this.menuActions = [
       () => this.scene.start('CharacterSelectScene', { mode: 'challenge' }),
       () => this.scene.start('CharacterSelectScene', { mode: 'endless' }),
       () => this.scene.start('LobbyScene'),
       () => this.scene.start('LeaderboardScene', { returnScene: 'MenuScene' }),
-      () => this.scene.start('OptionsMenuScene', { returnScene: 'MenuScene' }),
-      () => this.scene.start('OptionsMenuScene', { returnScene: 'MenuScene', defaultTab: 'stats' })
+      () => this.scene.start('OptionsMenuScene', { returnScene: 'MenuScene' })
     ];
 
     // Pointer hover syncs selection

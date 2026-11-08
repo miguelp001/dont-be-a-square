@@ -380,15 +380,13 @@ export default class OptionsMenuScene extends Phaser.Scene {
 
     this.updateDifficultyDisplay();
 
-    // Install App button & Direct Stats shortcut button
-    const actionBtnW = Math.min(170, Math.floor((cardW - 44) / 2));
-    const btnRowY = 104;
-
+    // Install App button
+    const installBtnW = Math.min(190, cardW - 40);
     const installBtn = CuteUI.createPillButton(
       this,
-      -actionBtnW / 2 - 5,
-      btnRowY,
-      '📲 INSTALL APP',
+      0,
+      104,
+      '📲 INSTALL APP (PWA)',
       () => {
         if ((window as any).deferredInstallPrompt && (window as any).promptPwaInstall) {
           (window as any).promptPwaInstall();
@@ -396,19 +394,7 @@ export default class OptionsMenuScene extends Phaser.Scene {
           alert("To install as an app:\n• On Chrome/Edge/Android: Tap browser menu (⋮) -> 'Install App'\n• On iPhone/Safari: Tap Share icon (⎋) -> 'Add to Home Screen'");
         }
       },
-      { textureKey: 'pill_green', fontSize: isMobile ? '10px' : '11.5px', width: actionBtnW, height: 28 }
-    );
-
-    const statsShortcutBtn = CuteUI.createPillButton(
-      this,
-      actionBtnW / 2 + 5,
-      btnRowY,
-      '📊 GAME STATS',
-      () => {
-        SoundFx.playDecide();
-        this.switchTab('stats');
-      },
-      { textureKey: 'pill_cyan', fontSize: isMobile ? '10px' : '11.5px', width: actionBtnW, height: 28 }
+      { textureKey: 'pill_green', fontSize: '11.5px', width: installBtnW, height: 28 }
     );
 
     this.audioTabContainer.add([
@@ -427,8 +413,7 @@ export default class OptionsMenuScene extends Phaser.Scene {
       diffCenterPill,
       diffPlusBtn,
       this.diffDescText,
-      installBtn,
-      statsShortcutBtn
+      installBtn
     ]);
 
     this.updateAudioDisplays();
