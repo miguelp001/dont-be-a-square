@@ -41,21 +41,23 @@ export function computeOptionsMenuLayout(
   const starOffset = isMobile ? Math.min(160, Math.round(width * 0.38)) : Math.round(160 * uiScale);
   const starScale = (isMobile ? 0.9 : 1.2) * (isMobile ? 1.0 : uiScale);
 
-  // Navigation Tabs (4 tabs)
+  // Navigation Tabs (5 tabs: Audio, Controls, Guide, AI, Stats)
   const tabHeight = Math.round(32 * (isMobile ? 1.0 : Math.min(1.2, uiScale)));
   const tabY = titleY + Math.round((isMobile ? 36 : 44) * (isMobile ? 1.0 : Math.min(1.2, uiScale)));
   const tabBottom = tabY + tabHeight / 2;
 
-  const tabCount = 4;
+  const tabCount = 5;
   const tabMargin = isMobile ? 8 : 16;
   const availableW = width - tabMargin * 2;
-  const tabSpacing = isMobile ? (width < 390 ? 4 : 6) : Math.round(8 * uiScale);
+  const tabSpacing = isMobile ? (width < 390 ? 4 : 5) : Math.round(6 * uiScale);
   const maxTabW = isMobile
     ? Math.floor((availableW - (tabCount - 1) * tabSpacing) / tabCount)
-    : Math.round(108 * uiScale);
-  const tabWidth = Math.min(maxTabW, isMobile ? 104 : Math.round(115 * uiScale));
+    : Math.round(112 * uiScale);
+  const tabWidth = isMobile
+    ? Math.min(maxTabW, 90)
+    : Math.max(100, Math.min(maxTabW, Math.round(108 * uiScale)));
   const totalTabWidth = tabCount * tabWidth + (tabCount - 1) * tabSpacing;
-  const useShortLabels = isMobile && width < 400;
+  const useShortLabels = isMobile && width < 480;
 
   // Card dimensions & scale
   const cardW = isMobile ? Math.min(width - 24, 440) : 450;

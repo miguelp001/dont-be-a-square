@@ -17,6 +17,7 @@ import { Settings, KeyBindings } from '../utils/Settings';
 import { GameDifficulty, getDifficultyInfo } from '../utils/Difficulty';
 import { RecordManager } from '../utils/DifficultyRecords';
 import { LeaderboardClient } from '../utils/LeaderboardClient';
+import { StatsManager } from '../utils/StatsManager';
 
 export default class GameScene extends Phaser.Scene {
   public gameMode: 'vs_cpu' | 'endless' | 'vs_online' | 'challenge' = 'challenge';
@@ -82,6 +83,8 @@ export default class GameScene extends Phaser.Scene {
 
   private socketMgr?: SocketManager;
   private gameTime: number = 240;
+  private matchStartTimeMs: number = 0;
+  private fpsSampleTimer: number = 0;
   private timeText!: Phaser.GameObjects.Text;
   private timerEvent!: Phaser.Time.TimerEvent;
   private isMatchOver: boolean = false;
@@ -209,6 +212,11 @@ export default class GameScene extends Phaser.Scene {
     // Setup player keyboard & touch controls
     this.setupControls();
     this.setupTouchControls();
+
+    // Telemetry tracking
+    this.matchStartTimeMs = Date.now();
+    this.fpsSampleTimer = 0;
+    StatsManager.recordMatchStart(this.gameMode, this.characterId);
   }
 
   /** Setup 2-Board Layout for VS CPU and VS Online */
@@ -695,6 +703,7 @@ export default class GameScene extends Phaser.Scene {
       );
     });
     this.playerBoard.on('chainEnd', () => this.playerChainText.setText(''));
+    this.playerBoard.on('garbageCleared', (e: { count: number }) => StatsManager.recordGarbageCleared(e.count));
     this.playerBoard.on('dangerStart', () => {
       this.triggerAvatarHurt(true);
       this.updateDangerUI(true, true, this.playerBoard.dangerGraceDuration / 1000);
@@ -1012,6 +1021,7 @@ export default class GameScene extends Phaser.Scene {
       );
     });
     this.playerBoard.on('chainEnd', () => this.playerChainText.setText(''));
+    this.playerBoard.on('garbageCleared', (e: { count: number }) => StatsManager.recordGarbageCleared(e.count));
     this.playerBoard.on('dangerStart', () => {
       this.triggerAvatarHurt(true);
       this.updateDangerUI(true, true, this.playerBoard.dangerGraceDuration / 1000);
@@ -1222,18 +1232,24 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
-  private triggerPlayerSwap(gx: number, gy: number): boolean {
+  private triggerPlayerSwap(gx: number, gy: number, inputType: 'keyboard' | 'touch' | 'gamepad' = 'keyboard'): boolean {
     const success = this.playerBoard.swap(gx, gy);
-    if (success && this.gameMode === 'vs_online') {
-      this.sendNetAction({
-        type: 'swap',
-        payload: { x: gx, y: gy }
-      });
+    if (success) {
+      StatsManager.recordSwap(inputType);
+      if (this.gameMode === 'vs_online') {
+        this.sendNetAction({
+          type: 'swap',
+          payload: { x: gx, y: gy }
+        });
+      }
     }
     return success;
   }
 
   private setPlayerLifting(lifting: boolean): void {
+    if (lifting && this.playerBoard && !this.playerBoard.isLifting) {
+      StatsManager.recordFastLift();
+    }
     this.playerBoard.setLifting(lifting);
     if (this.gameMode === 'vs_online') {
       this.sendNetAction({
@@ -1396,6 +1412,7 @@ export default class GameScene extends Phaser.Scene {
       this.touchController = new TouchController(this, this.playerBoard, this.playerCursor, {
         occlusionOffsetY: 0,
         onSwapCommit: (col, row) => {
+          StatsManager.recordSwap('touch');
           this.broadcastCursor();
         }
       });
@@ -1831,6 +1848,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private handlePlayerMatch(event: MatchEvent): void {
+    StatsManager.recordMatchEvent(event.comboSize, event.chainLevel);
     this.playerScore += event.scoreGained;
     this.roundScore += event.scoreGained;
     this.playerScoreText.setText(`SCORE: ${this.playerScore.toLocaleString()}`);
@@ -1988,6 +2006,14 @@ export default class GameScene extends Phaser.Scene {
   public update(time: number, delta: number): void {
     this.handleGamepadInput(delta);
 
+    this.fpsSampleTimer += delta;
+    if (this.fpsSampleTimer >= 3000) {
+      this.fpsSampleTimer = 0;
+      if (this.game.loop.actualFps > 0) {
+        StatsManager.recordFps(Math.round(this.game.loop.actualFps));
+      }
+    }
+
     if (this.isPaused) {
       this.handlePauseGamepad(delta);
       return;
@@ -2087,7 +2113,7 @@ export default class GameScene extends Phaser.Scene {
     const swapDown = pad.A || pad.X || pad.isButtonDown(0) || pad.isButtonDown(2);
     const prevSwap = this.padPrevButtons.get(0) || false;
     if (swapDown && !prevSwap) {
-      this.triggerPlayerSwap(this.playerCursor.gridX, this.playerCursor.gridY);
+      this.triggerPlayerSwap(this.playerCursor.gridX, this.playerCursor.gridY, 'gamepad');
     }
     this.padPrevButtons.set(0, swapDown);
 
@@ -2210,6 +2236,9 @@ export default class GameScene extends Phaser.Scene {
   private endMatch(bannerText: string, isVictory: boolean): void {
     if (this.isMatchOver) return;
     this.isMatchOver = true;
+
+    const matchDurationSec = Math.max(1, Math.round((Date.now() - this.matchStartTimeMs) / 1000));
+    StatsManager.recordMatchEnd(this.gameMode, matchDurationSec, isVictory, this.difficulty);
 
     if (this.timerEvent) {
       this.timerEvent.remove();

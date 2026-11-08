@@ -927,6 +927,9 @@ export default class Board extends Phaser.Events.EventEmitter {
 
     for (const block of blocksToTransform) {
       block.transformBottomRow().then((positions) => {
+        if (positions.length > 0) {
+          this.emit('garbageCleared', { count: positions.length });
+        }
         positions.forEach((pos) => {
           if (pos.gridY < 0 || pos.gridY >= BOARD_HEIGHT || pos.gridX < 0 || pos.gridX >= BOARD_WIDTH) return;
           const existing = this.panels[pos.gridY][pos.gridX];
