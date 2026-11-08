@@ -73,4 +73,14 @@ describe('SoundFx - Phase 3 Procedural Web Audio Engine', () => {
     const semitoneRatio = level2Freq / initialFreq;
     expect(semitoneRatio).toBeCloseTo(1.05946, 3);
   });
+
+  it('3. playPowerChord executes 4-voice electric rock guitar chord without errors', () => {
+    createdOscillators = [];
+    SoundFx.playPowerChord();
+
+    expect(createdOscillators.length).toBe(4);
+    expect(createdOscillators[0].type).toBe('sawtooth');
+    // Root note E3 ~ 164.81 Hz
+    expect(Math.round(createdOscillators[0].frequency.setValueAtTime.mock.calls[0][0])).toBe(165);
+  });
 });

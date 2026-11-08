@@ -383,4 +383,62 @@ export class SoundFx {
       osc.stop(startTime + item.dur);
     });
   }
+
+  /** Synthesize an explosive rock electric guitar power chord (Root + 5th + Octave with distortion drive) */
+  public static playPowerChord(): void {
+    const ctx = this.getContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+
+    // Power chord notes: E3 (164.81), B3 (246.94), E4 (329.63), E5 (659.25)
+    const chordFreqs = [164.81, 246.94, 329.63, 659.25];
+
+    let waveShaper: WaveShaperNode | null = null;
+    try {
+      if (typeof ctx.createWaveShaper === 'function') {
+        waveShaper = ctx.createWaveShaper();
+        const curve = new Float32Array(256);
+        for (let i = 0; i < 256; i++) {
+          const x = (i * 2) / 256 - 1;
+          curve[i] = ((Math.PI + 4) * x) / (Math.PI + 4 * Math.abs(x));
+        }
+        waveShaper.curve = curve;
+      }
+    } catch {
+      waveShaper = null;
+    }
+
+    const masterGain = ctx.createGain();
+    masterGain.gain.setValueAtTime(this.volume * 0.55, now);
+    masterGain.gain.exponentialRampToValueAtTime(0.001, now + 0.65);
+
+    if (waveShaper) {
+      waveShaper.connect(masterGain);
+    }
+    masterGain.connect(ctx.destination);
+
+    chordFreqs.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const noteGain = ctx.createGain();
+      const strumDelay = idx * 0.012;
+      const startTime = now + strumDelay;
+
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(freq, startTime);
+      osc.frequency.exponentialRampToValueAtTime(freq * 0.99, startTime + 0.6);
+
+      noteGain.gain.setValueAtTime(0.35, startTime);
+      noteGain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.6);
+
+      osc.connect(noteGain);
+      if (waveShaper) {
+        noteGain.connect(waveShaper);
+      } else {
+        noteGain.connect(masterGain);
+      }
+
+      osc.start(startTime);
+      osc.stop(startTime + 0.65);
+    });
+  }
 }

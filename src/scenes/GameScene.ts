@@ -57,6 +57,7 @@ export default class GameScene extends Phaser.Scene {
   private cpuWoodFrame?: Phaser.GameObjects.Image;
   private cpuSpeechBubble?: Phaser.GameObjects.Text;
   private cpuDangerText?: Phaser.GameObjects.Text;
+  private lastRiffPowerChordTime: number = 0;
 
   private boardP1X: number = 24;
   private boardP1Y: number = 88;
@@ -1744,10 +1745,161 @@ export default class GameScene extends Phaser.Scene {
     }
 
     const charId = isPlayer1 ? this.characterId : this.opponentCharacterId;
+    if (charId === 'riff') {
+      this.playRiffPowerChord(isPlayer1);
+    }
+
     const charData = CHARACTERS.find((c) => c.id === charId);
     if (charData && charData.quote) {
       this.showSpeechBubble(isPlayer1, charData.quote);
     }
+  }
+
+  /** Play 6-frame power chord animation when Riff sends garbage out */
+  private playRiffPowerChord(isPlayer1: boolean): void {
+    const now = this.time.now;
+    if (now - this.lastRiffPowerChordTime < 650) return;
+    this.lastRiffPowerChordTime = now;
+
+    // Rock power chord audio synthesizer
+    SoundFx.playPowerChord();
+
+    const mascot = isPlayer1 ? this.playerMascot : this.cpuMascot;
+    if (!mascot || !mascot.active) return;
+
+    this.tweens.killTweensOf(mascot);
+
+    const origY = mascot.y;
+    const origScaleX = mascot.scaleX;
+    const origScaleY = mascot.scaleY;
+    const origDisplayW = mascot.displayWidth;
+    const origDisplayH = mascot.displayHeight;
+
+    // Calculate mascot world position for visual effects
+    let worldX = mascot.x;
+    let worldY = mascot.y;
+    if (mascot.parentContainer) {
+      const matrix = mascot.getWorldTransformMatrix();
+      worldX = matrix.tx;
+      worldY = matrix.ty;
+    }
+
+    // Temporarily pop scale for clear animation visibility on small icons
+    if (origDisplayW < 36) {
+      mascot.setDisplaySize(38, 38);
+    }
+
+    // 6-frame sequential animation stepping
+    const frames = [
+      { key: 'riff_chord_1', delay: 0 },
+      { key: 'riff_chord_2', delay: 110 },
+      { key: 'riff_chord_3', delay: 190 },
+      { key: 'riff_chord_4', delay: 300 },
+      { key: 'riff_chord_5', delay: 500 },
+      { key: 'riff_chord_6', delay: 700 }
+    ];
+
+    frames.forEach((f) => {
+      this.time.delayedCall(f.delay, () => {
+        if (!mascot.active) return;
+        mascot.setTexture(f.key);
+
+        if (f.key === 'riff_chord_3') {
+          // String Strike Flash
+          this.createPowerChordSparks(worldX, worldY, mascot.depth + 1);
+        } else if (f.key === 'riff_chord_4') {
+          // Power Chord Roar Apex & Screen Micro-Shake
+          this.cameras.main.shake(120, 0.005);
+          this.showPowerChordBanner(worldX, worldY, mascot.depth + 2);
+        }
+      });
+    });
+
+    // Reset back to idle texture
+    this.time.delayedCall(960, () => {
+      if (!mascot.active) return;
+      mascot.setTexture('riff');
+      mascot.setDisplaySize(origDisplayW, origDisplayH);
+      mascot.setScale(origScaleX, origScaleY);
+      mascot.y = origY;
+
+      this.tweens.add({
+        targets: mascot,
+        y: origY - 5,
+        duration: 1300,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut'
+      });
+    });
+  }
+
+  /** Visual FX: Shockwave ring and electric spark particles */
+  private createPowerChordSparks(x: number, y: number, depth: number): void {
+    const ring = this.add.graphics();
+    ring.setDepth(depth);
+
+    const tweenObj = { radius: 8, alpha: 1 };
+    this.tweens.add({
+      targets: tweenObj,
+      radius: 60,
+      alpha: 0,
+      duration: 380,
+      ease: 'Cubic.easeOut',
+      onUpdate: () => {
+        if (!ring.active) return;
+        ring.clear();
+        ring.lineStyle(3, 0xfffa65, tweenObj.alpha);
+        ring.strokeCircle(x, y, tweenObj.radius);
+        ring.lineStyle(1.5, 0x00d2d3, tweenObj.alpha * 0.8);
+        ring.strokeCircle(x, y, tweenObj.radius * 0.7);
+      },
+      onComplete: () => ring.destroy()
+    });
+
+    // Burst 8 musical electric spark particles
+    for (let i = 0; i < 8; i++) {
+      const angle = (i / 8) * Math.PI * 2 + Math.random() * 0.4;
+      const dist = 32 + Math.random() * 26;
+      const spark = this.add.text(x, y, i % 2 === 0 ? '⚡' : '♪', {
+        fontSize: '11px',
+        color: i % 2 === 0 ? '#fffa65' : '#00d2d3'
+      }).setOrigin(0.5).setDepth(depth + 1);
+
+      this.tweens.add({
+        targets: spark,
+        x: x + Math.cos(angle) * dist,
+        y: y + Math.sin(angle) * dist,
+        alpha: { from: 1, to: 0 },
+        scaleX: { from: 1.2, to: 0.4 },
+        scaleY: { from: 1.2, to: 0.4 },
+        duration: 450,
+        ease: 'Cubic.easeOut',
+        onComplete: () => spark.destroy()
+      });
+    }
+  }
+
+  /** Visual FX: Floating animated Power Chord banner */
+  private showPowerChordBanner(x: number, y: number, depth: number): void {
+    const banner = this.add.text(x, y - 28, '🎸 POWER CHORD! ⚡', {
+      fontSize: '12.5px',
+      color: '#fffa65',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 3
+    }).setOrigin(0.5).setDepth(depth);
+
+    this.tweens.add({
+      targets: banner,
+      y: y - 56,
+      scaleX: 1.2,
+      scaleY: 1.2,
+      alpha: { from: 1, to: 0 },
+      duration: 750,
+      ease: 'Back.easeOut',
+      onComplete: () => banner.destroy()
+    });
   }
 
   /** Animate character avatar hurt/shake when under attack or danger */

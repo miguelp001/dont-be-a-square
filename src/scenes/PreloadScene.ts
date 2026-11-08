@@ -76,6 +76,11 @@ export default class PreloadScene extends Phaser.Scene {
       this.load.image(char.id, `assets/sprites/characters/${char.id}.png?v=fullbody_v2`);
     });
 
+    // Load Riff Power Chord attack animation frames
+    for (let i = 1; i <= 6; i++) {
+      this.load.image(`riff_chord_${i}`, `assets/sprites/characters/riff_power_chord_frame_${i}.png`);
+    }
+
     // Load BGM tracks (from assets/audio/bgm/)
     const bgmTracks = [
       'menu', 'char_select', 'battle_cpu', 'battle_player', 'battle_online', 'panic', 'victory', 'game_over'
