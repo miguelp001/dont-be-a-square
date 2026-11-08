@@ -21,6 +21,7 @@ Whether you are matching your first trio of slimes or engineering $x14$ cascadin
 5. [Garbage Mechanics](#5-garbage-mechanics)
    - [Garbage Types & Dimensions](#garbage-types--dimensions)
    - [Shattering & Morphing](#shattering--morphing)
+   - [Combat Animations & Ballistic Delivery](#combat-animations--ballistic-delivery)
 6. [Game Modes](#6-game-modes)
    - [Challenge Mode (Road to Champion)](#challenge-mode-road-to-champion)
    - [Endless Marathon](#endless-marathon)
@@ -165,6 +166,11 @@ When you battle against AI bots or human players online, offensive combos and ch
 2. When you make a match that is **directly adjacent** (above, below, or to the sides) of a garbage block, the garbage block enters a **shatter animation**.
 3. It pops into individual regular jelly slimes that match the current board distribution!
 4. The newly morphed slimes immediately experience gravity and can trigger **massive counter-chains**!
+
+### Combat Animations & Ballistic Delivery
+* **6-Frame Attack Animations:** Whenever you trigger a 4+ combo or cascading chain, your Slime Catcher's full 6-frame attack animation triggers alongside character-themed dialogue quotes and sound effects (e.g., Riff shredding an electric power chord or Kiri tightening gears).
+* **Parabolic Ballistic Delivery:** Offensive garbage does not instantaneously materialize on the opponent's screen. Instead, it arcs visibly across the battlefield as a glowing ballistic missile, giving players a split-second visual cue to prepare their defense before landing in the Threat Buffer.
+* **Dynamic Hurt & Panic Reactions:** When incoming threat spikes or the danger siren wails, character portraits shake with panic and switch to their hurt expressions.
 
 ---
 

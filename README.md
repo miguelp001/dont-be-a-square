@@ -5,7 +5,7 @@
 [![Phaser 3](https://img.shields.io/badge/Phaser-3.80-e056fd?style=for-the-badge&logo=html5&logoColor=white)](https://phaser.io/)
 [![Vite](https://img.shields.io/badge/Vite-5.4-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
 [![Socket.IO](https://img.shields.io/badge/Socket.IO-4.7-010101?style=for-the-badge&logo=socketdotio&logoColor=white)](https://socket.io/)
-[![Tests](https://img.shields.io/badge/Vitest-66%20Passing-2ed573?style=for-the-badge&logo=vitest&logoColor=white)](https://vitest.dev/)
+[![Tests](https://img.shields.io/badge/Vitest-71%20Passing-2ed573?style=for-the-badge&logo=vitest&logoColor=white)](https://vitest.dev/)
 [![PWA Ready](https://img.shields.io/badge/PWA-Installable-20bf6b?style=for-the-badge&logo=pwa&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps)
 
 An action puzzle game inspired by the legendary mechanics of *Panel de Pon* and *Tetris Attack*, reimagined with modern web technology. Built from scratch with **Phaser 3**, **TypeScript**, and **Vite**, featuring 8 unique anime chibi Slime Catchers, distinct AI bot personalities, real-time WebSocket online multiplayer, universal gamepad/keyboard/touch controls, and candy-themed audiovisual aesthetics.
@@ -41,14 +41,24 @@ An action puzzle game inspired by the legendary mechanics of *Panel de Pon* and 
 * **Endless Marathon:** Classic high-score survival mode with escalating speed levels and periodic hazard drops.
 * **Real-Time Online Multiplayer:** Low-latency 2-player battles powered by Socket.IO with 6-letter private room codes, public quick match, and instant **Play Again** rematch voting.
 
+### 💥 Signature Attack Animations & Ballistic Garbage Delivery
+* **6-Frame Attack Sequences:** Every Slime Catcher and secret boss unleashes their signature 6-frame combat animation, dialogue quote, and themed SFX when sending garbage.
+* **Ballistic Arc Delivery:** Garbage blocks do not merely pop into existence—they travel dynamically across screen via animated parabolic ballistic vectors into the opponent's threat buffer with screen impact feedback.
+* **Combat Hurt & Panic Reactions:** Character portraits react dynamically with tremble, bounce, and hurt frames when under ceiling pressure or receiving heavy slabs.
+
 ### 📱 Mobile-First Responsive Design (Phase 4 VS Layout)
 * **Asymmetric Mobile VS Layout:** Tailored for vertical mobile screens (iPhone SE, 13/14/15, Pixel 7/8). Features a top-mounted mini-radar grid showing opponent board state, a flashing Threat Buffer bar for incoming garbage, and generous tap gutters.
-* **Responsive Options & Guide Screen:** Dynamic geometric scaling that guarantees zero overlap between tab navigation and controls across mobile and widescreen desktop displays.
+* **Responsive Options & Guide Screen:** Dynamic geometric scaling that guarantees zero overlap between tab navigation and controls across mobile and widescreen desktop displays with direct **Statistics** access from the main title.
 
 ### 📊 Comprehensive Telemetry & Statistics
 * **Options Statistics Dashboard:** In-depth telemetry tab featuring 4 specialized views: Lifetime Summary, Performance Charts, Character Matchup Breakdown, and Difficulty Records.
 * **Granular Metrics Tracking:** Real-time recording of total matches, simultaneous combos, max cascade chains, cleared lines, playtime, and win/loss records across AI and multiplayer battles.
 * **Persistent & Protected Records:** Real-time persistence via `StatsManager` with protected records to safeguard your competitive history.
+
+### ⚡ Optimized WebP Asset Pipeline & PWA
+* **Modern WebP Compression:** Preloaded assets converted to high-fidelity WebP format, achieving a 70%+ reduction in initial download size.
+* **On-Demand Combat Loading:** Attack spritesheets and audio stems stream asynchronously on-demand to keep initial bundle size minimal.
+* **Service Worker v68:** Instant offline caching and PWA app-shell persistence for zero-latency mobile play.
 
 ### 🎵 Procedural Audio & Soundtrack
 * Zero-latency Web Audio API procedural synthesizer for mechanical clicks, pops, swaps, combo chimes, and panic sirens.
@@ -94,7 +104,7 @@ Meet the colorful cast of chibi puzzle fighters in the enchanted Candy Forest:
                        │  • Phaser 3.80 Canvas / WebGL Game Engine    │
                        │  • TypeScript 5.5 + Vite 5.4 Build System    │
                        │  • Web Audio API Procedural SFX Synthesizer  │
-                       │  • Service Worker v32 Offline App Shell Cache│
+                       │  • Service Worker v68 Offline App Shell Cache│
                        └──────────────────────┬───────────────────────┘
                                               │
                                  WebSockets / Socket.IO
@@ -111,7 +121,7 @@ Meet the colorful cast of chibi puzzle fighters in the enchanted Candy Forest:
 * **Client Engine:** [Phaser 3.80](https://phaser.io/) with `Phaser.Scale.RESIZE` for seamless cross-resolution adaptation.
 * **Language & Tooling:** [TypeScript 5.5](https://www.typescriptlang.org/) in strict mode, bundled via [Vite](https://vitejs.dev/) and [esbuild](https://esbuild.github.io/).
 * **Multiplayer Protocol:** [Socket.IO](https://socket.io/) rooms with synchronized random seed generation, rematch voting sets, and graceful disconnect management.
-* **Testing Suite:** [Vitest](https://vitest.dev/) with 66 automated unit tests across 13 test suites verifying game engine physics, garbage collision, rematch synchronization, touch precision, statistics persistence, difficulty ladder scaling, and layout geometry.
+* **Testing Suite:** [Vitest](https://vitest.dev/) with 71 automated unit tests across 13 test suites verifying game engine physics, garbage collision, rematch synchronization, touch precision, statistics persistence, difficulty ladder scaling, sound effects, and layout geometry.
 
 ---
 
@@ -150,7 +160,7 @@ npm run server
 
 ### Running Automated Tests
 ```bash
-# Run full Vitest unit test suite (66 tests across 13 suites)
+# Run full Vitest unit test suite (71 tests across 13 suites)
 npm test
 
 # Run tests in watch mode
@@ -185,7 +195,7 @@ dont-be-a-square/
 ├── public/
 │   ├── favicon.png
 │   ├── manifest.webmanifest # PWA Web App Manifest
-│   └── sw.js                # Service Worker cache controller (v32)
+│   └── sw.js                # Service Worker cache controller (v68)
 ├── scripts/
 │   └── deploy.py            # Automated SFTP deployment & server keepalive runner
 ├── server/
@@ -199,7 +209,7 @@ dont-be-a-square/
 │   │                        # ChallengeMapScene, CharacterSelectScene, BootScene
 │   ├── ui/                  # OptionsMenuLayout, VsLayout
 │   └── utils/               # Settings, SoundFx, CuteUI, Constants
-├── tests/                   # Vitest unit test suites (66 passing tests across 13 suites)
+├── tests/                   # Vitest unit test suites (71 passing tests across 13 suites)
 ├── package.json
 └── tsconfig.json
 ```
