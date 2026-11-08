@@ -1,107 +1,131 @@
 """
-Script to cleanly remove enclosed white studio background islands (e.g., between legs and guitar/arm gaps)
+Script to cleanly remove enclosed white studio background islands and ground shadows
 from Riff and Salty character sprites and attack frames, with anti-aliased alpha blending.
 """
 
 import os
 from PIL import Image
 import numpy as np
-from scipy.ndimage import label, gaussian_filter
+from scipy.ndimage import gaussian_filter
 
 CHAR_DIR = r"d:\projects\Don't be a square\assets\sprites\characters"
 
-def clean_enclosed_white(img_path, check_regions, color_thresh=235):
-    """
-    Finds and clears enclosed white background components that match target spatial regions.
-    check_regions is a list of dicts with:
-      min_y, max_y, min_x, max_x, min_count
-    """
+def clean_riff_image(img_path):
     if not os.path.exists(img_path):
         print(f"File not found: {img_path}")
         return False
 
     img = Image.open(img_path).convert("RGBA")
     arr = np.array(img).copy()
-    alpha = arr[:, :, 3]
-    rgb = arr[:, :, :3]
 
-    # Mask for near-pure-white pixels
-    white_mask = (alpha > 40) & np.all(rgb >= color_thresh, axis=2)
-    labeled, num_features = label(white_mask)
+    # 1. Crotch gap: y in [735, 775], x in [580, 630]
+    crotch = np.zeros(arr.shape[:2], dtype=bool)
+    crotch[735:775, 580:630] = True
+    c_mask = crotch & (arr[:,:,3] > 40) & (np.mean(arr[:,:,:3], axis=2) > 130)
 
-    cleared_total_pixels = 0
-    composite_mask = np.zeros_like(alpha, dtype=bool)
+    # 2. Guitar arm gap: y in [600, 670], x in [270, 370]
+    guitar = np.zeros(arr.shape[:2], dtype=bool)
+    guitar[600:670, 270:370] = True
+    g_mask = guitar & (arr[:,:,3] > 40) & (np.mean(arr[:,:,:3], axis=2) > 130)
 
-    for i in range(1, num_features + 1):
-        comp = (labeled == i)
-        count = np.sum(comp)
-        ys, xs = np.where(comp)
-        y_min, y_max = ys.min(), ys.max()
-        x_min, x_max = xs.min(), xs.max()
+    # 3. Between legs and boots: y in [775, 960], x in [435, 615]
+    mid = np.zeros(arr.shape[:2], dtype=bool)
+    mid[775:960, 435:615] = True
+    m_mask = mid & (arr[:,:,3] > 40) & (np.mean(arr[:,:,:3], axis=2) > 65)
 
-        # Check if this component falls inside any of the specified target regions
-        for reg in check_regions:
-            if count >= reg.get("min_count", 300):
-                if (y_min >= reg["min_y"] and y_max <= reg["max_y"] and
-                    x_min >= reg["min_x"] and x_max <= reg["max_x"]):
-                    composite_mask |= comp
-                    cleared_total_pixels += count
-                    print(f"  [{os.path.basename(img_path)}] Removing white island #{i}: {count} px at y=[{y_min}-{y_max}], x=[{x_min}-{x_max}]")
-                    break
+    # 4. Floor around right boot: right boot ends at y=955. Anything at y >= 955 where x > 444 is floor.
+    rboot_floor = np.zeros(arr.shape[:2], dtype=bool)
+    rboot_floor[955:1024, 444:1024] = True
+    rf_mask = rboot_floor & (arr[:,:,3] > 40)
 
-    if cleared_total_pixels == 0:
-        print(f"  [{os.path.basename(img_path)}] No enclosed white regions found to clean.")
+    # 5. Floor to the left of left boot: left boot is at x >= 342. Anything at x < 342 at y >= 920 is floor.
+    lboot_floor = np.zeros(arr.shape[:2], dtype=bool)
+    lboot_floor[920:1024, 0:342] = True
+    lf_mask = lboot_floor & (arr[:,:,3] > 40) & (np.mean(arr[:,:,:3], axis=2) > 70)
+
+    # 6. Floor below left boot: left boot ends at y=982. Anything at y >= 982 across all x is floor.
+    bottom_floor = np.zeros(arr.shape[:2], dtype=bool)
+    bottom_floor[982:1024, :] = True
+    bf_mask = bottom_floor & (arr[:,:,3] > 40)
+
+    all_mask = c_mask | g_mask | m_mask | rf_mask | lf_mask | bf_mask
+    cleared = np.sum(all_mask)
+    if cleared == 0:
+        print(f"  [{os.path.basename(img_path)}] No pixels cleared.")
         return False
 
-    # Smooth the mask boundary for a clean anti-aliased edge
-    mask_float = composite_mask.astype(float)
-    smoothed = gaussian_filter(mask_float, sigma=0.85)
+    smoothed = gaussian_filter(all_mask.astype(float), sigma=0.85)
+    new_alpha = arr[:,:,3].astype(float) * (1.0 - np.clip(smoothed * 1.35, 0, 1))
+    arr[:,:,3] = new_alpha.astype(np.uint8)
 
-    # Apply soft transparency
-    new_alpha = arr[:, :, 3].astype(float)
-    new_alpha = new_alpha * (1.0 - np.clip(smoothed * 1.35, 0, 1))
-    arr[:, :, 3] = new_alpha.astype(np.uint8)
-
-    # Save cleaned image
     cleaned_img = Image.fromarray(arr)
     cleaned_img.save(img_path, "PNG")
-    print(f"  [{os.path.basename(img_path)}] Successfully cleaned and saved ({cleared_total_pixels} px transparent).")
+    print(f"  [{os.path.basename(img_path)}] Successfully cleaned ({cleared} px transparent).")
+    return True
+
+def clean_salty_image(img_path):
+    if not os.path.exists(img_path):
+        print(f"File not found: {img_path}")
+        return False
+
+    img = Image.open(img_path).convert("RGBA")
+    arr = np.array(img).copy()
+
+    # 1. Left gap (arm/coat loop): y in [665, 785], x in [275, 385]
+    lgap = np.zeros(arr.shape[:2], dtype=bool)
+    lgap[665:785, 275:385] = True
+    lg_mask = lgap & (arr[:,:,3] > 40) & (np.mean(arr[:,:,:3], axis=2) > 130)
+
+    # 2. Between legs: y in [775, 930], x in [460, 610]
+    mid_legs = np.zeros(arr.shape[:2], dtype=bool)
+    mid_legs[775:930, 460:610] = True
+    ml_mask = mid_legs & (arr[:,:,3] > 40) & (np.mean(arr[:,:,:3], axis=2) > 70)
+
+    # 3. Block between boots: y in [925, 955], x in [465, 600]
+    mid_boots = np.zeros(arr.shape[:2], dtype=bool)
+    mid_boots[925:955, 465:600] = True
+    mb_mask = mid_boots & (arr[:,:,3] > 40) & (np.mean(arr[:,:,:3], axis=2) > 65)
+
+    # 4. Floor below boots: y >= 955 down to 1024
+    floor = np.zeros(arr.shape[:2], dtype=bool)
+    floor[955:1024, :] = True
+    fl_mask = floor & (arr[:,:,3] > 40)
+
+    all_mask = lg_mask | ml_mask | mb_mask | fl_mask
+    cleared = np.sum(all_mask)
+    if cleared == 0:
+        print(f"  [{os.path.basename(img_path)}] No pixels cleared.")
+        return False
+
+    smoothed = gaussian_filter(all_mask.astype(float), sigma=0.85)
+    new_alpha = arr[:,:,3].astype(float) * (1.0 - np.clip(smoothed * 1.35, 0, 1))
+    arr[:,:,3] = new_alpha.astype(np.uint8)
+
+    cleaned_img = Image.fromarray(arr)
+    cleaned_img.save(img_path, "PNG")
+    print(f"  [{os.path.basename(img_path)}] Successfully cleaned ({cleared} px transparent).")
     return True
 
 def process_riff_and_salty():
     print("=" * 60)
-    print("Cleaning enclosed white background for Riff and Salty...")
+    print("Cleaning studio background and ground shadows for Riff and Salty...")
     print("=" * 60)
 
-    # Riff targets:
-    # 1. Between legs: y in [740, 930], x in [420, 630]
-    # 2. Guitar arm gap: y in [600, 660], x in [270, 360]
-    riff_regions = [
-        {"min_y": 740, "max_y": 930, "min_x": 420, "max_x": 630, "min_count": 300},
-        {"min_y": 600, "max_y": 670, "min_x": 270, "max_x": 370, "min_count": 200}
-    ]
-
-    # Salty targets:
-    # 1. Between legs: y in [760, 940], x in [450, 620]
-    salty_regions = [
-        {"min_y": 760, "max_y": 940, "min_x": 450, "max_x": 620, "min_count": 300}
-    ]
-
     # Clean Riff base portrait
-    clean_enclosed_white(os.path.join(CHAR_DIR, "riff.png"), riff_regions)
+    clean_riff_image(os.path.join(CHAR_DIR, "riff.png"))
 
     # Clean Riff attack frames
     for i in range(1, 7):
         frame_path = os.path.join(CHAR_DIR, f"riff_power_chord_frame_{i}.png")
-        clean_enclosed_white(frame_path, riff_regions)
+        clean_riff_image(frame_path)
 
     # Clean Salty base portrait
-    clean_enclosed_white(os.path.join(CHAR_DIR, "salty.png"), salty_regions)
+    clean_salty_image(os.path.join(CHAR_DIR, "salty.png"))
 
     # Clean Salty attack frames
     for i in range(1, 7):
         frame_path = os.path.join(CHAR_DIR, f"salty_attack_frame_{i}.png")
-        clean_enclosed_white(frame_path, salty_regions)
+        clean_salty_image(frame_path)
 
     print("\nRebuilding Riff and Salty GIF and PNG Spritesheets...")
     # Rebuild Riff GIF & Spritesheet
@@ -136,7 +160,7 @@ def process_riff_and_salty():
         disposal=2
     )
 
-    print("PNG and GIF rebuilt. Now running optimize_assets.py to refresh WebP spritesheets...")
+    print("PNG and GIF rebuilt successfully.")
 
 if __name__ == "__main__":
     process_riff_and_salty()

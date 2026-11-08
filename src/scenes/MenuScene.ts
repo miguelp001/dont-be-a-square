@@ -347,7 +347,7 @@ export default class MenuScene extends Phaser.Scene {
     attackChars.forEach((charId) => {
       const sheetKey = `${charId}_attack`;
       if (!this.textures.exists(sheetKey)) {
-        this.load.spritesheet(sheetKey, `assets/sprites/characters/${charId}_attack.webp?v=wbp_v2`, {
+        this.load.spritesheet(sheetKey, `assets/sprites/characters/${charId}_attack.webp?v=wbp_v3`, {
           frameWidth: 256,
           frameHeight: 256
         });

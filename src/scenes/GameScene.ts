@@ -167,7 +167,7 @@ export default class GameScene extends Phaser.Scene {
     matchChars.forEach((cid) => {
       const sheetKey = `${cid}_attack`;
       if (!this.textures.exists(sheetKey)) {
-        this.load.spritesheet(sheetKey, `assets/sprites/characters/${cid}_attack.webp?v=wbp_v2`, {
+        this.load.spritesheet(sheetKey, `assets/sprites/characters/${cid}_attack.webp?v=wbp_v3`, {
           frameWidth: 256,
           frameHeight: 256
         });
