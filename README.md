@@ -5,7 +5,7 @@
 [![Phaser 3](https://img.shields.io/badge/Phaser-3.80-e056fd?style=for-the-badge&logo=html5&logoColor=white)](https://phaser.io/)
 [![Vite](https://img.shields.io/badge/Vite-5.4-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
 [![Socket.IO](https://img.shields.io/badge/Socket.IO-4.7-010101?style=for-the-badge&logo=socketdotio&logoColor=white)](https://socket.io/)
-[![Tests](https://img.shields.io/badge/Vitest-52%20Passing-2ed573?style=for-the-badge&logo=vitest&logoColor=white)](https://vitest.dev/)
+[![Tests](https://img.shields.io/badge/Vitest-66%20Passing-2ed573?style=for-the-badge&logo=vitest&logoColor=white)](https://vitest.dev/)
 [![PWA Ready](https://img.shields.io/badge/PWA-Installable-20bf6b?style=for-the-badge&logo=pwa&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps)
 
 An action puzzle game inspired by the legendary mechanics of *Panel de Pon* and *Tetris Attack*, reimagined with modern web technology. Built from scratch with **Phaser 3**, **TypeScript**, and **Vite**, featuring 8 unique anime chibi Slime Catchers, distinct AI bot personalities, real-time WebSocket online multiplayer, universal gamepad/keyboard/touch controls, and candy-themed audiovisual aesthetics.
@@ -44,6 +44,11 @@ An action puzzle game inspired by the legendary mechanics of *Panel de Pon* and 
 ### 📱 Mobile-First Responsive Design (Phase 4 VS Layout)
 * **Asymmetric Mobile VS Layout:** Tailored for vertical mobile screens (iPhone SE, 13/14/15, Pixel 7/8). Features a top-mounted mini-radar grid showing opponent board state, a flashing Threat Buffer bar for incoming garbage, and generous tap gutters.
 * **Responsive Options & Guide Screen:** Dynamic geometric scaling that guarantees zero overlap between tab navigation and controls across mobile and widescreen desktop displays.
+
+### 📊 Comprehensive Telemetry & Statistics
+* **Options Statistics Dashboard:** In-depth telemetry tab featuring 4 specialized views: Lifetime Summary, Performance Charts, Character Matchup Breakdown, and Difficulty Records.
+* **Granular Metrics Tracking:** Real-time recording of total matches, simultaneous combos, max cascade chains, cleared lines, playtime, and win/loss records across AI and multiplayer battles.
+* **Persistent & Protected Records:** Real-time persistence via `StatsManager` with protected records to safeguard your competitive history.
 
 ### 🎵 Procedural Audio & Soundtrack
 * Zero-latency Web Audio API procedural synthesizer for mechanical clicks, pops, swaps, combo chimes, and panic sirens.
@@ -106,7 +111,7 @@ Meet the colorful cast of chibi puzzle fighters in the enchanted Candy Forest:
 * **Client Engine:** [Phaser 3.80](https://phaser.io/) with `Phaser.Scale.RESIZE` for seamless cross-resolution adaptation.
 * **Language & Tooling:** [TypeScript 5.5](https://www.typescriptlang.org/) in strict mode, bundled via [Vite](https://vitejs.dev/) and [esbuild](https://esbuild.github.io/).
 * **Multiplayer Protocol:** [Socket.IO](https://socket.io/) rooms with synchronized random seed generation, rematch voting sets, and graceful disconnect management.
-* **Testing Suite:** [Vitest](https://vitest.dev/) with 39 automated unit tests verifying game engine physics, garbage collision, rematch synchronization, touch precision, and layout geometry.
+* **Testing Suite:** [Vitest](https://vitest.dev/) with 66 automated unit tests across 13 test suites verifying game engine physics, garbage collision, rematch synchronization, touch precision, statistics persistence, difficulty ladder scaling, and layout geometry.
 
 ---
 
@@ -145,11 +150,11 @@ npm run server
 
 ### Running Automated Tests
 ```bash
-# Run Vitest unit test suite (39 tests)
+# Run full Vitest unit test suite (66 tests across 13 suites)
 npm test
 
-# Run tests in interactive UI mode
-npm run test:ui
+# Run tests in watch mode
+npm run test:watch
 ```
 
 ### Building for Production
@@ -194,7 +199,7 @@ dont-be-a-square/
 │   │                        # ChallengeMapScene, CharacterSelectScene, BootScene
 │   ├── ui/                  # OptionsMenuLayout, VsLayout
 │   └── utils/               # Settings, SoundFx, CuteUI, Constants
-├── tests/                   # Vitest unit test suites (39 passing tests)
+├── tests/                   # Vitest unit test suites (66 passing tests across 13 suites)
 ├── package.json
 └── tsconfig.json
 ```

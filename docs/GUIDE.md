@@ -31,6 +31,9 @@ Whether you are matching your first trio of slimes or engineering $x14$ cascadin
    - [Mid-Air Catch Swapping](#mid-air-catch-swapping)
    - [Threat Buffer Management](#threat-buffer-management)
    - [Clutch Recovery Under Heavy Garbage](#clutch-recovery-under-heavy-garbage)
+8. [Options & Statistics Dashboard](#8-options--statistics-dashboard)
+   - [Telemetry & Performance Tracking](#telemetry--performance-tracking)
+   - [Controls & Audio Customization](#controls--audio-customization)
 
 ---
 
@@ -169,16 +172,19 @@ When you battle against AI bots or human players online, offensive combos and ch
 
 ### 1. Challenge Mode (Road to Champion)
 * Select your favorite Slime Catcher and battle across the interactive world map.
-* Defeat 8 distinct AI personalities in any order:
-  1. **Sparky** (Aggressive speed-runner)
-  2. **Poppy** (Rapid combo specialist)
-  3. **Salty** (Defensive endurance tactician)
-  4. **Volt** (Chain-seeking genius)
-  5. **Ember** (Fiery high-risk attacker)
-  6. **Mocha** (Steady, methodical counter-puncher)
-  7. **Riff** (Chaotic rhythm rusher)
-  8. **Luna** (The Grand Puzzle Master)
-* Defeating all 8 crowns you as the Champion!
+* Defeat the 8 distinct AI personalities in any order:
+  1. **Kiri** 🦊 (Methodical mechanic; dismantles garbage like clockwork)
+  2. **Mizu** 🌊 (Fluid swordsman; patient cascading counter-attacker)
+  3. **Riff** 🎸 (Blazing shredder; aggressive 4+ combos and fast lifts)
+  4. **Mocha** 🐰 (Bunny alchemist; rapid swapping and unpredictable re-routes)
+  5. **Ember** 🔥 (Fire dancer; crafts massive 4+ and 5-in-a-row cross clears)
+  6. **Volt** ⚡ (Gecko inventor; twitchy glitch bursts with lightning speed)
+  7. **Salty** 🦦 (Otter pirate; relentless raider dropping heavy slabs under pressure)
+  8. **Poppy** 🐼 (Red panda idol; multi-tier cascading performances)
+* **Secret Boss Encounters:**
+  * **Void Slime** 👑 (Cosmic Void Champion): Appears upon conquering the map on **Master** difficulty! Defeat it to unlock Void Slime for multiplayer.
+  * **Nano Banana** 🍌👑 (Glitch Nanite Overlord): Legendary anomaly awaiting challengers on **Grandmaster** difficulty with hyper-twitch 130ms reflexes!
+* Defeating all opponents crowns you as the Champion!
 
 ### 2. Endless Marathon
 * Pure high-score survival mode.
@@ -228,6 +234,24 @@ Clear the 🟡 horizontally; as it pops, the top 🟢 drops down to connect with
 * Build a 3-match directly underneath the bottom edge of the block.
 * When that single row shatters, the entire 4-row block will morph into 24 normal slimes.
 * Look for immediate matches within the newly morphed slimes to trigger a gargantuan counter-attack!
+
+---
+
+## 8. Options & Statistics Dashboard
+
+Access the **Options & Guide** menu from the main title or pause screen to tailor your experience and track your long-term puzzle mastery.
+
+### Telemetry & Performance Tracking
+The **Statistics** tab provides deep telemetry powered by `StatsManager`, automatically split into 4 comprehensive sub-views:
+* **Lifetime Summary:** Track total games played, victory rate, total slimes matched, lines cleared, and cumulative playtime across all sessions.
+* **Performance Charts:** Visual graphs illustrating your combo distribution (4+, 5+, 6+, 7+) and cascading chain multipliers ($x2$ through $x14+$).
+* **Fighter Breakdown:** Matchup win/loss records and play counts for every Slime Catcher on the roster.
+* **Difficulty Records:** High score, top survival time, and maximum combo record achieved across Novice, Adept, Expert, Master, and Grandmaster ladders.
+> 🛡️ *All statistics and competitive achievements are protected in local storage to prevent accidental data loss.*
+
+### Controls & Audio Customization
+* **Audio & Settings:** Independent master sliders for procedural sound effects, retro arcade BGM tracks, and fullscreen/vibration toggles.
+* **Controls Mapping:** Complete keyboard key remapping with conflict detection and live gamepad connection indicators with haptic testing.
 
 ---
 
