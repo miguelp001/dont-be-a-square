@@ -63,6 +63,14 @@ export default class BattleRoyaleScene extends Phaser.Scene {
   private currentBgm?: Phaser.Sound.BaseSound;
   private isTop5MusicPlaying: boolean = false;
 
+  // End Modal Navigation State
+  private endModalActive: boolean = false;
+  private endModalIndex: number = 0;
+  private endModalButtons: Phaser.GameObjects.Container[] = [];
+  private endModalKeyHandler?: (e: KeyboardEvent) => void;
+  private padRepeatTimer: number = 0;
+  private prevPadButtons: Map<number, boolean> = new Map();
+
   // Board Geometry
   private boardCenterX: number = 0;
   private boardCenterY: number = 0;
@@ -87,6 +95,11 @@ export default class BattleRoyaleScene extends Phaser.Scene {
     this.telemetryTimer = 0;
     this.isTop5MusicPlaying = false;
     this.currentBgm = undefined;
+    this.endModalActive = false;
+    this.endModalIndex = 0;
+    this.endModalButtons = [];
+    this.padRepeatTimer = 0;
+    this.prevPadButtons.clear();
   }
 
   create(): void {
@@ -494,7 +507,7 @@ export default class BattleRoyaleScene extends Phaser.Scene {
 
     // 4. Personal Elimination Modal
     this.socketMgr.onBRPersonalElimination((data) => {
-      this.showEliminationScreen(data.placement, data.killerName, data.kosCount, data.badges);
+      this.showChampionScreen(data.placement, data.killerName, data.kosCount, data.badges);
     });
 
     // 5. Phase Escalation
@@ -519,7 +532,7 @@ export default class BattleRoyaleScene extends Phaser.Scene {
     // 6. Match Victory Royale
     this.socketMgr.onBRMatchVictory((data) => {
       if (data.winnerId === this.myId) {
-        this.showVictoryRoyaleScreen(data.badges, data.kosCount);
+        this.showChampionScreen(1, '', data.kosCount, data.badges);
       }
     });
   }
@@ -594,78 +607,12 @@ export default class BattleRoyaleScene extends Phaser.Scene {
     });
   }
 
-  private showEliminationScreen(placement: number, killerName: string, kos: number, badges: number): void {
-    if (this.currentBgm) {
-      this.currentBgm.stop();
-    }
-    const width = this.cameras.main.width;
-    const height = this.cameras.main.height;
-    const uiScale = CuteUI.getUIScale(this);
+  private showChampionScreen(placement: number, killerName: string, kos: number, badges: number): void {
+    if (this.endModalActive) return;
+    this.endModalActive = true;
+    this.isEliminated = true;
+    if (placement === 1) this.isVictory = true;
 
-    const modal = this.add.container(width / 2, height / 2);
-    modal.setDepth(100);
-
-    let backdrop: Phaser.GameObjects.GameObject;
-    if (this.textures.exists('victory_royale_bg')) {
-      const bgImg = this.add.image(0, 0, 'victory_royale_bg');
-      const scale = Math.max(width / bgImg.width, height / bgImg.height);
-      bgImg.setScale(scale);
-      modal.add(bgImg);
-
-      const overlay = this.add.rectangle(0, 0, width, height, 0x000000, 0.65);
-      overlay.setInteractive();
-      backdrop = overlay;
-    } else {
-      const darkRect = this.add.rectangle(0, 0, width, height, 0x000000, 0.82);
-      darkRect.setInteractive();
-      backdrop = darkRect;
-    }
-
-    const boxW = Math.min(width - 32, Math.round(360 * uiScale));
-    const boxH = Math.round(250 * uiScale);
-    const box = this.add.graphics();
-    box.fillStyle(0x130a24, 0.95);
-    box.fillRoundedRect(-boxW / 2, -boxH / 2, boxW, boxH, 16);
-    box.lineStyle(2, 0xff4757, 1);
-    box.strokeRoundedRect(-boxW / 2, -boxH / 2, boxW, boxH, 16);
-
-    const placeTitle = this.add.text(0, -boxH / 2 + Math.round(35 * uiScale), `#${placement} PLACE`, {
-      fontFamily: CUTE_FONT,
-      fontSize: `${Math.round(26 * uiScale)}px`,
-      color: placement <= 3 ? '#feca57' : '#ffffff',
-      fontStyle: 'bold',
-      stroke: '#000000',
-      strokeThickness: 3
-    }).setOrigin(0.5);
-
-    const killerText = this.add.text(0, -boxH / 2 + Math.round(75 * uiScale), `Eliminated by: ${killerName}`, {
-      fontSize: `${Math.round(12 * uiScale)}px`,
-      color: '#ff6b6b'
-    }).setOrigin(0.5);
-
-    const statsText = this.add.text(0, -boxH / 2 + Math.round(105 * uiScale), `KOs: ${kos}  •  Badges: ${badges}`, {
-      fontSize: `${Math.round(14 * uiScale)}px`,
-      color: '#feca57',
-      fontStyle: 'bold'
-    }).setOrigin(0.5);
-
-    // Play Again button
-    const playAgainBtn = CuteUI.createPillButton(this, 0, boxH / 2 - Math.round(70 * uiScale), 'PLAY AGAIN 👑', () => {
-      this.cleanup();
-      this.scene.start('LobbyScene');
-    }, { textureKey: 'pill_pink', width: Math.round(200 * uiScale), height: Math.round(36 * uiScale), fontSize: '13px', autoScale: false });
-
-    // Main Menu button
-    const menuBtn = CuteUI.createPillButton(this, 0, boxH / 2 - Math.round(25 * uiScale), 'MAIN MENU', () => {
-      this.cleanup();
-      this.scene.start('MenuScene');
-    }, { textureKey: 'pill_grey', width: Math.round(200 * uiScale), height: Math.round(34 * uiScale), fontSize: '12px', autoScale: false });
-
-    modal.add([backdrop, box, placeTitle, killerText, statsText, playAgainBtn, menuBtn]);
-  }
-
-  private showVictoryRoyaleScreen(badges: number, kos: number): void {
-    this.isVictory = true;
     if (this.currentBgm) {
       this.currentBgm.stop();
     }
@@ -675,9 +622,10 @@ export default class BattleRoyaleScene extends Phaser.Scene {
     const height = this.cameras.main.height;
     const uiScale = CuteUI.getUIScale(this);
 
-    // Confetti shower
-    for (let i = 0; i < 50; i++) {
+    // 1. Confetti shower celebration
+    for (let i = 0; i < 45; i++) {
       const star = this.add.image(Math.random() * width, -20, 'sparkle_star');
+      star.setDepth(152);
       star.setTint([0xfff200, 0xff69b4, 0x00d2d3, 0x2ed573, 0xff9f43][Math.floor(Math.random() * 5)]);
       this.tweens.add({
         targets: star,
@@ -689,69 +637,195 @@ export default class BattleRoyaleScene extends Phaser.Scene {
       });
     }
 
-    const modal = this.add.container(width / 2, height / 2);
-    modal.setDepth(100);
-
-    // Fullscreen victory royale artwork background
-    let backdrop: Phaser.GameObjects.GameObject;
+    // 2. Fullscreen vibrant victory royale background artwork (bright and crisp!)
     if (this.textures.exists('victory_royale_bg')) {
-      const bgImg = this.add.image(0, 0, 'victory_royale_bg');
+      const bgImg = this.add.image(width / 2, height / 2, 'victory_royale_bg');
       const scale = Math.max(width / bgImg.width, height / bgImg.height);
-      bgImg.setScale(scale);
-      modal.add(bgImg);
+      bgImg.setScale(scale).setDepth(150);
 
-      const overlay = this.add.rectangle(0, 0, width, height, 0x000000, 0.42);
-      overlay.setInteractive();
-      backdrop = overlay;
+      // Light transparent overlay (only 22% alpha) to keep artwork bright and visible
+      const softOverlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.22);
+      softOverlay.setDepth(151);
     } else {
-      const darkRect = this.add.rectangle(0, 0, width, height, 0x000000, 0.85);
-      darkRect.setInteractive();
-      backdrop = darkRect;
+      const softOverlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.70);
+      softOverlay.setDepth(151);
     }
 
+    // 3. Modal Plaque Box
     const boxW = Math.min(width - 32, Math.round(380 * uiScale));
-    const boxH = Math.round(260 * uiScale);
-    const box = this.add.graphics();
-    box.fillStyle(0x130a24, 0.95);
-    box.fillRoundedRect(-boxW / 2, -boxH / 2, boxW, boxH, 16);
-    box.lineStyle(3, 0xfeca57, 1);
-    box.strokeRoundedRect(-boxW / 2, -boxH / 2, boxW, boxH, 16);
+    const boxH = Math.round(270 * uiScale);
+    const boxX = width / 2;
+    const boxY = height / 2;
 
-    const title = this.add.text(0, -boxH / 2 + Math.round(36 * uiScale), '👑 #1 VICTORY ROYALE! 👑', {
+    const box = this.add.graphics();
+    box.setDepth(155);
+    box.fillStyle(0x130a24, 0.90);
+    box.fillRoundedRect(boxX - boxW / 2, boxY - boxH / 2, boxW, boxH, 16);
+    box.lineStyle(3, 0xfeca57, 1);
+    box.strokeRoundedRect(boxX - boxW / 2, boxY - boxH / 2, boxW, boxH, 16);
+
+    // 4. Header Titles
+    const titleStr = placement === 1 ? '👑 #1 VICTORY ROYALE! 👑' : '👑 BATTLE ROYALE CHAMPION 👑';
+    const subStr = placement === 1
+      ? 'SLIME MONARCH CONQUEROR!'
+      : `FINISHED #${placement} / 30 • SLIME CONTENDER!`;
+
+    this.add.text(boxX, boxY - boxH / 2 + Math.round(34 * uiScale), titleStr, {
       fontFamily: CUTE_FONT,
-      fontSize: `${Math.round(22 * uiScale)}px`,
+      fontSize: `${Math.round(20 * uiScale)}px`,
       color: '#feca57',
       fontStyle: 'bold',
       stroke: '#000000',
       strokeThickness: 4
-    }).setOrigin(0.5);
+    }).setOrigin(0.5).setDepth(156);
 
-    const subTitle = this.add.text(0, -boxH / 2 + Math.round(75 * uiScale), 'SLIME MONARCH CONQUEROR!', {
+    this.add.text(boxX, boxY - boxH / 2 + Math.round(68 * uiScale), subStr, {
+      fontFamily: CUTE_FONT,
       fontSize: `${Math.round(13 * uiScale)}px`,
-      color: '#2ed573',
-      fontStyle: 'bold'
-    }).setOrigin(0.5);
+      color: placement === 1 ? '#2ed573' : '#ff9ff3',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 2
+    }).setOrigin(0.5).setDepth(156);
 
-    const stats = this.add.text(0, -boxH / 2 + Math.round(110 * uiScale), `Total KOs: ${kos}  •  Final Badges: ${badges}`, {
+    let statsY = boxY - boxH / 2 + Math.round(108 * uiScale);
+    if (placement > 1 && killerName && killerName !== 'none') {
+      this.add.text(boxX, boxY - boxH / 2 + Math.round(92 * uiScale), `Eliminated by: ${killerName}`, {
+        fontFamily: CUTE_FONT,
+        fontSize: `${Math.round(11.5 * uiScale)}px`,
+        color: '#ff6b6b'
+      }).setOrigin(0.5).setDepth(156);
+      statsY = boxY - boxH / 2 + Math.round(118 * uiScale);
+    }
+
+    this.add.text(boxX, statsY, `Total KOs: ${kos}  •  Final Badges: ${badges}`, {
+      fontFamily: CUTE_FONT,
       fontSize: `${Math.round(14 * uiScale)}px`,
-      color: '#ff9ff3',
-      fontStyle: 'bold'
-    }).setOrigin(0.5);
+      color: '#ffffff',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 2
+    }).setOrigin(0.5).setDepth(156);
 
-    const againBtn = CuteUI.createPillButton(this, 0, boxH / 2 - Math.round(70 * uiScale), 'PLAY AGAIN 👑', () => {
+    // 5. Action Buttons directly on scene (Depth 160)
+    const btnY1 = boxY + boxH / 2 - Math.round(75 * uiScale);
+    const btnY2 = boxY + boxH / 2 - Math.round(28 * uiScale);
+
+    const playAgainBtn = CuteUI.createPillButton(this, boxX, btnY1, 'PLAY AGAIN 👑', () => {
       this.cleanup();
       this.scene.start('LobbyScene');
-    }, { textureKey: 'pill_pink', width: Math.round(200 * uiScale), height: Math.round(36 * uiScale), fontSize: '13px', autoScale: false });
+    }, {
+      textureKey: 'pill_pink',
+      width: Math.round(210 * uiScale),
+      height: Math.round(38 * uiScale),
+      fontSize: `${Math.round(13 * uiScale)}px`,
+      autoScale: false
+    });
+    playAgainBtn.setDepth(160);
 
-    const menuBtn = CuteUI.createPillButton(this, 0, boxH / 2 - Math.round(25 * uiScale), 'MAIN MENU', () => {
+    const menuBtn = CuteUI.createPillButton(this, boxX, btnY2, 'MAIN MENU', () => {
       this.cleanup();
       this.scene.start('MenuScene');
-    }, { textureKey: 'pill_grey', width: Math.round(200 * uiScale), height: Math.round(34 * uiScale), fontSize: '12px', autoScale: false });
+    }, {
+      textureKey: 'pill_grey',
+      width: Math.round(210 * uiScale),
+      height: Math.round(36 * uiScale),
+      fontSize: `${Math.round(12 * uiScale)}px`,
+      autoScale: false
+    });
+    menuBtn.setDepth(160);
 
-    modal.add([backdrop, box, title, subTitle, stats, againBtn, menuBtn]);
+    this.endModalButtons = [playAgainBtn, menuBtn];
+    this.endModalIndex = 0;
+    this.updateEndModalButtonVisuals();
+
+    // Mouse Hover listeners
+    playAgainBtn.on('pointerover', () => {
+      this.endModalIndex = 0;
+      this.updateEndModalButtonVisuals();
+    });
+    menuBtn.on('pointerover', () => {
+      this.endModalIndex = 1;
+      this.updateEndModalButtonVisuals();
+    });
+
+    // Keyboard listener
+    this.endModalKeyHandler = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.code === 'KeyW' || e.code === 'KeyS') {
+        SoundFx.playCursor();
+        this.endModalIndex = this.endModalIndex === 0 ? 1 : 0;
+        this.updateEndModalButtonVisuals();
+      } else if (e.key === 'Enter' || e.code === 'Space') {
+        if (this.endModalIndex === 0) {
+          this.cleanup();
+          this.scene.start('LobbyScene');
+        } else {
+          this.cleanup();
+          this.scene.start('MenuScene');
+        }
+      } else if (e.key === 'Escape') {
+        this.cleanup();
+        this.scene.start('MenuScene');
+      }
+    };
+    window.addEventListener('keydown', this.endModalKeyHandler);
+  }
+
+  private updateEndModalButtonVisuals(): void {
+    this.endModalButtons.forEach((btn, idx) => {
+      btn.setScale(idx === this.endModalIndex ? 1.08 : 1.0);
+    });
+  }
+
+  private handleEndModalGamepadInput(delta: number): void {
+    if (!this.input.gamepad || this.input.gamepad.total === 0) return;
+    const pad = this.input.gamepad.gamepads[0];
+    if (!pad || !pad.connected) return;
+
+    const stickY = pad.leftStick ? pad.leftStick.y : 0;
+    const isUp = pad.up || pad.isButtonDown(12) || stickY < -0.45;
+    const isDown = pad.down || pad.isButtonDown(13) || stickY > 0.45;
+
+    if (isUp || isDown) {
+      if (this.padRepeatTimer <= 0) {
+        SoundFx.playCursor();
+        this.endModalIndex = this.endModalIndex === 0 ? 1 : 0;
+        this.updateEndModalButtonVisuals();
+        this.padRepeatTimer = 220;
+      } else {
+        this.padRepeatTimer -= delta;
+      }
+    } else {
+      this.padRepeatTimer = 0;
+    }
+
+    const selectDown = pad.A || pad.isButtonDown(0) || pad.isButtonDown(9);
+    const prevSelect = this.prevPadButtons.get(0) || false;
+    if (selectDown && !prevSelect) {
+      if (this.endModalIndex === 0) {
+        this.cleanup();
+        this.scene.start('LobbyScene');
+      } else {
+        this.cleanup();
+        this.scene.start('MenuScene');
+      }
+    }
+    this.prevPadButtons.set(0, selectDown);
+
+    const backDown = pad.B || pad.isButtonDown(1);
+    const prevBack = this.prevPadButtons.get(1) || false;
+    if (backDown && !prevBack) {
+      this.cleanup();
+      this.scene.start('MenuScene');
+    }
+    this.prevPadButtons.set(1, backDown);
   }
 
   update(time: number, delta: number): void {
+    if (this.endModalActive) {
+      this.handleEndModalGamepadInput(delta);
+      return;
+    }
     if (this.isEliminated || this.isVictory) return;
 
     this.playerCursor.update(delta);
@@ -767,6 +841,10 @@ export default class BattleRoyaleScene extends Phaser.Scene {
   }
 
   private cleanup(): void {
+    if (this.endModalKeyHandler) {
+      window.removeEventListener('keydown', this.endModalKeyHandler);
+      this.endModalKeyHandler = undefined;
+    }
     if (this.currentBgm) {
       this.currentBgm.stop();
       this.currentBgm.destroy();
