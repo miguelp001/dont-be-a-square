@@ -127,7 +127,7 @@ describe('Battle Royale Server Engine (30-Player FFA)', () => {
     bots[4].targetId = 'test_player';
     socket._trigger('br_set_target', { roomId, targetMode: 'attackers' });
     expect(playerComp.targetMode).toBe('attackers');
-    expect([bots[3].id, bots[4].id]).toContain(playerComp.targetId);
+    expect(room.competitors.get(playerComp.targetId!)?.targetId).toBe('test_player');
 
     // 4. MANUAL Targeting: explicitly designated opponent
     socket._trigger('br_set_target', { roomId, targetMode: 'manual', manualTargetId: bots[8].id });

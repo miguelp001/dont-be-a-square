@@ -82,6 +82,12 @@ export default class PreloadScene extends Phaser.Scene {
     bgmTracks.forEach(track => {
       this.load.audio(track, `assets/audio/bgm/${track}.mp3`);
     });
+
+    // Battle Royale BGM tracks
+    this.load.audio('br_bgm', 'assets/audio/bgm/Pixel_Shuffle.mp3');
+    this.load.audio('br_stress_bgm', 'assets/audio/bgm/Pixel_stress.mp3');
+    this.load.audio('Pixel_Shuffle', 'assets/audio/bgm/Pixel_Shuffle.mp3');
+    this.load.audio('Pixel_stress', 'assets/audio/bgm/Pixel_stress.mp3');
   }
 
   create(): void {

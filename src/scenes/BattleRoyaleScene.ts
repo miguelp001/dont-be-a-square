@@ -59,6 +59,10 @@ export default class BattleRoyaleScene extends Phaser.Scene {
   private isEliminated: boolean = false;
   private isVictory: boolean = false;
 
+  // BGM Audio Controllers
+  private currentBgm?: Phaser.Sound.BaseSound;
+  private isTop5MusicPlaying: boolean = false;
+
   // Board Geometry
   private boardCenterX: number = 0;
   private boardCenterY: number = 0;
@@ -81,15 +85,20 @@ export default class BattleRoyaleScene extends Phaser.Scene {
     this.isEliminated = false;
     this.isVictory = false;
     this.telemetryTimer = 0;
+    this.isTop5MusicPlaying = false;
+    this.currentBgm = undefined;
   }
 
   create(): void {
     this.socketMgr = SocketManager.getInstance();
     this.myId = this.socketMgr.getSocketId();
 
-    if (this.cache.audio.exists('vs_bgm') && !this.sound.get('vs_bgm')?.isPlaying) {
+    // Start Battle Royale background music (Pixel_Shuffle.mp3)
+    const bgmKey = this.cache.audio.exists('br_bgm') ? 'br_bgm' : (this.cache.audio.exists('Pixel_Shuffle') ? 'Pixel_Shuffle' : '');
+    if (bgmKey) {
       this.sound.stopAll();
-      this.sound.play('vs_bgm', { loop: true, volume: Settings.musicVolume });
+      this.currentBgm = this.sound.add(bgmKey, { loop: true, volume: Settings.musicVolume });
+      this.currentBgm.play();
     }
 
     const width = this.cameras.main.width;
@@ -405,6 +414,7 @@ export default class BattleRoyaleScene extends Phaser.Scene {
       this.currentPhase = data.phase;
       this.aliveText.setText(`👑 ${this.aliveCount} ALIVE`);
       this.phaseText.setText(`PHASE ${this.currentPhase}`);
+      this.checkTop5Music();
 
       // Count threats aiming at me
       let threatCount = 0;
@@ -468,6 +478,9 @@ export default class BattleRoyaleScene extends Phaser.Scene {
 
     // 3. Elimination Feed
     this.socketMgr.onBRElimination((data) => {
+      this.aliveCount = data.aliveCount;
+      this.checkTop5Music();
+
       this.killfeedText.setText(`⚡ ${data.killerName} KO'd ${data.victimName} (#${data.rank})`);
       this.time.delayedCall(2400, () => {
         if (this.killfeedText.active) this.killfeedText.setText('');
@@ -490,6 +503,10 @@ export default class BattleRoyaleScene extends Phaser.Scene {
       this.currentPhase = data.phase;
       const banner = data.phase === 3 ? '🔥 SUDDEN DEATH • TOP 5! 🔥' : '⚡ PHASE 2: STORM SPEEDUP! ⚡';
       this.showPhaseBanner(banner);
+
+      if (data.phase === 3 || data.aliveCount <= 5) {
+        this.playTop5Music();
+      }
 
       // Increase stack speed
       if (data.phase === 2) {
@@ -520,6 +537,41 @@ export default class BattleRoyaleScene extends Phaser.Scene {
     }
   }
 
+  private checkTop5Music(): void {
+    if (this.isTop5MusicPlaying || this.aliveCount > 5) return;
+    this.playTop5Music();
+  }
+
+  private playTop5Music(): void {
+    if (this.isTop5MusicPlaying) return;
+    this.isTop5MusicPlaying = true;
+
+    const stressKey = this.cache.audio.exists('br_stress_bgm')
+      ? 'br_stress_bgm'
+      : (this.cache.audio.exists('Pixel_stress') ? 'Pixel_stress' : (this.cache.audio.exists('panic') ? 'panic' : ''));
+    if (!stressKey) return;
+
+    if (this.currentBgm && (this.currentBgm as any).isPlaying) {
+      this.tweens.add({
+        targets: this.currentBgm,
+        volume: 0,
+        duration: 400,
+        onComplete: () => {
+          if (this.currentBgm) {
+            this.currentBgm.stop();
+            this.currentBgm.destroy();
+          }
+          this.currentBgm = this.sound.add(stressKey, { loop: true, volume: Settings.musicVolume });
+          this.currentBgm.play();
+        }
+      });
+    } else {
+      this.sound.stopAll();
+      this.currentBgm = this.sound.add(stressKey, { loop: true, volume: Settings.musicVolume });
+      this.currentBgm.play();
+    }
+  }
+
   private showPhaseBanner(text: string): void {
     const width = this.cameras.main.width;
     const banner = this.add.text(width / 2, this.boardCenterY - 40, text, {
@@ -543,6 +595,9 @@ export default class BattleRoyaleScene extends Phaser.Scene {
   }
 
   private showEliminationScreen(placement: number, killerName: string, kos: number, badges: number): void {
+    if (this.currentBgm) {
+      this.currentBgm.stop();
+    }
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
     const uiScale = CuteUI.getUIScale(this);
@@ -598,6 +653,9 @@ export default class BattleRoyaleScene extends Phaser.Scene {
 
   private showVictoryRoyaleScreen(badges: number, kos: number): void {
     this.isVictory = true;
+    if (this.currentBgm) {
+      this.currentBgm.stop();
+    }
     SoundFx.playVictory();
 
     const width = this.cameras.main.width;
@@ -682,6 +740,12 @@ export default class BattleRoyaleScene extends Phaser.Scene {
   }
 
   private cleanup(): void {
+    if (this.currentBgm) {
+      this.currentBgm.stop();
+      this.currentBgm.destroy();
+      this.currentBgm = undefined;
+    }
+    this.sound.stopAll();
     this.socketMgr.cleanBRListeners();
     this.socketMgr.leaveRoom(this.roomId);
   }
