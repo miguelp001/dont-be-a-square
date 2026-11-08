@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dont-be-a-square-v62';
+const CACHE_NAME = 'dont-be-a-square-v63';
 
 const PRECACHE_URLS = [
   '/',
@@ -65,10 +65,23 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static Assets (scripts, audio, images, fonts): Network-first with cache fallback
+  // Static Assets (scripts, audio, images, fonts, webp): Cache-first with network fallback & background update
   event.respondWith(
-    fetch(request)
-      .then((networkResponse) => {
+    caches.match(request).then((cachedResponse) => {
+      if (cachedResponse) {
+        // Return from cache immediately; update cache in background if stale
+        fetch(request)
+          .then((networkResponse) => {
+            if (networkResponse && networkResponse.status === 200) {
+              caches.open(CACHE_NAME).then((cache) => cache.put(request, networkResponse));
+            }
+          })
+          .catch(() => {});
+        return cachedResponse;
+      }
+
+      // If not in cache, fetch from network and cache
+      return fetch(request).then((networkResponse) => {
         if (
           networkResponse &&
           networkResponse.status === 200 &&
@@ -76,6 +89,7 @@ self.addEventListener('fetch', (event) => {
             url.hostname === 'fonts.googleapis.com' ||
             url.hostname === 'fonts.gstatic.com' ||
             url.pathname.endsWith('.woff2') ||
+            url.pathname.endsWith('.webp') ||
             url.pathname.endsWith('.png') ||
             url.pathname.endsWith('.mp3') ||
             url.pathname.endsWith('.js'))
@@ -84,7 +98,7 @@ self.addEventListener('fetch', (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
         }
         return networkResponse;
-      })
-      .catch(() => caches.match(request))
+      });
+    })
   );
 });

@@ -70,27 +70,14 @@ export default class PreloadScene extends Phaser.Scene {
       this.load.image(`panel_${i}`, `assets/sprites/slimes/panel_${i}.png?v=32px_v5`);
     }
 
-    // Load character portrait assets
+    // Load character portrait assets (optimized WebP ~30KB each)
     CHARACTERS.forEach(char => {
-      this.load.image(char.id, `assets/sprites/characters/${char.id}.png?v=fullbody_v2`);
+      this.load.image(char.id, `assets/sprites/characters/${char.id}.webp?v=wbp_v2`);
     });
 
-    // Load character attack animation frames (transparent PNGs)
-    const attackChars = ['kiri', 'mizu', 'mocha', 'ember', 'volt', 'salty', 'poppy', 'void_slime', 'nano_banana'];
-    for (let i = 1; i <= 6; i++) {
-      this.load.image(`riff_chord_${i}`, `assets/sprites/characters/riff_power_chord_frame_${i}.png?v=trans_v1`);
-      attackChars.forEach((charId) => {
-        this.load.image(`${charId}_attack_${i}`, `assets/sprites/characters/${charId}_attack_frame_${i}.png?v=trans_v1`);
-      });
-    }
-
-    // Load BGM tracks (from assets/audio/bgm/)
-    const bgmTracks = [
-      'menu', 'char_select', 'battle_cpu', 'battle_player', 'battle_online', 'panic', 'victory', 'game_over'
-    ];
-    bgmTracks.forEach(track => {
-      this.load.audio(track, `assets/audio/bgm/${track}.mp3`);
-    });
+    // Core BGM for initial menus (subsequent tracks loaded on-demand / background)
+    this.load.audio('menu', 'assets/audio/bgm/menu.mp3');
+    this.load.audio('char_select', 'assets/audio/bgm/char_select.mp3');
   }
 
   create(): void {

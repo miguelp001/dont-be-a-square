@@ -162,6 +162,27 @@ export default class GameScene extends Phaser.Scene {
       this.opponentCharacterId = otherChars[Math.floor(Math.random() * otherChars.length)].id;
     }
 
+    // On-demand load character attack spritesheets and battle music if not already in cache
+    const matchChars = [this.characterId, this.opponentCharacterId].filter(Boolean);
+    matchChars.forEach((cid) => {
+      const sheetKey = `${cid}_attack`;
+      if (!this.textures.exists(sheetKey)) {
+        this.load.spritesheet(sheetKey, `assets/sprites/characters/${cid}_attack.webp?v=wbp_v2`, {
+          frameWidth: 256,
+          frameHeight: 256
+        });
+      }
+    });
+    if (!this.cache.audio.exists('battle_cpu')) {
+      this.load.audio('battle_cpu', 'assets/audio/bgm/battle_cpu.mp3');
+    }
+    if (!this.cache.audio.exists('panic')) {
+      this.load.audio('panic', 'assets/audio/bgm/panic.mp3');
+    }
+    if (this.load.list.size > 0) {
+      this.load.start();
+    }
+
     this.initialChallengeScore = (this.gameMode === 'challenge') ? (Number(data?.challengeScore) || 0) : 0;
     this.roundScore = 0;
     this.playerScore = this.initialChallengeScore;
@@ -1920,8 +1941,11 @@ export default class GameScene extends Phaser.Scene {
     frameDelays.forEach((delay, idx) => {
       this.time.delayedCall(delay, () => {
         if (!mascot.active) return;
+        const sheetKey = `${charId}_attack`;
         const frameKey = `${profile.framePrefix}${idx + 1}`;
-        if (this.textures.exists(frameKey)) {
+        if (this.textures.exists(sheetKey)) {
+          mascot.setTexture(sheetKey, idx);
+        } else if (this.textures.exists(frameKey)) {
           mascot.setTexture(frameKey);
         } else if (idx === 0) {
           // If frame sprite not loaded, perform dynamic mascot action punch

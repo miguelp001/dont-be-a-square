@@ -334,6 +334,36 @@ export default class MenuScene extends Phaser.Scene {
         });
       });
     }
+
+    // Silently preload remaining game assets in the background while player is on the menu
+    this.time.delayedCall(400, () => {
+      this.startBackgroundAssetPreload();
+    });
+  }
+
+  /** Background preload remaining WebP attack spritesheets and audio without blocking initial startup */
+  private startBackgroundAssetPreload(): void {
+    const attackChars = ['riff', 'kiri', 'mizu', 'mocha', 'ember', 'volt', 'salty', 'poppy', 'void_slime', 'nano_banana'];
+    attackChars.forEach((charId) => {
+      const sheetKey = `${charId}_attack`;
+      if (!this.textures.exists(sheetKey)) {
+        this.load.spritesheet(sheetKey, `assets/sprites/characters/${charId}_attack.webp?v=wbp_v2`, {
+          frameWidth: 256,
+          frameHeight: 256
+        });
+      }
+    });
+
+    const bgmTracks = ['battle_cpu', 'battle_player', 'battle_online', 'panic', 'victory', 'game_over'];
+    bgmTracks.forEach((track) => {
+      if (!this.cache.audio.exists(track)) {
+        this.load.audio(track, `assets/audio/bgm/${track}.mp3`);
+      }
+    });
+
+    if (this.load.list.size > 0) {
+      this.load.start();
+    }
   }
 
   private setupKeyboardNavigation(): void {
