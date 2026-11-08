@@ -1650,27 +1650,24 @@ export default class OptionsMenuScene extends Phaser.Scene {
       container.add([bg, nText, pText]);
     });
 
-    // 3. Reset Button & Engine Info
-    const btnY = cardH / 2 - 24;
-    const resetBtn = CuteUI.createPillButton(
-      this,
-      0,
-      btnY,
-      '🔄 RESET ALL STATS',
-      () => {
-        StatsManager.resetStats();
-        SoundFx.playMatch();
-        this.renderStatsSubTabs(cardW, cardH, isMobile);
-      },
-      {
-        textureKey: 'pill_red',
-        fontSize: isMobile ? '9.5px' : '10.5px',
-        width: isMobile ? 160 : 180,
-        height: 28,
-        autoScale: false
-      }
-    );
-    container.add(resetBtn);
+    // 3. System & Engine Telemetry Plaque (Secure persistent storage)
+    const infoY = cardH / 2 - 22;
+    const infoBoxW = cardW - 32;
+    const infoBoxH = 28;
+
+    const infoBg = this.add.graphics();
+    infoBg.fillStyle(0x130e22, 0.9);
+    infoBg.fillRoundedRect(-infoBoxW / 2, infoY - infoBoxH / 2, infoBoxW, infoBoxH, 6);
+    infoBg.lineStyle(1, 0x3d315b, 0.7);
+    infoBg.strokeRoundedRect(-infoBoxW / 2, infoY - infoBoxH / 2, infoBoxW, infoBoxH, 6);
+    container.add(infoBg);
+
+    const infoText = this.add.text(0, infoY, '🔒 Telemetry auto-synced to persistent local storage  •  Target: 60 FPS', {
+      fontSize: isMobile ? '8px' : '9px',
+      color: '#a4b0be',
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+    container.add(infoText);
 
     return container;
   }
