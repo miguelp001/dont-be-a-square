@@ -204,13 +204,16 @@ export default class Board extends Phaser.Events.EventEmitter {
 
   /** Spawn incoming garbage sent from opponent attack */
   public queueGarbage(width: number, height: number = 1, fixedCol?: number): void {
-    const safeWidth = Math.min(width, BOARD_WIDTH);
+    const safeWidth = Math.max(1, Math.min(Math.round(Number(width) || 3), BOARD_WIDTH));
+    const safeHeight = Math.max(1, Math.min(Math.round(Number(height) || 1), 4));
     const maxStartCol = BOARD_WIDTH - safeWidth;
     const startCol =
-      fixedCol !== undefined ? Math.max(0, Math.min(fixedCol, maxStartCol)) : randomInt(0, Math.max(0, maxStartCol));
-    const startRow = -height; // Start above visible playfield so it falls in!
+      typeof fixedCol === 'number' && Number.isFinite(fixedCol)
+        ? Math.max(0, Math.min(Math.round(fixedCol), maxStartCol))
+        : randomInt(0, Math.max(0, maxStartCol));
+    const startRow = -safeHeight; // Start above visible playfield so it falls in!
 
-    const block = new GarbageBlock(this.scene, this.container, startCol, startRow, safeWidth, height);
+    const block = new GarbageBlock(this.scene, this.container, startCol, startRow, safeWidth, safeHeight);
     this.garbageBlocks.push(block);
 
     // Resolve landing position immediately and drop
@@ -543,12 +546,14 @@ export default class Board extends Phaser.Events.EventEmitter {
     // Absolute mutual exclusivity: garbage blocks and regular slimes can NEVER occupy the same grid space!
     for (const b of this.garbageBlocks) {
       if (b.state === GarbageState.CLEARED) continue;
+      if (!Number.isFinite(b.gridY) || !Number.isFinite(b.gridX)) continue;
       for (let r = 0; r < b.height; r++) {
         const gy = b.gridY + r;
-        if (gy < 0 || gy >= BOARD_HEIGHT) continue;
+        if (!Number.isInteger(gy) || gy < 0 || gy >= BOARD_HEIGHT) continue;
+        if (!this.panels[gy]) continue;
         for (let c = 0; c < b.width; c++) {
           const gx = b.gridX + c;
-          if (gx < 0 || gx >= BOARD_WIDTH) continue;
+          if (!Number.isInteger(gx) || gx < 0 || gx >= BOARD_WIDTH) continue;
           const p = this.panels[gy][gx];
           if (p !== null) {
             p.destroy();
@@ -1139,14 +1144,28 @@ export default class Board extends Phaser.Events.EventEmitter {
 
   /** Synchronize garbage blocks to match opponent network state */
   public syncGarbageBlocks(snapshots?: GarbageSnapshot[]): void {
-    if (!snapshots) return;
+    if (!snapshots || !Array.isArray(snapshots)) return;
+
+    // Sanitize snapshots: only accept valid numbers and positive dimensions
+    const validSnapshots = snapshots.filter(
+      (s) =>
+        s &&
+        typeof s.gridX === 'number' &&
+        Number.isFinite(s.gridX) &&
+        typeof s.gridY === 'number' &&
+        Number.isFinite(s.gridY) &&
+        typeof s.width === 'number' &&
+        s.width > 0 &&
+        typeof s.height === 'number' &&
+        s.height > 0
+    );
 
     // If any garbage block is currently mid-fall, do not disrupt its drop animation
     const hasFalling = this.garbageBlocks.some((b) => b.state === GarbageState.FALLING);
     if (hasFalling) return;
 
     const remaining: GarbageBlock[] = [];
-    const pendingSnaps = snapshots.map((s) => ({ ...s }));
+    const pendingSnaps = validSnapshots.map((s) => ({ ...s }));
 
     for (const block of this.garbageBlocks) {
       if (block.state === GarbageState.CLEARED) continue;
@@ -1161,11 +1180,12 @@ export default class Board extends Phaser.Events.EventEmitter {
       } else {
         const snap = pendingSnaps[matchIndex];
         if (block.height !== snap.height) {
-          // Height changed (row transformed), rebuild block to match
           block.destroy();
-          const updated = new GarbageBlock(this.scene, this.container, snap.gridX, snap.gridY, snap.width, snap.height);
-          updated.setResting();
-          remaining.push(updated);
+          if (this.scene && this.container && this.container.active) {
+            const updated = new GarbageBlock(this.scene, this.container, snap.gridX, snap.gridY, snap.width, snap.height);
+            updated.setResting();
+            remaining.push(updated);
+          }
         } else {
           block.setResting(snap.gridY);
           remaining.push(block);
@@ -1175,10 +1195,12 @@ export default class Board extends Phaser.Events.EventEmitter {
     }
 
     // Add any remaining snapshots that didn't exist locally
-    for (const snap of pendingSnaps) {
-      const newBlock = new GarbageBlock(this.scene, this.container, snap.gridX, snap.gridY, snap.width, snap.height);
-      newBlock.setResting();
-      remaining.push(newBlock);
+    if (this.scene && this.container && this.container.active) {
+      for (const snap of pendingSnaps) {
+        const newBlock = new GarbageBlock(this.scene, this.container, snap.gridX, snap.gridY, snap.width, snap.height);
+        newBlock.setResting();
+        remaining.push(newBlock);
+      }
     }
 
     this.garbageBlocks = remaining;
@@ -1186,7 +1208,7 @@ export default class Board extends Phaser.Events.EventEmitter {
 
   /** Sync this board's panels and rising stack offset to match an opponent's network snapshot */
   public applyGridSnapshot(grid: number[], stackOffset?: number, garbageSnapshots?: GarbageSnapshot[]): void {
-    if (!grid || grid.length < (BOARD_VISIBLE_HEIGHT + 1) * BOARD_WIDTH) return;
+    if (!grid || !Array.isArray(grid) || grid.length < (BOARD_VISIBLE_HEIGHT + 1) * BOARD_WIDTH) return;
 
     if (stackOffset !== undefined) {
       this.stackOffsetPixels = stackOffset;

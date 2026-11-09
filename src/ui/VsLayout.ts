@@ -168,6 +168,11 @@ export function animateBallisticGarbageArc(
   comboSize: number,
   onComplete?: () => void
 ): void {
+  if (!scene || !scene.add || !scene.tweens || !scene.sys || !scene.sys.isActive()) {
+    if (onComplete) onComplete();
+    return;
+  }
+
   // Parabolic control point arcing high into the air
   const midX = (startX + endX) / 2;
   const midY = Math.min(startY, endY) - Math.max(60, Math.abs(startX - endX) * 0.35);
@@ -197,6 +202,7 @@ export function animateBallisticGarbageArc(
     duration: 480,
     ease: 'Cubic.easeOut',
     onUpdate: () => {
+      if (!projectile || !projectile.active || !scene.sys || !scene.sys.isActive()) return;
       const t = path.t;
       // B(t) = (1-t)^2 * P0 + 2(1-t)t * P1 + t^2 * P2
       const x = (1 - t) * (1 - t) * startX + 2 * (1 - t) * t * midX + t * t * endX;
@@ -205,7 +211,7 @@ export function animateBallisticGarbageArc(
       projectile.setRotation(t * Math.PI * 2);
 
       // Sparkle trail
-      if (Math.random() < 0.45) {
+      if (Math.random() < 0.45 && scene.sys && scene.sys.isActive()) {
         const spark = scene.add.circle(x + (Math.random() - 0.5) * 8, y + (Math.random() - 0.5) * 8, 2, 0xffffff, 0.85);
         spark.setDepth(49);
         scene.tweens.add({
@@ -213,24 +219,32 @@ export function animateBallisticGarbageArc(
           alpha: 0,
           scale: 0.2,
           duration: 180,
-          onComplete: () => spark.destroy()
+          onComplete: () => {
+            if (spark && spark.active) spark.destroy();
+          }
         });
       }
     },
     onComplete: () => {
-      // Impact burst
-      const burst = scene.add.circle(endX, endY, 14, 0xffffff, 0.9);
-      burst.setDepth(51);
-      scene.tweens.add({
-        targets: burst,
-        scale: 2.2,
-        alpha: 0,
-        duration: 160,
-        ease: 'Quad.easeOut',
-        onComplete: () => burst.destroy()
-      });
+      if (scene && scene.sys && scene.sys.isActive()) {
+        // Impact burst
+        const burst = scene.add.circle(endX, endY, 14, 0xffffff, 0.9);
+        burst.setDepth(51);
+        scene.tweens.add({
+          targets: burst,
+          scale: 2.2,
+          alpha: 0,
+          duration: 160,
+          ease: 'Quad.easeOut',
+          onComplete: () => {
+            if (burst && burst.active) burst.destroy();
+          }
+        });
+      }
 
-      projectile.destroy();
+      if (projectile && projectile.active) {
+        projectile.destroy();
+      }
       if (onComplete) onComplete();
     }
   });

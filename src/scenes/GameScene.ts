@@ -780,42 +780,53 @@ export default class GameScene extends Phaser.Scene {
     // Wire Online Network Events
     if (this.gameMode === 'vs_online' && this.socketMgr) {
       this.socketMgr.onOpponentAction((action: GameAction) => {
-        if (action.type === 'cursor' && action.payload) {
-          if (this.cpuCursor) {
-            this.cpuCursor.setGridPosition(action.payload.x, action.payload.y);
-            this.cpuCursor.updatePosition();
-          }
-        } else if (action.type === 'swap' && action.payload) {
-          if (this.cpuBoard) {
-            this.cpuBoard.swap(action.payload.x, action.payload.y);
-          }
-        } else if (action.type === 'lift' && action.payload) {
-          if (this.cpuBoard) {
-            this.cpuBoard.setLifting(Boolean(action.payload.lifting));
-          }
-        } else if (action.type === 'board_sync' && action.payload) {
-          if (this.cpuBoard && action.payload.grid) {
-            this.cpuBoard.applyGridSnapshot(
-              action.payload.grid,
-              action.payload.stackOffset,
-              action.payload.garbage
-            );
-          }
-        } else if (action.type === 'attack' && action.payload) {
-          const startX = this.boardP2X + (BOARD_WIDTH * PANEL_SIZE * this.cpuBoardScale) / 2;
-          const startY = this.boardP2Y;
-          const endX = this.boardP1X + (BOARD_WIDTH * PANEL_SIZE * this.playerBoardScale) / 2;
-          const endY = this.boardP1Y - 12;
+        try {
+          if (!action || !this.scene.isActive()) return;
 
-          this.triggerAvatarAttack(false);
-          animateBallisticGarbageArc(this, startX, startY, endX, endY, action.payload.width || 4, () => {
-            this.playerBoard.queueGarbage(action.payload.width, action.payload.height, action.payload.col);
-            this.showAttackAlert(false, action.payload.height, action.payload.width);
-            this.triggerAvatarHurt(true);
-            this.cameras.main.shake(120, 0.005);
-          });
-        } else if (action.type === 'topOut') {
-          this.endMatch('VICTORY!', true);
+          if (action.type === 'cursor' && action.payload) {
+            if (this.cpuCursor) {
+              this.cpuCursor.setGridPosition(action.payload.x, action.payload.y);
+              this.cpuCursor.updatePosition();
+            }
+          } else if (action.type === 'swap' && action.payload) {
+            if (this.cpuBoard) {
+              this.cpuBoard.swap(action.payload.x, action.payload.y);
+            }
+          } else if (action.type === 'lift' && action.payload) {
+            if (this.cpuBoard) {
+              this.cpuBoard.setLifting(Boolean(action.payload.lifting));
+            }
+          } else if (action.type === 'board_sync' && action.payload) {
+            if (this.cpuBoard && action.payload.grid) {
+              this.cpuBoard.applyGridSnapshot(
+                action.payload.grid,
+                action.payload.stackOffset,
+                action.payload.garbage
+              );
+            }
+          } else if (action.type === 'attack' && action.payload) {
+            const width = Math.max(1, Math.min(BOARD_WIDTH, Number(action.payload.width) || 3));
+            const height = Math.max(1, Math.min(4, Number(action.payload.height) || 1));
+            const col = typeof action.payload.col === 'number' && Number.isFinite(action.payload.col) ? action.payload.col : undefined;
+
+            const startX = this.boardP2X + (BOARD_WIDTH * PANEL_SIZE * this.cpuBoardScale) / 2;
+            const startY = this.boardP2Y;
+            const endX = this.boardP1X + (BOARD_WIDTH * PANEL_SIZE * this.playerBoardScale) / 2;
+            const endY = this.boardP1Y - 12;
+
+            this.triggerAvatarAttack(false);
+            animateBallisticGarbageArc(this, startX, startY, endX, endY, width, () => {
+              if (!this.scene.isActive() || !this.playerBoard) return;
+              this.playerBoard.queueGarbage(width, height, col);
+              this.showAttackAlert(false, height, width);
+              this.triggerAvatarHurt(true);
+              this.cameras?.main?.shake(120, 0.005);
+            });
+          } else if (action.type === 'topOut') {
+            this.endMatch('VICTORY!', true);
+          }
+        } catch (err) {
+          console.warn('Error handling opponent action:', err);
         }
       });
 
@@ -2222,10 +2233,11 @@ export default class GameScene extends Phaser.Scene {
         const endY = this.boardP2Y - 12;
 
         animateBallisticGarbageArc(this, startX, startY, endX, endY, event.comboSize, () => {
-          this.cpuBoard?.queueGarbage(garbageWidth, garbageHeight, startCol);
+          if (!this.scene.isActive() || !this.cpuBoard) return;
+          this.cpuBoard.queueGarbage(garbageWidth, garbageHeight, startCol);
           this.showAttackAlert(true, garbageHeight, garbageWidth);
           this.triggerAvatarHurt(false);
-          this.cameras.main.shake(100, 0.004);
+          this.cameras?.main?.shake(100, 0.004);
         });
       } else if (this.gameMode === 'vs_online' && this.socketMgr) {
         this.socketMgr.sendAction({
@@ -2240,10 +2252,11 @@ export default class GameScene extends Phaser.Scene {
           const endY = this.boardP2Y - 12;
 
           animateBallisticGarbageArc(this, startX, startY, endX, endY, event.comboSize, () => {
-            this.cpuBoard?.queueGarbage(garbageWidth, garbageHeight, startCol);
+            if (!this.scene.isActive() || !this.cpuBoard) return;
+            this.cpuBoard.queueGarbage(garbageWidth, garbageHeight, startCol);
             this.showAttackAlert(true, garbageHeight, garbageWidth);
             this.triggerAvatarHurt(false);
-            this.cameras.main.shake(100, 0.004);
+            this.cameras?.main?.shake(100, 0.004);
           });
         } else {
           this.showAttackAlert(true, garbageHeight, garbageWidth);
@@ -2298,10 +2311,11 @@ export default class GameScene extends Phaser.Scene {
       const endY = this.boardP1Y - 12;
 
       animateBallisticGarbageArc(this, startX, startY, endX, endY, event.comboSize, () => {
+        if (!this.scene.isActive() || !this.playerBoard) return;
         this.playerBoard.queueGarbage(garbageWidth, garbageHeight);
         this.showAttackAlert(false, garbageHeight, garbageWidth);
         this.triggerAvatarHurt(true);
-        this.cameras.main.shake(120, 0.005);
+        this.cameras?.main?.shake(120, 0.005);
       });
     }
   }
