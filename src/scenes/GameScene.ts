@@ -13,6 +13,7 @@ import {
 } from '../utils/Constants';
 import { SoundFx } from '../utils/SoundFx';
 import { CuteUI } from '../utils/CuteUI';
+import { randomInt } from '../utils/Helpers';
 import { Settings, KeyBindings } from '../utils/Settings';
 import { GameDifficulty, getDifficultyInfo } from '../utils/Difficulty';
 import { RecordManager } from '../utils/DifficultyRecords';
@@ -794,14 +795,25 @@ export default class GameScene extends Phaser.Scene {
           }
         } else if (action.type === 'board_sync' && action.payload) {
           if (this.cpuBoard && action.payload.grid) {
-            this.cpuBoard.applyGridSnapshot(action.payload.grid, action.payload.stackOffset);
+            this.cpuBoard.applyGridSnapshot(
+              action.payload.grid,
+              action.payload.stackOffset,
+              action.payload.garbage
+            );
           }
         } else if (action.type === 'attack' && action.payload) {
-          this.playerBoard.queueGarbage(action.payload.width, action.payload.height);
-          this.showAttackAlert(false, action.payload.height);
+          const startX = this.boardP2X + (BOARD_WIDTH * PANEL_SIZE * this.cpuBoardScale) / 2;
+          const startY = this.boardP2Y;
+          const endX = this.boardP1X + (BOARD_WIDTH * PANEL_SIZE * this.playerBoardScale) / 2;
+          const endY = this.boardP1Y - 12;
+
           this.triggerAvatarAttack(false);
-          this.triggerAvatarHurt(true);
-          this.cameras.main.shake(120, 0.005);
+          animateBallisticGarbageArc(this, startX, startY, endX, endY, action.payload.width || 4, () => {
+            this.playerBoard.queueGarbage(action.payload.width, action.payload.height, action.payload.col);
+            this.showAttackAlert(false, action.payload.height, action.payload.width);
+            this.triggerAvatarHurt(true);
+            this.cameras.main.shake(120, 0.005);
+          });
         } else if (action.type === 'topOut') {
           this.endMatch('VICTORY!', true);
         }
@@ -852,7 +864,8 @@ export default class GameScene extends Phaser.Scene {
             payload: {
               grid: this.playerBoard.serializeGrid(),
               stackOffset: this.playerBoard.stackOffsetPixels,
-              isDanger: this.playerBoard.isDanger
+              isDanger: this.playerBoard.isDanger,
+              garbage: this.playerBoard.serializeGarbage()
             }
           });
         }
@@ -2197,6 +2210,10 @@ export default class GameScene extends Phaser.Scene {
 
     if (garbageWidth > 0) {
       this.triggerAvatarAttack(true);
+      const safeWidth = Math.min(garbageWidth, BOARD_WIDTH);
+      const maxStartCol = BOARD_WIDTH - safeWidth;
+      const startCol = randomInt(0, Math.max(0, maxStartCol));
+
       if ((this.gameMode === 'vs_cpu' || this.gameMode === 'challenge') && this.cpuBoard) {
         // Animate ballistic arc vector traveling from attacker board to recipient queue
         const startX = this.boardP1X + (BOARD_WIDTH * PANEL_SIZE * this.playerBoardScale) / 2;
@@ -2205,17 +2222,32 @@ export default class GameScene extends Phaser.Scene {
         const endY = this.boardP2Y - 12;
 
         animateBallisticGarbageArc(this, startX, startY, endX, endY, event.comboSize, () => {
-          this.cpuBoard?.queueGarbage(garbageWidth, garbageHeight);
-          this.showAttackAlert(true, garbageHeight);
+          this.cpuBoard?.queueGarbage(garbageWidth, garbageHeight, startCol);
+          this.showAttackAlert(true, garbageHeight, garbageWidth);
           this.triggerAvatarHurt(false);
           this.cameras.main.shake(100, 0.004);
         });
       } else if (this.gameMode === 'vs_online' && this.socketMgr) {
         this.socketMgr.sendAction({
           type: 'attack',
-          payload: { width: garbageWidth, height: garbageHeight }
+          payload: { width: garbageWidth, height: garbageHeight, col: startCol }
         });
-        this.showAttackAlert(true, garbageHeight);
+
+        if (this.cpuBoard) {
+          const startX = this.boardP1X + (BOARD_WIDTH * PANEL_SIZE * this.playerBoardScale) / 2;
+          const startY = this.boardP1Y;
+          const endX = this.boardP2X + (BOARD_WIDTH * PANEL_SIZE * this.cpuBoardScale) / 2;
+          const endY = this.boardP2Y - 12;
+
+          animateBallisticGarbageArc(this, startX, startY, endX, endY, event.comboSize, () => {
+            this.cpuBoard?.queueGarbage(garbageWidth, garbageHeight, startCol);
+            this.showAttackAlert(true, garbageHeight, garbageWidth);
+            this.triggerAvatarHurt(false);
+            this.cameras.main.shake(100, 0.004);
+          });
+        } else {
+          this.showAttackAlert(true, garbageHeight, garbageWidth);
+        }
       }
     }
   }
@@ -2240,6 +2272,11 @@ export default class GameScene extends Phaser.Scene {
       this.cpuChainText.setText(`CHAIN x${event.chainLevel}!`);
     }
 
+    if (this.gameMode === 'vs_online') {
+      // In online multiplayer, opponent attacks arrive via authoritative 'attack' network actions
+      return;
+    }
+
     let garbageWidth = 0;
     let garbageHeight = 1;
 
@@ -2262,20 +2299,24 @@ export default class GameScene extends Phaser.Scene {
 
       animateBallisticGarbageArc(this, startX, startY, endX, endY, event.comboSize, () => {
         this.playerBoard.queueGarbage(garbageWidth, garbageHeight);
-        this.showAttackAlert(false, garbageHeight);
+        this.showAttackAlert(false, garbageHeight, garbageWidth);
         this.triggerAvatarHurt(true);
         this.cameras.main.shake(120, 0.005);
       });
     }
   }
 
-  private showAttackAlert(fromPlayer: boolean, height: number): void {
+  private showAttackAlert(fromPlayer: boolean, height: number, width: number = BOARD_WIDTH): void {
     const centerX = this.cameras.main.width / 2;
     const flyY = 160 + (fromPlayer ? 0 : 50);
+    const label =
+      width < BOARD_WIDTH
+        ? (fromPlayer ? `SENT ${width}-WIDE TRASH!` : `INCOMING ${width}-WIDE TRASH!`)
+        : (fromPlayer ? `SENT +${height} TRASH SLAB!` : `INCOMING +${height} TRASH SLAB!`);
     const attackText = this.add.text(
       centerX,
       flyY,
-      fromPlayer ? `ATTACK! +${height} SLAB` : `INCOMING! +${height} SLAB`,
+      label,
       {
         fontSize: '12px',
         color: fromPlayer ? '#ff69b4' : '#ff4757',

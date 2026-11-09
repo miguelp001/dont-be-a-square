@@ -5,7 +5,7 @@
 [![Phaser 3](https://img.shields.io/badge/Phaser-3.80-e056fd?style=for-the-badge&logo=html5&logoColor=white)](https://phaser.io/)
 [![Vite](https://img.shields.io/badge/Vite-5.4-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
 [![Socket.IO](https://img.shields.io/badge/Socket.IO-4.7-010101?style=for-the-badge&logo=socketdotio&logoColor=white)](https://socket.io/)
-[![Tests](https://img.shields.io/badge/Vitest-71%20Passing-2ed573?style=for-the-badge&logo=vitest&logoColor=white)](https://vitest.dev/)
+[![Tests](https://img.shields.io/badge/Vitest-75%20Passing-2ed573?style=for-the-badge&logo=vitest&logoColor=white)](https://vitest.dev/)
 [![PWA Ready](https://img.shields.io/badge/PWA-Installable-20bf6b?style=for-the-badge&logo=pwa&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps)
 
 An action puzzle game inspired by the legendary mechanics of *Panel de Pon* and *Tetris Attack*, reimagined with modern web technology. Built from scratch with **Phaser 3**, **TypeScript**, and **Vite**, featuring 8 unique anime chibi Slime Catchers, distinct AI bot personalities, real-time WebSocket online multiplayer, universal gamepad/keyboard/touch controls, and candy-themed audiovisual aesthetics.
@@ -58,7 +58,7 @@ An action puzzle game inspired by the legendary mechanics of *Panel de Pon* and 
 ### ⚡ Optimized WebP Asset Pipeline & PWA
 * **Modern WebP Compression:** Preloaded assets converted to high-fidelity WebP format, achieving a 70%+ reduction in initial download size.
 * **On-Demand Combat Loading:** Attack spritesheets and audio stems stream asynchronously on-demand to keep initial bundle size minimal.
-* **Service Worker v68:** Instant offline caching and PWA app-shell persistence for zero-latency mobile play.
+* **Service Worker v69:** Instant offline caching and PWA app-shell persistence for zero-latency mobile play.
 
 ### 🎵 Procedural Audio & Soundtrack
 * Zero-latency Web Audio API procedural synthesizer for mechanical clicks, pops, swaps, combo chimes, and panic sirens.
@@ -104,7 +104,7 @@ Meet the colorful cast of chibi puzzle fighters in the enchanted Candy Forest:
                        │  • Phaser 3.80 Canvas / WebGL Game Engine    │
                        │  • TypeScript 5.5 + Vite 5.4 Build System    │
                        │  • Web Audio API Procedural SFX Synthesizer  │
-                       │  • Service Worker v68 Offline App Shell Cache│
+                       │  • Service Worker v69 Offline App Shell Cache│
                        └──────────────────────┬───────────────────────┘
                                               │
                                  WebSockets / Socket.IO
@@ -121,7 +121,7 @@ Meet the colorful cast of chibi puzzle fighters in the enchanted Candy Forest:
 * **Client Engine:** [Phaser 3.80](https://phaser.io/) with `Phaser.Scale.RESIZE` for seamless cross-resolution adaptation.
 * **Language & Tooling:** [TypeScript 5.5](https://www.typescriptlang.org/) in strict mode, bundled via [Vite](https://vitejs.dev/) and [esbuild](https://esbuild.github.io/).
 * **Multiplayer Protocol:** [Socket.IO](https://socket.io/) rooms with synchronized random seed generation, rematch voting sets, and graceful disconnect management.
-* **Testing Suite:** [Vitest](https://vitest.dev/) with 71 automated unit tests across 13 test suites verifying game engine physics, garbage collision, rematch synchronization, touch precision, statistics persistence, difficulty ladder scaling, sound effects, and layout geometry.
+* **Testing Suite:** [Vitest](https://vitest.dev/) with 75 automated unit tests across 13 test suites verifying game engine physics, garbage collision, rematch synchronization, touch precision, statistics persistence, difficulty ladder scaling, sound effects, and layout geometry.
 
 ---
 
@@ -160,7 +160,7 @@ npm run server
 
 ### Running Automated Tests
 ```bash
-# Run full Vitest unit test suite (71 tests across 13 suites)
+# Run full Vitest unit test suite (75 tests across 13 suites)
 npm test
 
 # Run tests in watch mode
@@ -195,7 +195,7 @@ dont-be-a-square/
 ├── public/
 │   ├── favicon.png
 │   ├── manifest.webmanifest # PWA Web App Manifest
-│   └── sw.js                # Service Worker cache controller (v68)
+│   └── sw.js                # Service Worker cache controller (v69)
 ├── scripts/
 │   └── deploy.py            # Automated SFTP deployment & server keepalive runner
 ├── server/
@@ -209,7 +209,7 @@ dont-be-a-square/
 │   │                        # ChallengeMapScene, CharacterSelectScene, BootScene
 │   ├── ui/                  # OptionsMenuLayout, VsLayout
 │   └── utils/               # Settings, SoundFx, CuteUI, Constants
-├── tests/                   # Vitest unit test suites (71 passing tests across 13 suites)
+├── tests/                   # Vitest unit test suites (75 passing tests across 13 suites)
 ├── package.json
 └── tsconfig.json
 ```

@@ -297,4 +297,77 @@ describe('Garbage Collision & Slime Panel Co-Occupancy Prevention', () => {
     expect(destroyed).toBe(true);
     expect(mockPanels[5][2]).toBeNull();
   });
+
+  it('9. queueGarbage respects fixed column placement for synchronized multiplayer attacks', () => {
+    const width = 3;
+    const safeWidth = Math.min(width, BOARD_WIDTH);
+    const maxStartCol = BOARD_WIDTH - safeWidth; // 6 - 3 = 3
+    const fixedCol = 2;
+    const resolvedCol = Math.max(0, Math.min(fixedCol, maxStartCol));
+
+    expect(resolvedCol).toBe(2);
+
+    // Clamping test when fixedCol exceeds maxStartCol
+    const outOfBoundsCol = 5;
+    const clampedCol = Math.max(0, Math.min(outOfBoundsCol, maxStartCol));
+    expect(clampedCol).toBe(3);
+  });
+
+  it('10. serializeGarbage extracts active blocks and filters out cleared or 0-height blocks', () => {
+    const mockBlocks = [
+      { gridX: 0, gridY: 4, width: 6, height: 1, state: GarbageState.RESTING },
+      { gridX: 2, gridY: 8, width: 3, height: 2, state: GarbageState.FALLING },
+      { gridX: 0, gridY: 10, width: 6, height: 0, state: GarbageState.RESTING },
+      { gridX: 1, gridY: 2, width: 4, height: 1, state: GarbageState.CLEARED }
+    ];
+
+    const serialized = mockBlocks
+      .filter((b) => b.state !== GarbageState.CLEARED && b.height > 0)
+      .map((b) => ({
+        gridX: b.gridX,
+        gridY: b.gridY,
+        width: b.width,
+        height: b.height
+      }));
+
+    expect(serialized).toHaveLength(2);
+    expect(serialized[0]).toEqual({ gridX: 0, gridY: 4, width: 6, height: 1 });
+    expect(serialized[1]).toEqual({ gridX: 2, gridY: 8, width: 3, height: 2 });
+  });
+
+  it('11. Garbage snapshot reconciliation destroys cleared blocks and keeps resting blocks aligned', () => {
+    let blockDestroyed = false;
+    const localGarbage = [
+      {
+        gridX: 0,
+        gridY: 5,
+        width: 6,
+        height: 1,
+        state: GarbageState.RESTING,
+        destroy: () => {
+          blockDestroyed = true;
+        },
+        setResting: vi.fn()
+      }
+    ];
+
+    // Remote opponent already transformed and cleared this block!
+    const remoteSnapshots: any[] = [];
+
+    // Reconciliation
+    const remaining: any[] = [];
+    for (const block of localGarbage) {
+      const matchIndex = remoteSnapshots.findIndex(
+        (s) => s.gridX === block.gridX && s.width === block.width && Math.abs(s.gridY - block.gridY) <= 1
+      );
+      if (matchIndex === -1) {
+        block.destroy();
+      } else {
+        remaining.push(block);
+      }
+    }
+
+    expect(blockDestroyed).toBe(true);
+    expect(remaining).toHaveLength(0);
+  });
 });

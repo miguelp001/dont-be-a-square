@@ -122,6 +122,22 @@ export default class GarbageBlock {
     }
   }
 
+  /** Set state to resting and optionally reposition sprites to match gridY */
+  public setResting(gridY?: number): void {
+    if (gridY !== undefined) {
+      this.gridY = gridY;
+      for (let r = 0; r < this.height; r++) {
+        for (let c = 0; c < this.width; c++) {
+          const sprite = this.sprites[r] ? this.sprites[r][c] : null;
+          if (sprite && sprite.active) {
+            sprite.y = (this.gridY + r) * PANEL_SIZE;
+          }
+        }
+      }
+    }
+    this.state = GarbageState.RESTING;
+  }
+
   /**
    * De-transform the bottom row of this garbage block into regular slimes!
    * Returns the list of grid positions to convert into panels.

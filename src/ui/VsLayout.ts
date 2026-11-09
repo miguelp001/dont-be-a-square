@@ -179,6 +179,16 @@ export function animateBallisticGarbageArc(
   const glow = scene.add.circle(0, 0, Math.min(24, 10 + comboSize * 2.2), 0xfffa65, 0.65);
   projectile.add([glow, core]);
 
+  // Mini trash block preview riding inside the projectile
+  if (scene.textures && scene.textures.exists('garbage_panel')) {
+    const trashSprite = scene.add.sprite(0, 0, 'garbage_panel');
+    const iconSize = Math.min(22, 12 + comboSize * 1.6);
+    trashSprite.setDisplaySize(iconSize, iconSize);
+    trashSprite.setOrigin(0.5);
+    trashSprite.setAlpha(0.95);
+    projectile.add(trashSprite);
+  }
+
   // Quadratic Bezier Arc Tween
   const path = { t: 0 };
   scene.tweens.add({
@@ -192,6 +202,7 @@ export function animateBallisticGarbageArc(
       const x = (1 - t) * (1 - t) * startX + 2 * (1 - t) * t * midX + t * t * endX;
       const y = (1 - t) * (1 - t) * startY + 2 * (1 - t) * t * midY + t * t * endY;
       projectile.setPosition(x, y);
+      projectile.setRotation(t * Math.PI * 2);
 
       // Sparkle trail
       if (Math.random() < 0.45) {

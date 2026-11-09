@@ -80,4 +80,19 @@ describe('Online Multiplayer Rematch & Modal Flow', () => {
 
     expect(emitSpy).toHaveBeenCalledWith('leave_room', { roomId: 'ROOM99' });
   });
+
+  it('6. sendAction emits attack payload with width, height, col, and roomId', () => {
+    const emitSpy = vi.spyOn(mockSocket, 'emit');
+    socketMgr.sendAction({
+      type: 'attack',
+      roomId: 'ROOM99',
+      payload: { width: 4, height: 1, col: 1 }
+    });
+
+    expect(emitSpy).toHaveBeenCalledWith('game_action', {
+      type: 'attack',
+      roomId: 'ROOM99',
+      payload: { width: 4, height: 1, col: 1 }
+    });
+  });
 });

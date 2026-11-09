@@ -22,6 +22,13 @@ export interface MatchEvent {
   scoreGained: number;
 }
 
+export interface GarbageSnapshot {
+  gridX: number;
+  gridY: number;
+  width: number;
+  height: number;
+}
+
 export default class Board extends Phaser.Events.EventEmitter {
   public scene: Phaser.Scene;
   public panels: (Panel | null)[][] = [];
@@ -196,10 +203,11 @@ export default class Board extends Phaser.Events.EventEmitter {
   }
 
   /** Spawn incoming garbage sent from opponent attack */
-  public queueGarbage(width: number, height: number = 1): void {
+  public queueGarbage(width: number, height: number = 1, fixedCol?: number): void {
     const safeWidth = Math.min(width, BOARD_WIDTH);
     const maxStartCol = BOARD_WIDTH - safeWidth;
-    const startCol = randomInt(0, Math.max(0, maxStartCol));
+    const startCol =
+      fixedCol !== undefined ? Math.max(0, Math.min(fixedCol, maxStartCol)) : randomInt(0, Math.max(0, maxStartCol));
     const startRow = -height; // Start above visible playfield so it falls in!
 
     const block = new GarbageBlock(this.scene, this.container, startCol, startRow, safeWidth, height);
@@ -1117,14 +1125,77 @@ export default class Board extends Phaser.Events.EventEmitter {
     return data;
   }
 
+  /** Serialize current active garbage blocks for network sync */
+  public serializeGarbage(): GarbageSnapshot[] {
+    return this.garbageBlocks
+      .filter((b) => b.state !== GarbageState.CLEARED && b.height > 0)
+      .map((b) => ({
+        gridX: b.gridX,
+        gridY: b.gridY,
+        width: b.width,
+        height: b.height
+      }));
+  }
+
+  /** Synchronize garbage blocks to match opponent network state */
+  public syncGarbageBlocks(snapshots?: GarbageSnapshot[]): void {
+    if (!snapshots) return;
+
+    // If any garbage block is currently mid-fall, do not disrupt its drop animation
+    const hasFalling = this.garbageBlocks.some((b) => b.state === GarbageState.FALLING);
+    if (hasFalling) return;
+
+    const remaining: GarbageBlock[] = [];
+    const pendingSnaps = snapshots.map((s) => ({ ...s }));
+
+    for (const block of this.garbageBlocks) {
+      if (block.state === GarbageState.CLEARED) continue;
+
+      const matchIndex = pendingSnaps.findIndex(
+        (s) => s.gridX === block.gridX && s.width === block.width && Math.abs(s.gridY - block.gridY) <= 1
+      );
+
+      if (matchIndex === -1) {
+        // Block was cleared or transformed away on the opponent's board!
+        block.destroy();
+      } else {
+        const snap = pendingSnaps[matchIndex];
+        if (block.height !== snap.height) {
+          // Height changed (row transformed), rebuild block to match
+          block.destroy();
+          const updated = new GarbageBlock(this.scene, this.container, snap.gridX, snap.gridY, snap.width, snap.height);
+          updated.setResting();
+          remaining.push(updated);
+        } else {
+          block.setResting(snap.gridY);
+          remaining.push(block);
+        }
+        pendingSnaps.splice(matchIndex, 1);
+      }
+    }
+
+    // Add any remaining snapshots that didn't exist locally
+    for (const snap of pendingSnaps) {
+      const newBlock = new GarbageBlock(this.scene, this.container, snap.gridX, snap.gridY, snap.width, snap.height);
+      newBlock.setResting();
+      remaining.push(newBlock);
+    }
+
+    this.garbageBlocks = remaining;
+  }
+
   /** Sync this board's panels and rising stack offset to match an opponent's network snapshot */
-  public applyGridSnapshot(grid: number[], stackOffset?: number): void {
+  public applyGridSnapshot(grid: number[], stackOffset?: number, garbageSnapshots?: GarbageSnapshot[]): void {
     if (!grid || grid.length < (BOARD_VISIBLE_HEIGHT + 1) * BOARD_WIDTH) return;
 
     if (stackOffset !== undefined) {
       this.stackOffsetPixels = stackOffset;
       this.container.y = this.boardOffsetY - this.stackOffsetPixels * this.scaleFactor;
       this.emit('stackRise', { offset: this.stackOffsetPixels });
+    }
+
+    if (garbageSnapshots) {
+      this.syncGarbageBlocks(garbageSnapshots);
     }
 
     let idx = 0;
