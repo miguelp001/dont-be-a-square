@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import Board, { MatchEvent } from '../objects/Board';
+import Board, { MatchEvent, GarbageLandEvent } from '../objects/Board';
 import Cursor from '../objects/Cursor';
 import AIBot, { AIDifficulty } from '../objects/AIBot';
 import SocketManager, { GameAction } from '../net/SocketManager';
@@ -726,6 +726,7 @@ export default class GameScene extends Phaser.Scene {
       );
     });
     this.playerBoard.on('chainEnd', () => this.playerChainText.setText(''));
+    this.playerBoard.on('garbageLand', (e: GarbageLandEvent) => this.handleGarbageLand(e, true));
     this.playerBoard.on('garbageCleared', (e: { count: number }) => StatsManager.recordGarbageCleared(e.count));
     this.playerBoard.on('dangerStart', () => {
       this.triggerAvatarHurt(true);
@@ -761,6 +762,7 @@ export default class GameScene extends Phaser.Scene {
         );
       });
       this.cpuBoard.on('chainEnd', () => this.cpuChainText?.setText(''));
+      this.cpuBoard.on('garbageLand', (e: GarbageLandEvent) => this.handleGarbageLand(e, false));
       this.cpuBoard.on('dangerStart', () => {
         this.triggerAvatarHurt(false);
         this.updateDangerUI(false, true, this.cpuBoard!.dangerGraceDuration / 1000);
@@ -820,7 +822,7 @@ export default class GameScene extends Phaser.Scene {
               this.playerBoard.queueGarbage(width, height, col);
               this.showAttackAlert(false, height, width);
               this.triggerAvatarHurt(true);
-              this.cameras?.main?.shake(120, 0.005);
+              this.cameras?.main?.shake(60, 0.002);
             });
           } else if (action.type === 'topOut') {
             this.endMatch('VICTORY!', true);
@@ -1067,6 +1069,7 @@ export default class GameScene extends Phaser.Scene {
       );
     });
     this.playerBoard.on('chainEnd', () => this.playerChainText.setText(''));
+    this.playerBoard.on('garbageLand', (e: GarbageLandEvent) => this.handleGarbageLand(e, true));
     this.playerBoard.on('garbageCleared', (e: { count: number }) => StatsManager.recordGarbageCleared(e.count));
     this.playerBoard.on('dangerStart', () => {
       this.triggerAvatarHurt(true);
@@ -1091,7 +1094,6 @@ export default class GameScene extends Phaser.Scene {
           this.playerBoard.queueGarbage(width, 1);
           this.showAttackAlert(false, 1);
           this.triggerAvatarHurt(true);
-          this.cameras.main.shake(120, 0.005);
         }
       },
       loop: true
@@ -1367,17 +1369,14 @@ export default class GameScene extends Phaser.Scene {
         this.playerBoard.queueGarbage(3, 1);
         this.showAttackAlert(false, 1);
         this.triggerAvatarHurt(true);
-        this.cameras.main.shake(100, 0.004);
       } else if (event.code === 'KeyH') {
         this.playerBoard.queueGarbage(6, 1);
         this.showAttackAlert(false, 1);
         this.triggerAvatarHurt(true);
-        this.cameras.main.shake(120, 0.005);
       } else if (event.code === 'KeyB') {
         this.playerBoard.queueGarbage(6, 2);
         this.showAttackAlert(false, 2);
         this.triggerAvatarHurt(true);
-        this.cameras.main.shake(150, 0.007);
       } else if (event.code === 'KeyY' && this.cpuBoard) {
         this.cpuBoard.queueGarbage(3, 1);
         this.showAttackAlert(true, 1);
@@ -2182,6 +2181,23 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
+  /** Handle screen shake impact when garbage block drops and lands */
+  private handleGarbageLand(e: GarbageLandEvent, isPlayerBoard: boolean): void {
+    if (!this.scene.isActive() || !e.isLarge) return;
+
+    if (isPlayerBoard) {
+      // Intense screen shake for impacts on player board
+      const duration = e.height >= 3 ? 280 : e.height >= 2 ? 220 : 160;
+      const intensity = e.height >= 3 ? 0.016 : e.height >= 2 ? 0.012 : 0.008;
+      this.cameras?.main?.shake(duration, intensity, true);
+    } else {
+      // Satisfying but slightly lighter rumble for impacts on opponent board
+      const duration = e.height >= 3 ? 240 : e.height >= 2 ? 180 : 140;
+      const intensity = e.height >= 3 ? 0.012 : e.height >= 2 ? 0.009 : 0.006;
+      this.cameras?.main?.shake(duration, intensity, true);
+    }
+  }
+
   private handlePlayerMatch(event: MatchEvent): void {
     StatsManager.recordMatchEvent(event.comboSize, event.chainLevel);
     this.playerScore += event.scoreGained;
@@ -2237,7 +2253,7 @@ export default class GameScene extends Phaser.Scene {
           this.cpuBoard.queueGarbage(garbageWidth, garbageHeight, startCol);
           this.showAttackAlert(true, garbageHeight, garbageWidth);
           this.triggerAvatarHurt(false);
-          this.cameras?.main?.shake(100, 0.004);
+          this.cameras?.main?.shake(60, 0.002);
         });
       } else if (this.gameMode === 'vs_online' && this.socketMgr) {
         this.socketMgr.sendAction({
@@ -2256,7 +2272,7 @@ export default class GameScene extends Phaser.Scene {
             this.cpuBoard.queueGarbage(garbageWidth, garbageHeight, startCol);
             this.showAttackAlert(true, garbageHeight, garbageWidth);
             this.triggerAvatarHurt(false);
-            this.cameras?.main?.shake(100, 0.004);
+            this.cameras?.main?.shake(60, 0.002);
           });
         } else {
           this.showAttackAlert(true, garbageHeight, garbageWidth);
@@ -2315,7 +2331,7 @@ export default class GameScene extends Phaser.Scene {
         this.playerBoard.queueGarbage(garbageWidth, garbageHeight);
         this.showAttackAlert(false, garbageHeight, garbageWidth);
         this.triggerAvatarHurt(true);
-        this.cameras?.main?.shake(120, 0.005);
+        this.cameras?.main?.shake(60, 0.002);
       });
     }
   }

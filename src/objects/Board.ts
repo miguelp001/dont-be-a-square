@@ -29,6 +29,13 @@ export interface GarbageSnapshot {
   height: number;
 }
 
+export interface GarbageLandEvent {
+  block: GarbageBlock;
+  width: number;
+  height: number;
+  isLarge: boolean;
+}
+
 export default class Board extends Phaser.Events.EventEmitter {
   public scene: Phaser.Scene;
   public panels: (Panel | null)[][] = [];
@@ -294,7 +301,14 @@ export default class Board extends Phaser.Events.EventEmitter {
     // into existing slime panels at row 0+, causing overlapping tiles!
     const distance = Math.max(1, landingRow - block.gridY);
     const duration = Math.min(360, Math.max(120, distance * 36));
-    block.fallTo(landingRow, duration);
+    block.fallTo(landingRow, duration).then(() => {
+      this.emit('garbageLand', {
+        block,
+        width: block.width,
+        height: block.height,
+        isLarge: block.width >= BOARD_WIDTH || block.height >= 2
+      });
+    });
   }
 
   /** Update garbage gravity when panels beneath clear or fall */
@@ -360,7 +374,14 @@ export default class Board extends Phaser.Events.EventEmitter {
         }
 
         if (landingY > block.gridY) {
-          block.fallTo(landingY, 80);
+          block.fallTo(landingY, 80).then(() => {
+            this.emit('garbageLand', {
+              block,
+              width: block.width,
+              height: block.height,
+              isLarge: block.width >= BOARD_WIDTH || block.height >= 2
+            });
+          });
         }
       }
     }

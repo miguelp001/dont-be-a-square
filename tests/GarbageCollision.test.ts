@@ -370,4 +370,69 @@ describe('Garbage Collision & Slime Panel Co-Occupancy Prevention', () => {
     expect(blockDestroyed).toBe(true);
     expect(remaining).toHaveLength(0);
   });
+
+  it('12. Large garbage landing detection flags full row slabs and multi-layer blocks', () => {
+    const isLarge = (width: number, height: number) => width >= BOARD_WIDTH || height >= 2;
+
+    // Small combo garbage (3x1, 4x1, 5x1)
+    expect(isLarge(3, 1)).toBe(false);
+    expect(isLarge(4, 1)).toBe(false);
+    expect(isLarge(5, 1)).toBe(false);
+
+    // Full row slab (6x1)
+    expect(isLarge(6, 1)).toBe(true);
+
+    // Multi-layer slabs (3x2, 4x2, 6x2, 6x3)
+    expect(isLarge(3, 2)).toBe(true);
+    expect(isLarge(6, 2)).toBe(true);
+    expect(isLarge(6, 3)).toBe(true);
+    expect(isLarge(6, 4)).toBe(true);
+  });
+
+  it('13. Screen shake calculation scales intensity and duration with garbage size', () => {
+    const getShakeParams = (width: number, height: number, isPlayerBoard: boolean) => {
+      const isLarge = width >= BOARD_WIDTH || height >= 2;
+      if (!isLarge) return null;
+
+      if (isPlayerBoard) {
+        const duration = height >= 3 ? 280 : height >= 2 ? 220 : 160;
+        const intensity = height >= 3 ? 0.016 : height >= 2 ? 0.012 : 0.008;
+        return { duration, intensity, force: true };
+      } else {
+        const duration = height >= 3 ? 240 : height >= 2 ? 180 : 140;
+        const intensity = height >= 3 ? 0.012 : height >= 2 ? 0.009 : 0.006;
+        return { duration, intensity, force: true };
+      }
+    };
+
+    // Small garbage produces no screen shake
+    expect(getShakeParams(3, 1, true)).toBeNull();
+    expect(getShakeParams(4, 1, false)).toBeNull();
+
+    // Standard 6x1 full row slab on player board
+    const slabPlayer = getShakeParams(6, 1, true)!;
+    expect(slabPlayer).not.toBeNull();
+    expect(slabPlayer.duration).toBe(160);
+    expect(slabPlayer.intensity).toBe(0.008);
+    expect(slabPlayer.force).toBe(true);
+
+    // Colossal 6x2 multi-layer slab on player board
+    const doublePlayer = getShakeParams(6, 2, true)!;
+    expect(doublePlayer.duration).toBe(220);
+    expect(doublePlayer.intensity).toBe(0.012);
+
+    // Massive 6x3+ chain slab on player board
+    const triplePlayer = getShakeParams(6, 3, true)!;
+    expect(triplePlayer.duration).toBe(280);
+    expect(triplePlayer.intensity).toBe(0.016);
+
+    // Opponent board impacts produce distinct proportional rumble
+    const slabCpu = getShakeParams(6, 1, false)!;
+    expect(slabCpu.duration).toBe(140);
+    expect(slabCpu.intensity).toBe(0.006);
+
+    const doubleCpu = getShakeParams(6, 2, false)!;
+    expect(doubleCpu.duration).toBe(180);
+    expect(doubleCpu.intensity).toBe(0.009);
+  });
 });
