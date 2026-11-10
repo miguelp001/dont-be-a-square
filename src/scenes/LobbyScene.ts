@@ -14,6 +14,7 @@ export default class LobbyScene extends Phaser.Scene {
   // UI Containers & Elements
   private charAvatar!: Phaser.GameObjects.Image;
   private charNameText!: Phaser.GameObjects.Text;
+  private charDescText!: Phaser.GameObjects.Text;
   private serverStatusText!: Phaser.GameObjects.Text;
   private mainButtonsContainer!: Phaser.GameObjects.Container;
   private waitingRoomContainer!: Phaser.GameObjects.Container;
@@ -133,8 +134,8 @@ export default class LobbyScene extends Phaser.Scene {
 
   /** Character selector allowing quick switching before entering rooms */
   private createCharacterBanner(x: number, y: number, uiScale: number = 1.0): void {
-    this.bannerW = Math.round(340 * uiScale);
-    this.bannerH = Math.round(60 * uiScale);
+    this.bannerW = Math.round(360 * uiScale);
+    this.bannerH = Math.round(62 * uiScale);
     this.bannerX = x;
     this.bannerY = y;
     this.bannerBg = this.add.graphics();
@@ -143,7 +144,7 @@ export default class LobbyScene extends Phaser.Scene {
     const char = CHARACTERS[this.characterIndex];
 
     // Left Arrow
-    const arrowOffset = Math.round(145 * uiScale);
+    const arrowOffset = Math.round(155 * uiScale);
     const leftArrow = this.add.text(x - arrowOffset, y, '◀', {
       fontSize: Math.round(20 * uiScale) + 'px',
       color: '#54a0ff',
@@ -154,7 +155,7 @@ export default class LobbyScene extends Phaser.Scene {
     leftArrow.on('pointerout', () => leftArrow.setColor('#54a0ff'));
 
     // Avatar Sprite
-    const avatarOffset = Math.round(90 * uiScale);
+    const avatarOffset = Math.round(105 * uiScale);
     this.charAvatar = this.add.image(x - avatarOffset, y, char.id);
     const avatarSize = Math.round(44 * uiScale);
     this.charAvatar.setDisplaySize(avatarSize, avatarSize);
@@ -162,8 +163,8 @@ export default class LobbyScene extends Phaser.Scene {
     this.charAvatar.on('pointerdown', () => this.cycleCharacter(1));
 
     // Name & Title
-    const textOffset = Math.round(50 * uiScale);
-    this.charNameText = this.add.text(x - textOffset, y - Math.round(10 * uiScale), `Fighter: ${char.name}`, {
+    const textOffset = Math.round(65 * uiScale);
+    this.charNameText = this.add.text(x - textOffset, y - Math.round(10 * uiScale), char.isSecret ? `Fighter: ${char.name} 👑` : `Fighter: ${char.name}`, {
       fontSize: Math.round(15 * uiScale) + 'px',
       color: '#ffffff',
       fontStyle: 'bold',
@@ -171,10 +172,14 @@ export default class LobbyScene extends Phaser.Scene {
       strokeThickness: 2
     });
 
-    this.add.text(x - textOffset, y + Math.round(11 * uiScale), `${char.species} (Click to switch)`, {
+    this.charDescText = this.add.text(x - textOffset, y + Math.round(11 * uiScale), char.shortDescription || char.species, {
       fontSize: Math.round(11 * uiScale) + 'px',
       color: '#a4b0be'
     });
+
+    // Make banner center text interactive so clicking switches fighter
+    const bannerCenterZone = this.add.zone(x + Math.round(25 * uiScale), y, Math.round(220 * uiScale), this.bannerH).setInteractive({ useHandCursor: true });
+    bannerCenterZone.on('pointerdown', () => this.cycleCharacter(1));
 
     // Right Arrow
     const rightArrow = this.add.text(x + arrowOffset, y, '▶', {
@@ -199,6 +204,9 @@ export default class LobbyScene extends Phaser.Scene {
     const char = CHARACTERS[this.characterIndex];
     this.charAvatar.setTexture(char.id);
     this.charNameText.setText(char.isSecret ? `Fighter: ${char.name} 👑` : `Fighter: ${char.name}`);
+    if (this.charDescText) {
+      this.charDescText.setText(char.shortDescription || char.species);
+    }
   }
 
   private get selectedCharacterId(): string {

@@ -58,12 +58,25 @@ export const FAST_LIFT_SPEED = 200; // pixels per second when holding lift
 export const DANGER_ROW = 1; // Top ceiling row
 export const DANGER_GRACE_TIME = 10500; // ms grace before top-out game over (10.5s generous survival time)
 
-export const CHARACTERS = [
+export interface CharacterData {
+  id: string;
+  name: string;
+  species: string;
+  description: string;
+  shortDescription: string;
+  quote: string;
+  defeatQuote: string;
+  isSecret?: boolean;
+  unlockTier?: string;
+}
+
+export const CHARACTERS: CharacterData[] = [
   {
     id: 'kiri',
     name: 'Kiri',
     species: 'Mechanic Fox Girl',
     description: 'Grease-covered and gear-obsessed!',
+    shortDescription: 'Mechanic Fox Girl — Grease & gears!',
     quote: 'Wrench it up!',
     defeatQuote: 'Out of spare parts...'
   },
@@ -72,6 +85,7 @@ export const CHARACTERS = [
     name: 'Mizu',
     species: 'Axolotl Swordsman',
     description: 'Cuts with the flow of water!',
+    shortDescription: 'Axolotl Swordsman — Swift as water!',
     quote: 'Flow like water!',
     defeatQuote: 'Swept away...'
   },
@@ -80,6 +94,7 @@ export const CHARACTERS = [
     name: 'Riff',
     species: 'Tigress Guitarist',
     description: 'Rocks harder than the stage can handle!',
+    shortDescription: 'Tigress Guitarist — Rock & roll energy!',
     quote: 'Rock & Roll!',
     defeatQuote: 'Snapped a guitar string...'
   },
@@ -88,6 +103,7 @@ export const CHARACTERS = [
     name: 'Mocha',
     species: 'Bunny Alchemist',
     description: 'Brews up cute chaos!',
+    shortDescription: 'Bunny Alchemist — Brews cute chaos!',
     quote: 'Bubbling brew!',
     defeatQuote: 'My potion spilled...'
   },
@@ -96,6 +112,7 @@ export const CHARACTERS = [
     name: 'Ember',
     species: 'Shiba Inu Fire Dancer',
     description: 'Lights up the dance floor!',
+    shortDescription: 'Shiba Inu Fire Dancer — Blazing beats!',
     quote: 'Feel the heat!',
     defeatQuote: 'Flames extinguished...'
   },
@@ -104,6 +121,7 @@ export const CHARACTERS = [
     name: 'Volt',
     species: 'Gecko Inventor',
     description: 'Shocking levels of genius!',
+    shortDescription: 'Gecko Inventor — Shocking genius!',
     quote: 'Static shock!',
     defeatQuote: 'Short circuit...'
   },
@@ -112,6 +130,7 @@ export const CHARACTERS = [
     name: 'Salty',
     species: 'Otter Pirate',
     description: 'Plunders with panache!',
+    shortDescription: 'Otter Pirate — Plunders with panache!',
     quote: 'Ahoy matey!',
     defeatQuote: 'Walked the plank...'
   },
@@ -120,6 +139,7 @@ export const CHARACTERS = [
     name: 'Poppy',
     species: 'Red Panda Idol',
     description: 'The star of the show!',
+    shortDescription: 'Red Panda Idol — Sparkling superstar!',
     quote: 'Idol sparkle!',
     defeatQuote: 'The curtain fell...'
   },
@@ -128,6 +148,7 @@ export const CHARACTERS = [
     name: 'Void Slime',
     species: 'Cosmic Void Champion',
     description: 'An ultra cute squishy slime crowned with cosmic space magic and mischievous sparkle!',
+    shortDescription: 'Cosmic Void Champion — Cosmic magic!',
     quote: 'The cosmic void calls... squish!',
     defeatQuote: 'Pop goes the galaxy...',
     isSecret: true,
@@ -138,6 +159,7 @@ export const CHARACTERS = [
     name: 'Nano Banana',
     species: 'Glitch Nanite Overlord',
     description: 'The legendary hidden anomaly peeling the very fabric of reality itself!',
+    shortDescription: 'Glitch Nanite Overlord — Reality peeler!',
     quote: 'Reality is ripe for peeling!',
     defeatQuote: 'Split into nanobits...',
     isSecret: true,
