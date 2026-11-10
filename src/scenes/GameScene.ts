@@ -783,27 +783,51 @@ export default class GameScene extends Phaser.Scene {
     if (this.gameMode === 'vs_online' && this.socketMgr) {
       this.socketMgr.onOpponentAction((action: GameAction) => {
         try {
-          if (!action || !this.scene.isActive()) return;
+          if (!action || typeof action !== 'object' || !this.scene.isActive()) return;
 
           if (action.type === 'cursor' && action.payload) {
             if (this.cpuCursor) {
-              this.cpuCursor.setGridPosition(action.payload.x, action.payload.y);
+              const x = typeof action.payload.x === 'number' && Number.isFinite(action.payload.x)
+                ? action.payload.x
+                : typeof action.payload.col === 'number' && Number.isFinite(action.payload.col)
+                ? action.payload.col
+                : 0;
+              const y = typeof action.payload.y === 'number' && Number.isFinite(action.payload.y)
+                ? action.payload.y
+                : typeof action.payload.row === 'number' && Number.isFinite(action.payload.row)
+                ? action.payload.row
+                : 0;
+              this.cpuCursor.setGridPosition(x, y);
               this.cpuCursor.updatePosition();
             }
           } else if (action.type === 'swap' && action.payload) {
             if (this.cpuBoard) {
-              this.cpuBoard.swap(action.payload.x, action.payload.y);
+              const x = typeof action.payload.x === 'number' && Number.isInteger(action.payload.x)
+                ? action.payload.x
+                : typeof action.payload.col === 'number' && Number.isInteger(action.payload.col)
+                ? action.payload.col
+                : undefined;
+              const y = typeof action.payload.y === 'number' && Number.isInteger(action.payload.y)
+                ? action.payload.y
+                : typeof action.payload.row === 'number' && Number.isInteger(action.payload.row)
+                ? action.payload.row
+                : undefined;
+              if (x !== undefined && y !== undefined) {
+                this.cpuBoard.swap(x, y);
+              }
             }
           } else if (action.type === 'lift' && action.payload) {
             if (this.cpuBoard) {
               this.cpuBoard.setLifting(Boolean(action.payload.lifting));
             }
           } else if (action.type === 'board_sync' && action.payload) {
-            if (this.cpuBoard && action.payload.grid) {
+            if (this.cpuBoard && Array.isArray(action.payload.grid)) {
               this.cpuBoard.applyGridSnapshot(
                 action.payload.grid,
-                action.payload.stackOffset,
-                action.payload.garbage
+                typeof action.payload.stackOffset === 'number' && Number.isFinite(action.payload.stackOffset)
+                  ? action.payload.stackOffset
+                  : undefined,
+                Array.isArray(action.payload.garbage) ? action.payload.garbage : undefined
               );
             }
           } else if (action.type === 'attack' && action.payload) {
@@ -818,11 +842,15 @@ export default class GameScene extends Phaser.Scene {
 
             this.triggerAvatarAttack(false);
             animateBallisticGarbageArc(this, startX, startY, endX, endY, width, () => {
-              if (!this.scene.isActive() || !this.playerBoard) return;
-              this.playerBoard.queueGarbage(width, height, col);
-              this.showAttackAlert(false, height, width);
-              this.triggerAvatarHurt(true);
-              this.cameras?.main?.shake(60, 0.002);
+              try {
+                if (!this.scene.isActive() || !this.playerBoard) return;
+                this.playerBoard.queueGarbage(width, height, col);
+                this.showAttackAlert(false, height, width);
+                this.triggerAvatarHurt(true);
+                this.cameras?.main?.shake(60, 0.002);
+              } catch (err) {
+                console.warn('Error in incoming attack animation complete:', err);
+              }
             });
           } else if (action.type === 'topOut') {
             this.endMatch('VICTORY!', true);
@@ -1459,6 +1487,12 @@ export default class GameScene extends Phaser.Scene {
         onSwapCommit: (col, row) => {
           StatsManager.recordSwap('touch');
           this.broadcastCursor();
+          if (this.gameMode === 'vs_online') {
+            this.sendNetAction({
+              type: 'swap',
+              payload: { x: col, y: row }
+            });
+          }
         }
       });
     }
@@ -1988,7 +2022,7 @@ export default class GameScene extends Phaser.Scene {
           this.createAttackSparks(worldX, worldY, mascot.depth + 1, profile);
         } else if (idx === 3) {
           // Attack Apex Roar & Screen Micro-Shake
-          this.cameras.main.shake(120, 0.005);
+          this.cameras?.main?.shake(120, 0.005);
           this.showAttackBanner(worldX, worldY, mascot.depth + 2, profile);
         }
       });
@@ -2100,7 +2134,9 @@ export default class GameScene extends Phaser.Scene {
         }
       });
       avatar.setTint(0xff4757);
-      this.time.delayedCall(300, () => avatar.clearTint());
+      this.time.delayedCall(300, () => {
+        if (avatar && avatar.active) avatar.clearTint();
+      });
     }
 
     const mascot = isPlayer1 ? this.playerMascot : this.cpuMascot;
@@ -2115,7 +2151,9 @@ export default class GameScene extends Phaser.Scene {
         onComplete: () => { mascot.x = origX; }
       });
       mascot.setTint(0xff7675);
-      this.time.delayedCall(350, () => mascot.clearTint());
+      this.time.delayedCall(350, () => {
+        if (mascot && mascot.active) mascot.clearTint();
+      });
     }
   }
 
@@ -2183,7 +2221,7 @@ export default class GameScene extends Phaser.Scene {
 
   /** Handle screen shake impact when garbage block drops and lands */
   private handleGarbageLand(e: GarbageLandEvent, isPlayerBoard: boolean): void {
-    if (!this.scene.isActive() || !e.isLarge) return;
+    if (!e || !this.scene.isActive() || !e.isLarge) return;
 
     if (isPlayerBoard) {
       // Intense screen shake for impacts on player board
@@ -2249,14 +2287,18 @@ export default class GameScene extends Phaser.Scene {
         const endY = this.boardP2Y - 12;
 
         animateBallisticGarbageArc(this, startX, startY, endX, endY, event.comboSize, () => {
-          if (!this.scene.isActive() || !this.cpuBoard) return;
-          this.cpuBoard.queueGarbage(garbageWidth, garbageHeight, startCol);
-          this.showAttackAlert(true, garbageHeight, garbageWidth);
-          this.triggerAvatarHurt(false);
-          this.cameras?.main?.shake(60, 0.002);
+          try {
+            if (!this.scene.isActive() || !this.cpuBoard) return;
+            this.cpuBoard.queueGarbage(garbageWidth, garbageHeight, startCol);
+            this.showAttackAlert(true, garbageHeight, garbageWidth);
+            this.triggerAvatarHurt(false);
+            this.cameras?.main?.shake(60, 0.002);
+          } catch (err) {
+            console.warn('Error in attack animation callback:', err);
+          }
         });
       } else if (this.gameMode === 'vs_online' && this.socketMgr) {
-        this.socketMgr.sendAction({
+        this.sendNetAction({
           type: 'attack',
           payload: { width: garbageWidth, height: garbageHeight, col: startCol }
         });
@@ -2268,11 +2310,15 @@ export default class GameScene extends Phaser.Scene {
           const endY = this.boardP2Y - 12;
 
           animateBallisticGarbageArc(this, startX, startY, endX, endY, event.comboSize, () => {
-            if (!this.scene.isActive() || !this.cpuBoard) return;
-            this.cpuBoard.queueGarbage(garbageWidth, garbageHeight, startCol);
-            this.showAttackAlert(true, garbageHeight, garbageWidth);
-            this.triggerAvatarHurt(false);
-            this.cameras?.main?.shake(60, 0.002);
+            try {
+              if (!this.scene.isActive() || !this.cpuBoard) return;
+              this.cpuBoard.queueGarbage(garbageWidth, garbageHeight, startCol);
+              this.showAttackAlert(true, garbageHeight, garbageWidth);
+              this.triggerAvatarHurt(false);
+              this.cameras?.main?.shake(60, 0.002);
+            } catch (err) {
+              console.warn('Error in online attack animation callback:', err);
+            }
           });
         } else {
           this.showAttackAlert(true, garbageHeight, garbageWidth);
@@ -2337,7 +2383,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private showAttackAlert(fromPlayer: boolean, height: number, width: number = BOARD_WIDTH): void {
-    const centerX = this.cameras.main.width / 2;
+    const centerX = (this.cameras?.main?.width || 800) / 2;
     const flyY = 160 + (fromPlayer ? 0 : 50);
     const label =
       width < BOARD_WIDTH

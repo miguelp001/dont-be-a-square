@@ -60,6 +60,7 @@ export default class GarbageBlock {
 
   /** Check if this garbage block occupies a specific cell */
   public occupies(x: number, y: number): boolean {
+    if (typeof x !== 'number' || typeof y !== 'number' || !Number.isFinite(x) || !Number.isFinite(y)) return false;
     if (this.state === GarbageState.CLEARED) return false;
     if (x < this.gridX || x >= this.gridX + this.width) return false;
 
@@ -205,6 +206,7 @@ export default class GarbageBlock {
   public destroy(): void {
     this.state = GarbageState.CLEARED;
     for (let r = 0; r < this.sprites.length; r++) {
+      if (!this.sprites[r]) continue;
       for (let c = 0; c < this.sprites[r].length; c++) {
         const sprite = this.sprites[r][c];
         if (sprite && sprite.active) {

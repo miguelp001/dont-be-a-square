@@ -90,13 +90,14 @@ io.on('connection', (socket) => {
 
   // Create a room (private or public for quick match)
   socket.on('create_room', (data: { characterId?: string; isPublic?: boolean } = {}) => {
+    const safeData = data && typeof data === 'object' ? data : {};
     const roomId = Math.random().toString(36).substring(2, 8).toUpperCase();
-    const characterId = data.characterId || 'kiri';
+    const characterId = typeof safeData.characterId === 'string' && safeData.characterId ? safeData.characterId : 'kiri';
 
     const room: Room = {
       id: roomId,
       players: [{ socketId: socket.id, characterId }],
-      isPublic: data.isPublic ?? false,
+      isPublic: safeData.isPublic ?? false,
       seed: Math.floor(Math.random() * 1000000),
       rematchVotes: new Set<string>()
     };
@@ -113,9 +114,13 @@ io.on('connection', (socket) => {
 
   // Join a specific room by 6-letter code
   socket.on('join_room', (data: { roomId: string; characterId?: string }) => {
-    const roomId = (data.roomId || '').toUpperCase().trim();
+    if (!data || typeof data !== 'object') {
+      socket.emit('room_error', { message: 'Invalid room data provided.' });
+      return;
+    }
+    const roomId = (typeof data.roomId === 'string' ? data.roomId : '').toUpperCase().trim();
     const room = rooms.get(roomId);
-    const characterId = data.characterId || 'mizu';
+    const characterId = typeof data.characterId === 'string' && data.characterId ? data.characterId : 'mizu';
 
     if (room && room.players.length < 2) {
       room.players.push({ socketId: socket.id, characterId });
@@ -138,7 +143,8 @@ io.on('connection', (socket) => {
 
   // Quick match: find any open public room with 1 player, or create one
   socket.on('quick_match', (data: { characterId?: string } = {}) => {
-    const characterId = data.characterId || 'kiri';
+    const safeData = data && typeof data === 'object' ? data : {};
+    const characterId = typeof safeData.characterId === 'string' && safeData.characterId ? safeData.characterId : 'kiri';
 
     // Search for waiting public room
     let availableRoom: Room | null = null;
@@ -180,7 +186,8 @@ io.on('connection', (socket) => {
 
   // Rematch / Play Again Handler
   socket.on('rematch_request', (data: { roomId?: string } = {}) => {
-    let roomId = data.roomId;
+    const safeData = data && typeof data === 'object' ? data : {};
+    let roomId = typeof safeData.roomId === 'string' ? safeData.roomId : undefined;
     if (!roomId) {
       roomId = Array.from(socket.rooms).find((r) => r !== socket.id);
     }
@@ -220,7 +227,8 @@ io.on('connection', (socket) => {
 
   // Forward game actions (attacks, topouts, cursor updates) to the other player in the room
   socket.on('game_action', (data: { roomId?: string; type: string; payload?: any }) => {
-    let roomId = data.roomId;
+    if (!data || typeof data !== 'object') return;
+    let roomId = typeof data.roomId === 'string' ? data.roomId : undefined;
     if (!roomId) {
       roomId = Array.from(socket.rooms).find((r) => r !== socket.id);
     }
@@ -230,8 +238,9 @@ io.on('connection', (socket) => {
   });
 
   socket.on('leave_room', (data: { roomId?: string } = {}) => {
+    const targetRoomId = data && typeof data === 'object' && typeof data.roomId === 'string' ? data.roomId : undefined;
     for (const [roomId, room] of rooms.entries()) {
-      if (data.roomId && roomId !== data.roomId) continue;
+      if (targetRoomId && roomId !== targetRoomId) continue;
       const idx = room.players.findIndex((p) => p.socketId === socket.id);
       if (idx !== -1) {
         room.players.splice(idx, 1);

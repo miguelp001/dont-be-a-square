@@ -96,21 +96,25 @@ export default class Cursor extends Phaser.GameObjects.Rectangle {
   }
 
   public setGridPosition(gx: number, gy: number): void {
-    this.gridX = Math.max(0, Math.min(gx, BOARD_WIDTH - 2));
-    this.gridY = Math.max(0, Math.min(gy, BOARD_VISIBLE_HEIGHT - 1));
+    const validGx = typeof gx === 'number' && Number.isFinite(gx) ? gx : 0;
+    const validGy = typeof gy === 'number' && Number.isFinite(gy) ? gy : 0;
+    this.gridX = Math.max(0, Math.min(Math.round(validGx), BOARD_WIDTH - 2));
+    this.gridY = Math.max(0, Math.min(Math.round(validGy), BOARD_VISIBLE_HEIGHT - 1));
     this.updatePosition();
   }
 
   public setStackOffset(offset: number): void {
-    this.stackOffsetPixels = offset;
-    this.updatePosition();
+    if (typeof offset === 'number' && Number.isFinite(offset)) {
+      this.stackOffsetPixels = offset;
+      this.updatePosition();
+    }
   }
 
   public shiftWithStack(offset?: number): void {
     if (this.gridY > 0) {
       this.gridY--;
     }
-    if (offset !== undefined) {
+    if (typeof offset === 'number' && Number.isFinite(offset)) {
       this.stackOffsetPixels = offset;
     } else if (this.board) {
       this.stackOffsetPixels = this.board.stackOffsetPixels;

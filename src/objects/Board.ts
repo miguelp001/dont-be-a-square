@@ -206,7 +206,8 @@ export default class Board extends Phaser.Events.EventEmitter {
 
   /** Check if a cell is covered by any resting or active garbage block */
   public isCellOccupiedByGarbage(x: number, y: number): boolean {
-    return this.garbageBlocks.some((b) => b.occupies(x, y));
+    if (typeof x !== 'number' || typeof y !== 'number' || !Number.isFinite(x) || !Number.isFinite(y)) return false;
+    return this.garbageBlocks.some((b) => b && typeof b.occupies === 'function' && b.occupies(x, y));
   }
 
   /** Spawn incoming garbage sent from opponent attack */
@@ -389,7 +390,17 @@ export default class Board extends Phaser.Events.EventEmitter {
 
   public canSwap(gridX: number, gridY: number): boolean {
     if (this.isTopOut) return false;
-    if (gridX < 0 || gridX >= BOARD_WIDTH - 1 || gridY < 0 || gridY >= BOARD_HEIGHT) {
+    if (
+      typeof gridX !== 'number' ||
+      typeof gridY !== 'number' ||
+      !Number.isInteger(gridX) ||
+      !Number.isInteger(gridY) ||
+      gridX < 0 ||
+      gridX >= BOARD_WIDTH - 1 ||
+      gridY < 0 ||
+      gridY >= BOARD_HEIGHT ||
+      !this.panels[gridY]
+    ) {
       return false;
     }
 
@@ -422,13 +433,16 @@ export default class Board extends Phaser.Events.EventEmitter {
     if (right && !right.canSwap()) return false;
 
     if (gridY > 0) {
-      const aboveLeft = this.panels[gridY - 1][gridX];
-      const aboveRight = this.panels[gridY - 1][gridX + 1];
-      if (aboveLeft && (aboveLeft.state === PanelState.FALLING || aboveLeft.state === PanelState.HOVER)) {
-        return false;
-      }
-      if (aboveRight && (aboveRight.state === PanelState.FALLING || aboveRight.state === PanelState.HOVER)) {
-        return false;
+      const aboveRow = this.panels[gridY - 1];
+      if (aboveRow) {
+        const aboveLeft = aboveRow[gridX];
+        const aboveRight = aboveRow[gridX + 1];
+        if (aboveLeft && (aboveLeft.state === PanelState.FALLING || aboveLeft.state === PanelState.HOVER)) {
+          return false;
+        }
+        if (aboveRight && (aboveRight.state === PanelState.FALLING || aboveRight.state === PanelState.HOVER)) {
+          return false;
+        }
       }
     }
 
@@ -436,6 +450,20 @@ export default class Board extends Phaser.Events.EventEmitter {
   }
 
   private executeSwap(gridX: number, gridY: number): boolean {
+    if (
+      typeof gridX !== 'number' ||
+      typeof gridY !== 'number' ||
+      !Number.isInteger(gridX) ||
+      !Number.isInteger(gridY) ||
+      gridX < 0 ||
+      gridX >= BOARD_WIDTH - 1 ||
+      gridY < 0 ||
+      gridY >= BOARD_HEIGHT ||
+      !this.panels[gridY]
+    ) {
+      return false;
+    }
+
     if (
       this.isCellOccupiedByGarbage(gridX, gridY) ||
       this.isCellOccupiedByGarbage(gridX + 1, gridY)
@@ -479,6 +507,19 @@ export default class Board extends Phaser.Events.EventEmitter {
   public swap(gridX: number, gridY: number): boolean {
     if (this.isTopOut) return false;
 
+    if (
+      typeof gridX !== 'number' ||
+      typeof gridY !== 'number' ||
+      !Number.isInteger(gridX) ||
+      !Number.isInteger(gridY) ||
+      gridX < 0 ||
+      gridX >= BOARD_WIDTH - 1 ||
+      gridY < 0 ||
+      gridY >= BOARD_HEIGHT
+    ) {
+      return false;
+    }
+
     if (this.canSwap(gridX, gridY)) {
       return this.executeSwap(gridX, gridY);
     } else {
@@ -489,14 +530,19 @@ export default class Board extends Phaser.Events.EventEmitter {
   }
 
   public canPanelFallInto(x: number, y: number): boolean {
+    if (typeof x !== 'number' || typeof y !== 'number' || !Number.isInteger(x) || !Number.isInteger(y)) return false;
+    if (x < 0 || x >= BOARD_WIDTH || y < 0 || y >= BOARD_HEIGHT) return false;
     if (y >= BOARD_VISIBLE_HEIGHT) return false;
-    if (this.panels[y][x] !== null) return false;
+    if (!this.panels[y] || this.panels[y][x] !== null) return false;
     if (this.isCellOccupiedByGarbage(x, y)) return false;
     return true;
   }
 
   private checkPanelGravity(x: number, y: number): void {
+    if (typeof x !== 'number' || typeof y !== 'number' || !Number.isInteger(x) || !Number.isInteger(y)) return;
+    if (x < 0 || x >= BOARD_WIDTH || y < 0 || y >= BOARD_HEIGHT) return;
     if (y >= BOARD_VISIBLE_HEIGHT) return;
+    if (!this.panels[y]) return;
     const panel = this.panels[y][x];
     if (!panel || panel.state !== PanelState.IDLE) return;
 
@@ -589,6 +635,16 @@ export default class Board extends Phaser.Events.EventEmitter {
   private processInputBuffer(delta: number): void {
     for (let i = this.inputBuffer.length - 1; i >= 0; i--) {
       const item = this.inputBuffer[i];
+      if (
+        !item ||
+        typeof item.gridX !== 'number' ||
+        typeof item.gridY !== 'number' ||
+        !Number.isInteger(item.gridX) ||
+        !Number.isInteger(item.gridY)
+      ) {
+        this.inputBuffer.splice(i, 1);
+        continue;
+      }
       item.ttl -= delta;
 
       if (this.canSwap(item.gridX, item.gridY)) {
@@ -1231,18 +1287,21 @@ export default class Board extends Phaser.Events.EventEmitter {
   public applyGridSnapshot(grid: number[], stackOffset?: number, garbageSnapshots?: GarbageSnapshot[]): void {
     if (!grid || !Array.isArray(grid) || grid.length < (BOARD_VISIBLE_HEIGHT + 1) * BOARD_WIDTH) return;
 
-    if (stackOffset !== undefined) {
+    if (typeof stackOffset === 'number' && Number.isFinite(stackOffset)) {
       this.stackOffsetPixels = stackOffset;
-      this.container.y = this.boardOffsetY - this.stackOffsetPixels * this.scaleFactor;
+      if (this.container && this.container.active) {
+        this.container.y = this.boardOffsetY - this.stackOffsetPixels * this.scaleFactor;
+      }
       this.emit('stackRise', { offset: this.stackOffsetPixels });
     }
 
-    if (garbageSnapshots) {
+    if (garbageSnapshots && Array.isArray(garbageSnapshots)) {
       this.syncGarbageBlocks(garbageSnapshots);
     }
 
     let idx = 0;
     for (let y = 0; y <= BOARD_VISIBLE_HEIGHT; y++) {
+      if (!this.panels[y]) continue;
       for (let x = 0; x < BOARD_WIDTH; x++) {
         const targetColor = grid[idx++];
         const cur = this.panels[y][x];
@@ -1259,7 +1318,9 @@ export default class Board extends Phaser.Events.EventEmitter {
               p.setGridPosition(x, y);
               if (y === BOARD_VISIBLE_HEIGHT) p.setAlpha(0.75);
               this.panels[y][x] = p;
-              this.container.add(p);
+              if (this.container && this.container.active) {
+                this.container.add(p);
+              }
             }
           } else if (cur.color !== targetColor && cur.state === PanelState.IDLE) {
             cur.setColor(targetColor);

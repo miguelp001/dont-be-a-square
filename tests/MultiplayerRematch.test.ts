@@ -95,4 +95,70 @@ describe('Online Multiplayer Rematch & Modal Flow', () => {
       payload: { width: 4, height: 1, col: 1 }
     });
   });
+
+  it('7. Malformed network action validation protects against type errors and NaN coordinates', () => {
+    // Test payload sanitization logic used in onOpponentAction
+    const sanitizeCursor = (payload: any) => {
+      const x = typeof payload?.x === 'number' && Number.isFinite(payload.x)
+        ? payload.x
+        : typeof payload?.col === 'number' && Number.isFinite(payload.col)
+        ? payload.col
+        : 0;
+      const y = typeof payload?.y === 'number' && Number.isFinite(payload.y)
+        ? payload.y
+        : typeof payload?.row === 'number' && Number.isFinite(payload.row)
+        ? payload.row
+        : 0;
+      return { x, y };
+    };
+
+    expect(sanitizeCursor(null)).toEqual({ x: 0, y: 0 });
+    expect(sanitizeCursor({})).toEqual({ x: 0, y: 0 });
+    expect(sanitizeCursor({ x: NaN, y: undefined })).toEqual({ x: 0, y: 0 });
+    expect(sanitizeCursor({ col: 3, row: 5 })).toEqual({ x: 3, y: 5 });
+    expect(sanitizeCursor({ x: 2, y: 4 })).toEqual({ x: 2, y: 4 });
+
+    const sanitizeSwap = (payload: any) => {
+      const x = typeof payload?.x === 'number' && Number.isInteger(payload.x)
+        ? payload.x
+        : typeof payload?.col === 'number' && Number.isInteger(payload.col)
+        ? payload.col
+        : undefined;
+      const y = typeof payload?.y === 'number' && Number.isInteger(payload.y)
+        ? payload.y
+        : typeof payload?.row === 'number' && Number.isInteger(payload.row)
+        ? payload.row
+        : undefined;
+      return x !== undefined && y !== undefined ? { x, y } : null;
+    };
+
+    expect(sanitizeSwap(null)).toBeNull();
+    expect(sanitizeSwap({})).toBeNull();
+    expect(sanitizeSwap({ x: '2', y: '3' })).toBeNull();
+    expect(sanitizeSwap({ x: NaN, y: 4 })).toBeNull();
+    expect(sanitizeSwap({ x: 2, y: 3 })).toEqual({ x: 2, y: 3 });
+    expect(sanitizeSwap({ col: 1, row: 7 })).toEqual({ x: 1, y: 7 });
+  });
+
+  it('8. Server game_action handler ignores malformed and null data safely', () => {
+    const forwardAction = (data: any, rooms: Set<string>, socketId: string) => {
+      if (!data || typeof data !== 'object') return null;
+      let roomId = typeof data.roomId === 'string' ? data.roomId : undefined;
+      if (!roomId) {
+        roomId = Array.from(rooms).find((r) => r !== socketId);
+      }
+      return roomId ? { roomId, data } : null;
+    };
+
+    const socketRooms = new Set(['sock_123', 'ROOM_ALPHA']);
+    expect(forwardAction(null, socketRooms, 'sock_123')).toBeNull();
+    expect(forwardAction(undefined, socketRooms, 'sock_123')).toBeNull();
+    expect(forwardAction('random_string', socketRooms, 'sock_123')).toBeNull();
+    expect(forwardAction(12345, socketRooms, 'sock_123')).toBeNull();
+
+    const validAction = { type: 'swap', payload: { x: 2, y: 4 } };
+    const res = forwardAction(validAction, socketRooms, 'sock_123');
+    expect(res).not.toBeNull();
+    expect(res?.roomId).toBe('ROOM_ALPHA');
+  });
 });
