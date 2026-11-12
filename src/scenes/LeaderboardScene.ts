@@ -20,6 +20,14 @@ export default class LeaderboardScene extends Phaser.Scene {
   private padRepeatTimer: number = 0;
   private prevPadButtons: Map<number, boolean> = new Map();
 
+  // In-Game Arcade Handle Modal
+  private nameModalContainer?: Phaser.GameObjects.Container;
+  private nameSlotsText?: Phaser.GameObjects.Text;
+  private nameErrorText?: Phaser.GameObjects.Text;
+  private inputName: string = '';
+  private isUpdatingName: boolean = false;
+  private keydownHandler?: (e: KeyboardEvent) => void;
+
   constructor() {
     super({ key: 'LeaderboardScene' });
   }
@@ -139,22 +147,53 @@ export default class LeaderboardScene extends Phaser.Scene {
       this.scene.start(this.returnScene);
     }, { textureKey: 'pill_grey', width: footerBtnW, height: footerBtnH, fontSize: `${Math.round(12 * uiScale)}px`, autoScale: false });
 
-    // Setup Keyboard Shortcuts
-    this.input.keyboard?.on('keydown-LEFT', () => this.cycleDifficulty(-1));
-    this.input.keyboard?.on('keydown-RIGHT', () => this.cycleDifficulty(1));
-    this.input.keyboard?.on('keydown-A', () => this.cycleDifficulty(-1));
-    this.input.keyboard?.on('keydown-D', () => this.cycleDifficulty(1));
-    this.input.keyboard?.on('keydown-TAB', () => this.setMode(this.selectedMode === 'endless' ? 'challenge' : 'endless'));
+    // Setup Keyboard Shortcuts (bypassed if name modal is active)
+    this.input.keyboard?.on('keydown-LEFT', () => {
+      if (this.nameModalContainer?.visible) return;
+      this.cycleDifficulty(-1);
+    });
+    this.input.keyboard?.on('keydown-RIGHT', () => {
+      if (this.nameModalContainer?.visible) return;
+      this.cycleDifficulty(1);
+    });
+    this.input.keyboard?.on('keydown-A', () => {
+      if (this.nameModalContainer?.visible) return;
+      this.cycleDifficulty(-1);
+    });
+    this.input.keyboard?.on('keydown-D', () => {
+      if (this.nameModalContainer?.visible) return;
+      this.cycleDifficulty(1);
+    });
+    this.input.keyboard?.on('keydown-TAB', () => {
+      if (this.nameModalContainer?.visible) return;
+      this.setMode(this.selectedMode === 'endless' ? 'challenge' : 'endless');
+    });
     this.input.keyboard?.on('keydown-ESC', () => {
+      if (this.nameModalContainer?.visible) {
+        this.closeNameModal();
+        return;
+      }
       SoundFx.playCursor();
       this.scene.start(this.returnScene);
     });
+
+    // Cleanup window listener on shutdown
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      if (this.keydownHandler) {
+        window.removeEventListener('keydown', this.keydownHandler);
+        this.keydownHandler = undefined;
+      }
+    });
+
+    // Create In-Game Handle Modal UI
+    this.createNameModalUI(width / 2, height / 2, uiScale);
 
     // Load initial data
     this.loadLeaderboardData();
   }
 
   public update(_time: number, delta: number): void {
+    if (this.nameModalContainer?.visible) return;
     this.handleGamepadInput(delta);
   }
 
@@ -370,16 +409,263 @@ export default class LeaderboardScene extends Phaser.Scene {
   }
 
   private promptChangeName(): void {
-    SoundFx.playDecide();
-    const current = LeaderboardClient.getDisplayName();
-    if (typeof window !== 'undefined' && typeof window.prompt === 'function') {
-      const input = window.prompt('Enter your Arcade Handle (2-10 alphanumeric characters):', current);
-      if (input !== null && input.trim().length > 0) {
-        LeaderboardClient.setDisplayName(input);
-        SoundFx.playMatch();
-        this.loadLeaderboardData();
+    this.openNameModal();
+  }
+
+  /** In-game Arcade Handle modal dialog */
+  private createNameModalUI(x: number, y: number, uiScale: number = 1.0): void {
+    this.nameModalContainer = this.add.container(x, y);
+    this.nameModalContainer.setVisible(false);
+    this.nameModalContainer.setDepth(100);
+
+    const width = this.cameras.main.width;
+    const height = this.cameras.main.height;
+
+    // Fullscreen darken backdrop that absorbs background clicks
+    const backdrop = this.add.rectangle(0, 0, width, height, 0x000000, 0.78);
+    backdrop.setInteractive();
+
+    const isMobile = width < 600 || height >= width * 1.05;
+    const modalW = isMobile ? Math.min(width - 24, 340) : Math.round(360 * uiScale);
+    const modalH = Math.round(230 * uiScale);
+
+    // Modal Window Box
+    const box = this.add.graphics();
+    box.fillStyle(0x160d2b, 0.98);
+    box.fillRoundedRect(-modalW / 2, -modalH / 2, modalW, modalH, 14);
+    box.lineStyle(2.5, 0xa55eea, 1);
+    box.strokeRoundedRect(-modalW / 2, -modalH / 2, modalW, modalH, 14);
+
+    const title = this.add.text(0, -Math.round(82 * uiScale), '✏️ ARCADE HANDLE (NAME)', {
+      fontSize: `${Math.round(16 * uiScale)}px`,
+      color: '#feca57',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 3
+    }).setOrigin(0.5);
+
+    const promptText = this.add.text(0, -Math.round(56 * uiScale), 'Type 2-10 letters/numbers (or use prompt)', {
+      fontSize: `${Math.round(11 * uiScale)}px`,
+      color: '#a4b0be'
+    }).setOrigin(0.5);
+
+    // Text box outline for handle
+    const slotW = Math.round(260 * uiScale);
+    const slotH = Math.round(34 * uiScale);
+    const slotBox = this.add.graphics();
+    slotBox.fillStyle(0x0c0618, 0.95);
+    slotBox.fillRoundedRect(-slotW / 2, -Math.round(38 * uiScale), slotW, slotH, 8);
+    slotBox.lineStyle(1.5, 0xfeca57, 0.8);
+    slotBox.strokeRoundedRect(-slotW / 2, -Math.round(38 * uiScale), slotW, slotH, 8);
+
+    this.nameSlotsText = this.add.text(0, -Math.round(21 * uiScale), '', {
+      fontSize: `${Math.round(18 * uiScale)}px`,
+      color: '#feca57',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 2
+    }).setOrigin(0.5);
+
+    this.nameErrorText = this.add.text(0, Math.round(6 * uiScale), '', {
+      fontSize: `${Math.round(11 * uiScale)}px`,
+      color: '#ff4757',
+      fontStyle: 'bold',
+      align: 'center'
+    }).setOrigin(0.5);
+
+    // Row 1: Touch buttons: PROMPT / DEL / CLEAR
+    const row1Y = Math.round(38 * uiScale);
+    const smBtnOffset = Math.round(88 * uiScale);
+
+    const promptBtn = this.createSmallButton(-smBtnOffset, row1Y, '⌨️ PROMPT', 0x54a0ff, () => {
+      const p = window.prompt('Enter your arcade handle (2-10 characters):', this.inputName);
+      if (p !== null) {
+        const cleaned = p.replace(/[^a-zA-Z0-9_-]/g, '').toUpperCase().slice(0, 10);
+        if (cleaned) {
+          this.inputName = cleaned;
+          this.updateNameDisplay();
+        }
+      }
+    }, uiScale);
+
+    const delBtn = this.createSmallButton(0, row1Y, '⌫ DEL', 0x9b59b6, () => {
+      if (this.inputName.length > 0) {
+        SoundFx.playCursor();
+        this.inputName = this.inputName.slice(0, -1);
+        this.updateNameDisplay();
+      }
+    }, uiScale);
+
+    const clearBtn = this.createSmallButton(smBtnOffset, row1Y, 'CLEAR', 0x747d8c, () => {
+      SoundFx.playCursor();
+      this.inputName = '';
+      this.updateNameDisplay();
+    }, uiScale);
+
+    // Row 2: SAVE and CANCEL buttons
+    const row2Y = Math.round(78 * uiScale);
+    const lgBtnW = Math.round(118 * uiScale);
+    const lgBtnH = Math.round(32 * uiScale);
+    const lgOffset = Math.round(68 * uiScale);
+
+    const saveBtn = CuteUI.createPillButton(this, -lgOffset, row2Y, 'CONFIRM ✔', () => {
+      this.submitNameChange();
+    }, {
+      textureKey: 'pill_green',
+      fontSize: `${Math.round(12 * uiScale)}px`,
+      width: lgBtnW,
+      height: lgBtnH,
+      autoScale: false
+    });
+
+    const cancelBtn = CuteUI.createPillButton(this, lgOffset, row2Y, 'CANCEL', () => {
+      this.closeNameModal();
+    }, {
+      textureKey: 'pill_grey',
+      fontSize: `${Math.round(12 * uiScale)}px`,
+      width: lgBtnW,
+      height: lgBtnH,
+      autoScale: false
+    });
+
+    this.nameModalContainer.add([
+      backdrop,
+      box,
+      title,
+      promptText,
+      slotBox,
+      this.nameSlotsText,
+      this.nameErrorText,
+      promptBtn,
+      delBtn,
+      clearBtn,
+      saveBtn,
+      cancelBtn
+    ]);
+  }
+
+  private updateNameDisplay(): void {
+    if (!this.nameSlotsText) return;
+    let display = '';
+    for (let i = 0; i < 10; i++) {
+      if (i < this.inputName.length) {
+        display += this.inputName[i] + ' ';
+      } else {
+        display += '_ ';
       }
     }
+    this.nameSlotsText.setText(display.trim());
+  }
+
+  private openNameModal(): void {
+    SoundFx.playDecide();
+    if (!this.nameModalContainer) return;
+    this.inputName = LeaderboardClient.getDisplayName().toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 10);
+    this.updateNameDisplay();
+    this.nameErrorText?.setText('');
+    this.nameModalContainer.setVisible(true);
+
+    if (this.keydownHandler) {
+      window.removeEventListener('keydown', this.keydownHandler);
+    }
+
+    this.keydownHandler = (e: KeyboardEvent) => {
+      if (this.isUpdatingName) return;
+
+      if (e.key === 'Escape') {
+        this.closeNameModal();
+        return;
+      }
+      if (e.key === 'Enter') {
+        this.submitNameChange();
+        return;
+      }
+      if (e.key === 'Backspace') {
+        if (this.inputName.length > 0) {
+          SoundFx.playCursor();
+          this.inputName = this.inputName.slice(0, -1);
+          this.updateNameDisplay();
+        }
+        return;
+      }
+      if (/^[a-zA-Z0-9_-]$/.test(e.key) && this.inputName.length < 10) {
+        SoundFx.playCursor();
+        this.inputName += e.key.toUpperCase();
+        this.updateNameDisplay();
+      }
+    };
+
+    window.addEventListener('keydown', this.keydownHandler);
+  }
+
+  private closeNameModal(): void {
+    SoundFx.playCancel();
+    if (this.keydownHandler) {
+      window.removeEventListener('keydown', this.keydownHandler);
+      this.keydownHandler = undefined;
+    }
+    this.nameModalContainer?.setVisible(false);
+  }
+
+  private async submitNameChange(): Promise<void> {
+    if (this.isUpdatingName) return;
+
+    const trimmed = this.inputName.trim();
+    if (trimmed.length < 2) {
+      this.nameErrorText?.setText('Handle must be at least 2 characters!').setColor('#ff4757');
+      SoundFx.playCancel();
+      return;
+    }
+
+    if (trimmed.length > 10) {
+      this.nameErrorText?.setText('Handle cannot exceed 10 characters!').setColor('#ff4757');
+      SoundFx.playCancel();
+      return;
+    }
+
+    this.isUpdatingName = true;
+    this.nameErrorText?.setText('Updating arcade handle on server...').setColor('#54a0ff');
+
+    try {
+      const res = await LeaderboardClient.updateDisplayName(trimmed);
+      this.isUpdatingName = false;
+
+      if (res && res.success) {
+        SoundFx.playMatch();
+        this.closeNameModal();
+        this.loadLeaderboardData();
+      } else {
+        this.nameErrorText?.setText(res?.error || 'Failed to update handle!').setColor('#ff4757');
+        SoundFx.playCancel();
+      }
+    } catch (e: any) {
+      this.isUpdatingName = false;
+      this.nameErrorText?.setText('Connection failed. Please try again.').setColor('#ff4757');
+      SoundFx.playCancel();
+    }
+  }
+
+  private createSmallButton(
+    x: number,
+    y: number,
+    text: string,
+    color: number,
+    callback: () => void,
+    uiScale: number = 1.0
+  ): Phaser.GameObjects.Container {
+    let texture = 'pill_sm_grey';
+    if (color === 0x2ed573) texture = 'pill_sm_green';
+    else if (color === 0x1e90ff || color === 0x54a0ff) texture = 'pill_sm_blue';
+    else if (color === 0xff4757 || color === 0xff69b4) texture = 'pill_sm_pink';
+    else if (color === 0x9b59b6 || color === 0xa55eea) texture = 'pill_sm_purple';
+
+    return CuteUI.createPillButton(this, x, y, text, callback, {
+      textureKey: texture,
+      fontSize: `${Math.round(10.5 * uiScale)}px`,
+      width: Math.round(78 * uiScale),
+      height: Math.round(28 * uiScale),
+      autoScale: false
+    });
   }
 
   private handleGamepadInput(delta: number): void {

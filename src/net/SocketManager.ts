@@ -153,4 +153,19 @@ export default class SocketManager {
       });
     });
   }
+
+  public updatePlayerName(data: { playerId: string; playerSecret: string; displayName: string }): Promise<any> {
+    return new Promise((resolve) => {
+      if (!this.socket.connected) {
+        this.socket.connect();
+      }
+      this.socket.timeout(4000).emit('update_player_name', data, (err: any, response: any) => {
+        if (err) {
+          resolve({ success: false, error: 'Network timeout' });
+        } else {
+          resolve(response);
+        }
+      });
+    });
+  }
 }

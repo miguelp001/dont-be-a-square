@@ -102,6 +102,49 @@ export class LeaderboardClient {
     return finalName;
   }
 
+  public static async updateDisplayName(
+    newName: string
+  ): Promise<{ success: boolean; displayName: string; error?: string }> {
+    const finalName = this.setDisplayName(newName);
+    const playerId = this.getPlayerId();
+    const playerSecret = this.getPlayerSecret();
+
+    const payload = {
+      playerId,
+      playerSecret,
+      displayName: finalName
+    };
+
+    // 1. Try Socket.IO first
+    try {
+      const socketMgr = SocketManager.getInstance();
+      const res = await socketMgr.updatePlayerName(payload);
+      if (res && res.success) {
+        return { success: true, displayName: res.displayName || finalName };
+      }
+    } catch (e) {
+      console.warn('Socket updatePlayerName failed, falling back to HTTP:', e);
+    }
+
+    // 2. HTTP Fallback
+    try {
+      const response = await fetch('/api/leaderboard/name', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (response.ok) {
+        const res = await response.json();
+        return { success: true, displayName: res.displayName || finalName };
+      }
+    } catch (err) {
+      console.warn('HTTP updatePlayerName failed:', err);
+    }
+
+    // Persisted locally even if network/offline
+    return { success: true, displayName: finalName };
+  }
+
   public static async fetchLeaderboard(
     mode: 'endless' | 'challenge',
     difficulty: GameDifficulty | string,

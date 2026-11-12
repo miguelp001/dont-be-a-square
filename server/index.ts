@@ -18,6 +18,26 @@ const httpServer = createServer((req: IncomingMessage, res: ServerResponse) => {
 
   const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
 
+  if (url.pathname === '/api/leaderboard/name' || (url.pathname === '/api/leaderboard' && (req.method === 'PUT' || req.method === 'PATCH'))) {
+    let body = '';
+    req.on('data', (chunk) => {
+      body += chunk;
+      if (body.length > 50000) req.destroy();
+    });
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(body) as { playerId: string; playerSecret: string; displayName: string };
+        const result = leaderboard.updatePlayerName(payload.playerId, payload.playerSecret, payload.displayName);
+        res.writeHead(result.success ? 200 : 400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result));
+      } catch (e) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'Malformed JSON payload' }));
+      }
+    });
+    return;
+  }
+
   if (url.pathname === '/api/leaderboard') {
     if (req.method === 'GET') {
       const mode = url.searchParams.get('mode') || 'endless';
@@ -282,6 +302,15 @@ io.on('connection', (socket) => {
       callback(result);
     } else {
       socket.emit('score_submitted', result);
+    }
+  });
+
+  socket.on('update_player_name', (data: { playerId: string; playerSecret: string; displayName: string }, callback?: (res: any) => void) => {
+    const result = leaderboard.updatePlayerName(data?.playerId, data?.playerSecret, data?.displayName);
+    if (typeof callback === 'function') {
+      callback(result);
+    } else {
+      socket.emit('player_name_updated', result);
     }
   });
 

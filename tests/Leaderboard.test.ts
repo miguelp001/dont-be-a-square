@@ -164,4 +164,69 @@ describe('Server-Side Accountless Leaderboard System', () => {
 
     expect(legit.success).toBe(true);
   });
+
+  it('6. Updates player display name across all leaderboard categories', () => {
+    // Submit scores in two different modes/difficulties
+    mgr.submitScore({
+      playerId: 'player_namechange',
+      playerSecret: 'super_secret_123',
+      displayName: 'OLD_NAME',
+      characterId: 'kiri',
+      mode: 'endless',
+      difficulty: 'adept',
+      score: 50000
+    });
+
+    mgr.submitScore({
+      playerId: 'player_namechange',
+      playerSecret: 'super_secret_123',
+      displayName: 'OLD_NAME',
+      characterId: 'mizu',
+      mode: 'challenge',
+      difficulty: 'expert',
+      score: 80000
+    });
+
+    // Attempt to update with wrong secret
+    const failUpdate = mgr.updatePlayerName('player_namechange', 'wrong_secret', 'NEW_NAME');
+    expect(failUpdate.success).toBe(false);
+    expect(failUpdate.error).toContain('Authentication failed');
+
+    // Update with correct secret
+    const okUpdate = mgr.updatePlayerName('player_namechange', 'super_secret_123', 'NEW_NAME');
+    expect(okUpdate.success).toBe(true);
+    expect(okUpdate.displayName).toBe('NEW_NAME');
+    expect(okUpdate.updatedCount).toBe(2);
+
+    // Verify name changed in both boards
+    const endlessBoard = mgr.getLeaderboard('endless', 'adept');
+    const endlessRow = endlessBoard.top.find((e) => e.playerId === 'player_namechange');
+    expect(endlessRow?.displayName).toBe('NEW_NAME');
+
+    const challengeBoard = mgr.getLeaderboard('challenge', 'expert');
+    const challengeRow = challengeBoard.top.find((e) => e.playerId === 'player_namechange');
+    expect(challengeRow?.displayName).toBe('NEW_NAME');
+  });
+
+  it('7. Sanitizes player display names when updating', () => {
+    // Register player
+    mgr.submitScore({
+      playerId: 'player_sanitize',
+      playerSecret: 'san_sec',
+      displayName: 'INITIAL',
+      characterId: 'kiri',
+      mode: 'endless',
+      difficulty: 'novice',
+      score: 10000
+    });
+
+    // Update with extra spaces and symbols - symbols like @#$% stripped, limited to 10 chars
+    const res = mgr.updatePlayerName('player_sanitize', 'san_sec', '  Super_Pro!  ');
+    expect(res.success).toBe(true);
+    // 'SUPER_PRO' after stripping '!', trimming, and uppercase conversion
+    expect(res.displayName).toBe('SUPER_PRO');
+
+    const board = mgr.getLeaderboard('endless', 'novice');
+    expect(board.top[0].displayName).toBe('SUPER_PRO');
+  });
 });

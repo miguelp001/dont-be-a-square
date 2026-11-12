@@ -226,6 +226,43 @@ export class LeaderboardManager {
     };
   }
 
+  public updatePlayerName(
+    playerId: string,
+    playerSecret: string,
+    newDisplayName: string
+  ): { success: boolean; error?: string; displayName?: string; updatedCount?: number } {
+    if (!playerId || typeof playerId !== 'string' || playerId.length > 64) {
+      return { success: false, error: 'Invalid playerId' };
+    }
+    if (!playerSecret || typeof playerSecret !== 'string' || playerSecret.length > 64) {
+      return { success: false, error: 'Invalid playerSecret' };
+    }
+
+    const secretHash = this.hashSecret(playerSecret);
+    const existingSecret = this.playerSecrets[playerId];
+    if (existingSecret && existingSecret !== secretHash) {
+      return { success: false, error: 'Authentication failed for playerId' };
+    }
+    if (!existingSecret) {
+      this.playerSecrets[playerId] = secretHash;
+    }
+
+    const cleanName = this.sanitizeName(newDisplayName);
+    let updatedCount = 0;
+    for (const entry of this.entries) {
+      if (entry.playerId === playerId) {
+        entry.displayName = cleanName;
+        updatedCount++;
+      }
+    }
+
+    if (updatedCount > 0) {
+      this.queueSave();
+    }
+
+    return { success: true, displayName: cleanName, updatedCount };
+  }
+
   private getSortedEntries(mode: string, difficulty: string): LeaderboardEntry[] {
     const cleanDiff = difficulty.toLowerCase();
     const filtered = this.entries.filter(
