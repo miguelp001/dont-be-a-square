@@ -66,6 +66,8 @@ export interface CharacterData {
   shortDescription: string;
   quote: string;
   defeatQuote: string;
+  powerName: string;
+  powerDescription: string;
   isSecret?: boolean;
   unlockTier?: string;
 }
@@ -78,7 +80,9 @@ export const CHARACTERS: CharacterData[] = [
     description: 'Grease-covered and gear-obsessed!',
     shortDescription: 'Mechanic Fox Girl — Grease & gears!',
     quote: 'Wrench it up!',
-    defeatQuote: 'Out of spare parts...'
+    defeatQuote: 'Out of spare parts...',
+    powerName: 'Gear Lock',
+    powerDescription: 'Jams 3–4 enemy blocks; immovable until freed by an adjacent match!'
   },
   {
     id: 'mizu',
@@ -87,7 +91,9 @@ export const CHARACTERS: CharacterData[] = [
     description: 'Cuts with the flow of water!',
     shortDescription: 'Axolotl Swordsman — Swift as water!',
     quote: 'Flow like water!',
-    defeatQuote: 'Swept away...'
+    defeatQuote: 'Swept away...',
+    powerName: 'Tidal Flow',
+    powerDescription: 'Reverses rising blocks and makes your stack scroll downward for 5 seconds.'
   },
   {
     id: 'riff',
@@ -96,7 +102,9 @@ export const CHARACTERS: CharacterData[] = [
     description: 'Rocks harder than the stage can handle!',
     shortDescription: 'Tigress Guitarist — Rock & roll energy!',
     quote: 'Rock & Roll!',
-    defeatQuote: 'Snapped a guitar string...'
+    defeatQuote: 'Snapped a guitar string...',
+    powerName: 'Groove Extension',
+    powerDescription: 'Extends chain & combo grace time for 8 seconds, making big cascades easier.'
   },
   {
     id: 'mocha',
@@ -105,7 +113,9 @@ export const CHARACTERS: CharacterData[] = [
     description: 'Brews up cute chaos!',
     shortDescription: 'Bunny Alchemist — Brews cute chaos!',
     quote: 'Bubbling brew!',
-    defeatQuote: 'My potion spilled...'
+    defeatQuote: 'My potion spilled...',
+    powerName: 'Transmute',
+    powerDescription: 'Transmutes 3 random enemy blocks directly into a solid garbage slab.'
   },
   {
     id: 'ember',
@@ -114,7 +124,9 @@ export const CHARACTERS: CharacterData[] = [
     description: 'Lights up the dance floor!',
     shortDescription: 'Shiba Inu Fire Dancer — Blazing beats!',
     quote: 'Feel the heat!',
-    defeatQuote: 'Flames extinguished...'
+    defeatQuote: 'Flames extinguished...',
+    powerName: 'Wildfire',
+    powerDescription: 'Ignites all slimes of a chosen color on your board and clears them all.'
   },
   {
     id: 'volt',
@@ -123,7 +135,9 @@ export const CHARACTERS: CharacterData[] = [
     description: 'Shocking levels of genius!',
     shortDescription: 'Gecko Inventor — Shocking genius!',
     quote: 'Static shock!',
-    defeatQuote: 'Short circuit...'
+    defeatQuote: 'Short circuit...',
+    powerName: 'Overcharge',
+    powerDescription: 'Electrifies enemy controls for 6 seconds, making cursor moves & swaps sluggish.'
   },
   {
     id: 'salty',
@@ -132,7 +146,9 @@ export const CHARACTERS: CharacterData[] = [
     description: 'Plunders with panache!',
     shortDescription: 'Otter Pirate — Plunders with panache!',
     quote: 'Ahoy matey!',
-    defeatQuote: 'Walked the plank...'
+    defeatQuote: 'Walked the plank...',
+    powerName: 'Flash Freeze',
+    powerDescription: 'Freezes the enemy stack mechanism for 6 seconds so blocks cannot rise.'
   },
   {
     id: 'poppy',
@@ -141,7 +157,9 @@ export const CHARACTERS: CharacterData[] = [
     description: 'The star of the show!',
     shortDescription: 'Red Panda Idol — Sparkling superstar!',
     quote: 'Idol sparkle!',
-    defeatQuote: 'The curtain fell...'
+    defeatQuote: 'The curtain fell...',
+    powerName: 'Sub-Floor Blast',
+    powerDescription: 'Explodes and vaporizes the bottom 2 rows of your stack to drop height instantly.'
   },
   {
     id: 'void_slime',
@@ -151,6 +169,8 @@ export const CHARACTERS: CharacterData[] = [
     shortDescription: 'Cosmic Void Champion — Cosmic magic!',
     quote: 'The cosmic void calls... squish!',
     defeatQuote: 'Pop goes the galaxy...',
+    powerName: 'Aether Drain',
+    powerDescription: 'Cosmic void siphon that instantly drains and wipes the enemy power meter to 0%!',
     isSecret: true,
     unlockTier: 'Master'
   },
@@ -162,6 +182,8 @@ export const CHARACTERS: CharacterData[] = [
     shortDescription: 'Glitch Nanite Overlord — Reality peeler!',
     quote: 'Reality is ripe for peeling!',
     defeatQuote: 'Split into nanobits...',
+    powerName: 'Pure Skill',
+    powerDescription: 'Zero powers — the ultimate handicap flex for pure mechanical mastery.',
     isSecret: true,
     unlockTier: 'Grandmaster'
   }

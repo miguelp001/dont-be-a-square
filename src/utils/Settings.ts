@@ -9,6 +9,7 @@ export interface KeyBindings {
   moveRight: string;
   swap: string;
   lift: string;
+  power: string;
   pause: string;
 }
 
@@ -19,6 +20,7 @@ export const DEFAULT_KEYBINDINGS: KeyBindings = {
   moveRight: 'RIGHT',
   swap: 'SPACE',
   lift: 'SHIFT',
+  power: 'E',
   pause: 'ESCAPE'
 };
 

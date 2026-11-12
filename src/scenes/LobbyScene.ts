@@ -172,8 +172,8 @@ export default class LobbyScene extends Phaser.Scene {
       strokeThickness: 2
     });
 
-    this.charDescText = this.add.text(x - textOffset, y + Math.round(11 * uiScale), char.shortDescription || char.species, {
-      fontSize: Math.round(13 * uiScale) + 'px',
+    this.charDescText = this.add.text(x - textOffset, y + Math.round(11 * uiScale), `${char.shortDescription} • ⚡ ${char.powerName}`, {
+      fontSize: Math.round(12 * uiScale) + 'px',
       color: '#c8d6e5'
     });
 
@@ -205,7 +205,7 @@ export default class LobbyScene extends Phaser.Scene {
     this.charAvatar.setTexture(char.id);
     this.charNameText.setText(char.isSecret ? `Fighter: ${char.name} 👑` : `Fighter: ${char.name}`);
     if (this.charDescText) {
-      this.charDescText.setText(char.shortDescription || char.species);
+      this.charDescText.setText(`${char.shortDescription} • ⚡ ${char.powerName}`);
     }
   }
 

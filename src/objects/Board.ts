@@ -9,7 +9,8 @@ import {
   COLORS,
   BASE_RISE_SPEED,
   FAST_LIFT_SPEED,
-  DANGER_GRACE_TIME
+  DANGER_GRACE_TIME,
+  CHARACTERS
 } from '../utils/Constants';
 import { randomInt } from '../utils/Helpers';
 import { SoundFx } from '../utils/SoundFx';
@@ -74,6 +75,25 @@ export default class Board extends Phaser.Events.EventEmitter {
 
   /** Input buffer queue (150ms window) so inputs during animations are never lost */
   public inputBuffer: { gridX: number; gridY: number; ttl: number }[] = [];
+
+  /** Character & Power Meter system */
+  public characterId: string = 'kiri';
+  public powerMeter: number = 0; // 0 to 100
+  public isPowerActive: boolean = false;
+  public powerDurationTimer: number = 0;
+
+  /** Status Effects applied to this board */
+  public isReverseLiftActive: boolean = false; // Mizu's Tidal Flow
+  public reverseLiftTimer: number = 0;
+
+  public isLiftFrozen: boolean = false; // Salty's Flash Freeze
+  public liftFrozenTimer: number = 0;
+
+  public isGrooveActive: boolean = false; // Riff's Groove Extension
+  public grooveTimer: number = 0;
+
+  public isOverchargeActive: boolean = false; // Volt's Overcharge
+  public overchargeTimer: number = 0;
 
   constructor(scene: Phaser.Scene, offsetX: number = 64, offsetY: number = 64, scale: number = 1.0) {
     super();
@@ -309,6 +329,8 @@ export default class Board extends Phaser.Events.EventEmitter {
         height: block.height,
         isLarge: block.width >= BOARD_WIDTH || block.height >= 2
       });
+      const meterGain = block.width >= BOARD_WIDTH ? 10 * block.height : 5 * block.height;
+      this.addPowerMeter(meterGain);
     });
   }
 
@@ -382,6 +404,8 @@ export default class Board extends Phaser.Events.EventEmitter {
               height: block.height,
               isLarge: block.width >= BOARD_WIDTH || block.height >= 2
             });
+            const meterGain = block.width >= BOARD_WIDTH ? 10 * block.height : 5 * block.height;
+            this.addPowerMeter(meterGain);
           });
         }
       }
@@ -428,6 +452,12 @@ export default class Board extends Phaser.Events.EventEmitter {
     const right = this.panels[gridY][gridX + 1];
 
     if (!left && !right) return false;
+
+    // Volt's Overcharge: high-voltage static disruption makes inputs occasionally stutter/misfire
+    if (this.isOverchargeActive && Math.random() < 0.22) {
+      SoundFx.playElectricZap();
+      return false;
+    }
 
     if (left && !left.canSwap()) return false;
     if (right && !right.canSwap()) return false;
@@ -588,6 +618,24 @@ export default class Board extends Phaser.Events.EventEmitter {
       this.stopTime = Math.max(0, this.stopTime - delta);
     }
 
+    // Tick down active character status effect timers
+    if (this.reverseLiftTimer > 0) {
+      this.reverseLiftTimer = Math.max(0, this.reverseLiftTimer - delta);
+      if (this.reverseLiftTimer === 0) this.isReverseLiftActive = false;
+    }
+    if (this.liftFrozenTimer > 0) {
+      this.liftFrozenTimer = Math.max(0, this.liftFrozenTimer - delta);
+      if (this.liftFrozenTimer === 0) this.isLiftFrozen = false;
+    }
+    if (this.grooveTimer > 0) {
+      this.grooveTimer = Math.max(0, this.grooveTimer - delta);
+      if (this.grooveTimer === 0) this.isGrooveActive = false;
+    }
+    if (this.overchargeTimer > 0) {
+      this.overchargeTimer = Math.max(0, this.overchargeTimer - delta);
+      if (this.overchargeTimer === 0) this.isOverchargeActive = false;
+    }
+
     this.updateHoverAndFalling(delta);
     this.updateClearingPanels(delta);
     this.processInputBuffer(delta);
@@ -658,6 +706,18 @@ export default class Board extends Phaser.Events.EventEmitter {
 
   /** Update stack rising and handle row shift transitions */
   private updateStackRising(delta: number): void {
+    // Salty's Flash Freeze completely halts the stack
+    if (this.isLiftFrozen) return;
+
+    // Mizu's Tidal Flow: reverse rising blocks and scroll downwards
+    if (this.isReverseLiftActive) {
+      const reverseSpeed = BASE_RISE_SPEED * 2.5;
+      this.stackOffsetPixels = Math.max(0, this.stackOffsetPixels - (reverseSpeed * delta) / 1000);
+      this.container.y = this.boardOffsetY - this.stackOffsetPixels * this.scaleFactor;
+      this.emit('stackRise', { offset: this.stackOffsetPixels });
+      return;
+    }
+
     // In classic Panel de Pon, stopTime completely halts the stack rise
     if (this.stopTime > 0) return;
     if (this.isDanger && !this.isLifting) return;
@@ -793,6 +853,7 @@ export default class Board extends Phaser.Events.EventEmitter {
   }
 
   public setLifting(lifting: boolean): void {
+    if (this.isLiftFrozen && lifting) return;
     if (this.isLifting && !lifting) {
       this.stopTime = Math.max(this.stopTime, Math.round(280 * this.stopTimeMultiplier));
     }
@@ -1028,8 +1089,26 @@ export default class Board extends Phaser.Events.EventEmitter {
       SoundFx.playMatch();
     }
 
+    // Option B Meter generation: Combos & Chains (1.5x boost during danger!)
+    let meterGain = 1;
+    if (comboSize === 4) meterGain = 8;
+    else if (comboSize === 5) meterGain = 14;
+    else if (comboSize >= 6) meterGain = 20;
+
+    if (this.activeChain === 2) meterGain += 15;
+    else if (this.activeChain === 3) meterGain += 25;
+    else if (this.activeChain >= 4) meterGain += 35;
+
+    if (this.isDanger) {
+      meterGain = Math.round(meterGain * 1.5);
+    }
+    this.addPowerMeter(meterGain);
+
     // Trigger de-transformation for any adjacent resting garbage blocks
     this.checkGarbageTransformations(matchedList);
+
+    // Unlock any gear-locked panels adjacent to this match
+    this.checkLockedPanels(matchedList);
 
     matchedList.forEach((panel) => {
       for (let y = panel.gridY - 1; y >= 0; y--) {
@@ -1084,6 +1163,7 @@ export default class Board extends Phaser.Events.EventEmitter {
       block.transformBottomRow().then((positions) => {
         if (positions.length > 0) {
           this.emit('garbageCleared', { count: positions.length });
+          this.addPowerMeter(3 * positions.length);
         }
         positions.forEach((pos) => {
           if (pos.gridY < 0 || pos.gridY >= BOARD_HEIGHT || pos.gridX < 0 || pos.gridX >= BOARD_WIDTH) return;
@@ -1340,5 +1420,240 @@ export default class Board extends Phaser.Events.EventEmitter {
       }
     }
     return 0;
+  }
+
+  /**
+   * =========================================================================
+   * CHARACTER SUPER POWERS & POWER METER ENGINE
+   * =========================================================================
+   */
+
+  /** Add energy to the power meter gauge (0 to 100) */
+  public addPowerMeter(amount: number): void {
+    if (this.characterId === 'nano_banana') return; // Nano Banana has zero powers (handicap pick)
+    if (this.isTopOut) return;
+
+    const old = this.powerMeter;
+    this.powerMeter = Math.max(0, Math.min(100, this.powerMeter + amount));
+    if (old < 100 && this.powerMeter >= 100) {
+      this.emit('powerReady');
+    }
+    this.emit('powerMeterChange', { meter: this.powerMeter });
+  }
+
+  /** Check if the super power is charged and ready to cast */
+  public canActivatePower(): boolean {
+    return this.powerMeter >= 100 && this.characterId !== 'nano_banana' && !this.isTopOut;
+  }
+
+  /** Unlock any gear-locked panels adjacent to newly cleared matches */
+  public checkLockedPanels(matchedPanels: Panel[]): void {
+    for (const panel of matchedPanels) {
+      const neighbors = [
+        { x: panel.gridX - 1, y: panel.gridY },
+        { x: panel.gridX + 1, y: panel.gridY },
+        { x: panel.gridX, y: panel.gridY - 1 },
+        { x: panel.gridX, y: panel.gridY + 1 }
+      ];
+      for (const n of neighbors) {
+        if (n.x >= 0 && n.x < BOARD_WIDTH && n.y >= 0 && n.y < BOARD_HEIGHT) {
+          const neighbor = this.panels[n.y][n.x];
+          if (neighbor && neighbor.isLocked) {
+            neighbor.setLocked(false);
+            SoundFx.playWrenchClank();
+          }
+        }
+      }
+    }
+  }
+
+  /** Activate this character's superpower */
+  public activatePower(opponentBoard?: Board): { success: boolean; powerName: string } {
+    if (!this.canActivatePower()) {
+      return { success: false, powerName: '' };
+    }
+
+    this.powerMeter = 0;
+    this.emit('powerMeterChange', { meter: 0 });
+
+    const charData = CHARACTERS.find((c) => c.id === this.characterId);
+    const powerName = charData?.powerName || 'Special';
+
+    switch (this.characterId) {
+      case 'mocha':
+        if (opponentBoard) this.triggerMochaTransmute(opponentBoard);
+        break;
+      case 'mizu':
+        this.triggerMizuTidalFlow();
+        break;
+      case 'ember':
+        this.triggerEmberWildfire();
+        break;
+      case 'riff':
+        this.triggerRiffGrooveExtension();
+        break;
+      case 'poppy':
+        this.triggerPoppySubFloorBlast();
+        break;
+      case 'salty':
+        if (opponentBoard) this.triggerSaltyFlashFreeze(opponentBoard);
+        break;
+      case 'void_slime':
+        if (opponentBoard) this.triggerVoidSlimeAetherDrain(opponentBoard);
+        break;
+      case 'volt':
+        if (opponentBoard) this.triggerVoltOvercharge(opponentBoard);
+        break;
+      case 'kiri':
+        if (opponentBoard) this.triggerKiriGearLock(opponentBoard);
+        break;
+      case 'nano_banana':
+      default:
+        break;
+    }
+
+    this.emit('powerActivated', {
+      characterId: this.characterId,
+      powerName,
+      powerDescription: charData?.powerDescription || ''
+    });
+
+    return { success: true, powerName };
+  }
+
+  /** Mocha: Transmute 3 random enemy blocks into a 3-block garbage unit */
+  public triggerMochaTransmute(opponentBoard: Board): void {
+    const candidates: { x: number; y: number }[] = [];
+    for (let y = 0; y < BOARD_VISIBLE_HEIGHT; y++) {
+      for (let x = 0; x < BOARD_WIDTH; x++) {
+        const p = opponentBoard.panels[y][x];
+        if (p && p.state === PanelState.IDLE) {
+          candidates.push({ x, y });
+        }
+      }
+    }
+
+    if (candidates.length >= 3) {
+      Phaser.Utils.Array.Shuffle(candidates);
+      const picked = candidates.slice(0, 3);
+      for (const pos of picked) {
+        const p = opponentBoard.panels[pos.y][pos.x];
+        if (p) {
+          p.destroy();
+          opponentBoard.panels[pos.y][pos.x] = null;
+        }
+      }
+      opponentBoard.queueGarbage(3, 1, Math.min(picked[0].x, BOARD_WIDTH - 3));
+    } else {
+      opponentBoard.queueGarbage(3, 1);
+    }
+    SoundFx.playPotionBubble();
+  }
+
+  /** Mizu: Reverses rising blocks and makes stack scroll downward for 5 seconds */
+  public triggerMizuTidalFlow(): void {
+    this.isReverseLiftActive = true;
+    this.reverseLiftTimer = 5000;
+    SoundFx.playWaterSlash();
+  }
+
+  /** Ember: Sets fire to all slimes of a chosen color and vaporizes them completely */
+  public triggerEmberWildfire(): void {
+    const colorBuckets = new Map<number, Panel[]>();
+    for (let y = 0; y < BOARD_VISIBLE_HEIGHT; y++) {
+      for (let x = 0; x < BOARD_WIDTH; x++) {
+        const p = this.panels[y][x];
+        if (p && p.state === PanelState.IDLE && p.color >= 0) {
+          if (!colorBuckets.has(p.color)) colorBuckets.set(p.color, []);
+          colorBuckets.get(p.color)!.push(p);
+        }
+      }
+    }
+
+    if (colorBuckets.size === 0) return;
+
+    let targetPanels: Panel[] = [];
+    for (const [, list] of colorBuckets.entries()) {
+      if (list.length > targetPanels.length) {
+        targetPanels = list;
+      }
+    }
+
+    targetPanels.forEach((panel, i) => {
+      panel.chainEligible = true;
+      panel.startMatch(260, i * 25);
+    });
+    SoundFx.playFireWhoosh();
+  }
+
+  /** Riff: Extends chain grace & pause window for 8 seconds */
+  public triggerRiffGrooveExtension(): void {
+    this.isGrooveActive = true;
+    this.grooveTimer = 8000;
+    this.stopTime = Math.max(this.stopTime, 4000);
+    SoundFx.playPowerChord();
+  }
+
+  /** Poppy: Explodes the bottom two rows to instantly drop stack height */
+  public triggerPoppySubFloorBlast(): void {
+    const bottomRows = [BOARD_VISIBLE_HEIGHT - 1, BOARD_VISIBLE_HEIGHT - 2];
+    for (const y of bottomRows) {
+      for (let x = 0; x < BOARD_WIDTH; x++) {
+        const p = this.panels[y][x];
+        if (p) {
+          p.pop();
+          this.panels[y][x] = null;
+        }
+      }
+    }
+
+    for (let x = 0; x < BOARD_WIDTH; x++) {
+      for (let y = BOARD_VISIBLE_HEIGHT - 3; y >= 0; y--) {
+        this.checkPanelGravity(x, y);
+      }
+    }
+    SoundFx.playSparkleIdol();
+  }
+
+  /** Salty: Freezes the enemy stack mechanism for 6 seconds */
+  public triggerSaltyFlashFreeze(opponentBoard: Board): void {
+    opponentBoard.isLiftFrozen = true;
+    opponentBoard.liftFrozenTimer = 6000;
+    opponentBoard.stopTime = Math.max(opponentBoard.stopTime, 6000);
+    SoundFx.playCannonBoom();
+  }
+
+  /** Void Slime: Wipes out the enemy's power meter down to 0% */
+  public triggerVoidSlimeAetherDrain(opponentBoard: Board): void {
+    opponentBoard.powerMeter = 0;
+    opponentBoard.emit('powerMeterChange', { meter: 0 });
+    SoundFx.playCancel();
+  }
+
+  /** Volt: Electrifies enemy board with high-voltage static disruption */
+  public triggerVoltOvercharge(opponentBoard: Board): void {
+    opponentBoard.isOverchargeActive = true;
+    opponentBoard.overchargeTimer = 6000;
+    SoundFx.playElectricZap();
+  }
+
+  /** Kiri: Jams 3–4 enemy blocks with gear locks */
+  public triggerKiriGearLock(opponentBoard: Board): void {
+    const idlePanels: Panel[] = [];
+    for (let y = 0; y < BOARD_VISIBLE_HEIGHT; y++) {
+      for (let x = 0; x < BOARD_WIDTH; x++) {
+        const p = opponentBoard.panels[y][x];
+        if (p && p.state === PanelState.IDLE && !p.isLocked) {
+          idlePanels.push(p);
+        }
+      }
+    }
+
+    Phaser.Utils.Array.Shuffle(idlePanels);
+    const lockCount = Math.min(idlePanels.length, randomInt(3, 4));
+    for (let i = 0; i < lockCount; i++) {
+      idlePanels[i].setLocked(true);
+    }
+    SoundFx.playWrenchClank();
   }
 }

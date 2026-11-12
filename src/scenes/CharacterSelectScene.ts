@@ -406,8 +406,9 @@ export default class CharacterSelectScene extends Phaser.Scene {
         : char.id === 'nano_banana'
         ? '🍌👑 [UNLOCKED: GRANDMASTER HIDDEN BOSS]\n'
         : '';
-      const styleLine = personality ? `\n\nAI Style: ${personality.title}\n"${personality.description}"` : '';
-      this.charText.setText(`${secretBadge}${char.name} - ${char.species}\n${char.description}${styleLine}`);
+      const powerLine = char.powerName ? `\n⚡ Super Power: ${char.powerName} — ${char.powerDescription}` : '';
+      const styleLine = personality ? `\nAI Style: ${personality.title} • "${personality.description}"` : '';
+      this.charText.setText(`${secretBadge}${char.name} — ${char.species}\n"${char.description}"${powerLine}${styleLine}`);
     }
   }
   

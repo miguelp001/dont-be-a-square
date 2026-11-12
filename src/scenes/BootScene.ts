@@ -241,6 +241,32 @@ export default class BootScene extends Phaser.Scene {
     graphics.fillTriangle(12, 6, 6, 4, 6, 8);
     graphics.generateTexture('sparkle_star', 12, 12);
 
+    // Kiri's Gear Lock Overlay (Metallic bronze & silver cog with padlock keyhole)
+    graphics.clear();
+    const gSize = 28;
+    const gCenter = 14;
+    // 8 Gear cogs/teeth
+    graphics.fillStyle(0xd35400, 1);
+    for (let i = 0; i < 8; i++) {
+      const angle = (i * Math.PI) / 4;
+      const toothX = gCenter + Math.cos(angle) * 11;
+      const toothY = gCenter + Math.sin(angle) * 11;
+      graphics.fillRect(toothX - 2.5, toothY - 2.5, 5, 5);
+    }
+    // Main gear body ring
+    graphics.fillStyle(0xe67e22, 1);
+    graphics.fillCircle(gCenter, gCenter, 10.5);
+    graphics.lineStyle(1.5, 0xf39c12, 1);
+    graphics.strokeCircle(gCenter, gCenter, 10.5);
+    // Inner iron plate
+    graphics.fillStyle(0x2c3e50, 0.95);
+    graphics.fillCircle(gCenter, gCenter, 6.5);
+    // Padlock keyhole
+    graphics.fillStyle(0xf1c40f, 1);
+    graphics.fillCircle(gCenter, gCenter - 1, 2);
+    graphics.fillTriangle(gCenter - 1.5, gCenter - 1, gCenter + 1.5, gCenter - 1, gCenter, gCenter + 3.5);
+    graphics.generateTexture('panel_lock_gear', gSize, gSize);
+
     // Generic panel fallback
     graphics.clear();
     graphics.fillStyle(0xffffff);

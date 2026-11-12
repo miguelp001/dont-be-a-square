@@ -15,6 +15,10 @@ export default class Panel extends Phaser.GameObjects.Sprite {
   public matchTimer: number = 0;
   public popDelayTimer: number = 0;
   
+  /** Kiri's Gear Lock ability state */
+  public isLocked: boolean = false;
+  private lockIcon?: Phaser.GameObjects.Image;
+  
   private flashTween?: Phaser.Tweens.Tween;
 
   private get baseScale(): number {
@@ -35,6 +39,7 @@ export default class Panel extends Phaser.GameObjects.Sprite {
   public setGridPosition(gridX: number, gridY: number): void {
     this.gridX = gridX;
     this.gridY = gridY;
+    this.updateLockPosition();
   }
 
   public setColor(newColor: number): void {
@@ -45,7 +50,34 @@ export default class Panel extends Phaser.GameObjects.Sprite {
   }
 
   public canSwap(): boolean {
-    return this.state === PanelState.IDLE;
+    return this.state === PanelState.IDLE && !this.isLocked;
+  }
+
+  public setLocked(locked: boolean): void {
+    this.isLocked = locked;
+    if (locked) {
+      if (!this.lockIcon && this.scene && this.scene.textures.exists('panel_lock_gear')) {
+        this.lockIcon = this.scene.add.image(this.x + PANEL_SIZE / 2, this.y + PANEL_SIZE / 2, 'panel_lock_gear');
+        this.lockIcon.setDisplaySize(PANEL_SIZE * 0.72, PANEL_SIZE * 0.72);
+        this.lockIcon.setDepth(this.depth + 2);
+        if (this.parentContainer) {
+          this.parentContainer.add(this.lockIcon);
+        }
+      }
+      this.setTint(0xbdc3c7);
+    } else {
+      if (this.lockIcon) {
+        this.lockIcon.destroy();
+        this.lockIcon = undefined;
+      }
+      this.clearTint();
+    }
+  }
+
+  public updateLockPosition(): void {
+    if (this.lockIcon) {
+      this.lockIcon.setPosition(this.x + PANEL_SIZE / 2, this.y + PANEL_SIZE / 2);
+    }
   }
 
   public isClearing(): boolean {
@@ -120,6 +152,7 @@ export default class Panel extends Phaser.GameObjects.Sprite {
           // Authoritative grid snapping prevents drift or desync
           this.x = this.gridX * PANEL_SIZE;
           this.y = this.gridY * PANEL_SIZE;
+          this.updateLockPosition();
           resolve();
         }
       });
@@ -143,6 +176,7 @@ export default class Panel extends Phaser.GameObjects.Sprite {
         this.x = this.gridX * PANEL_SIZE;
         this.y = this.gridY * PANEL_SIZE;
         this.setDisplaySize(PANEL_SIZE, PANEL_SIZE);
+        this.updateLockPosition();
       }
     });
   }
@@ -206,5 +240,13 @@ export default class Panel extends Phaser.GameObjects.Sprite {
         }
       });
     });
+  }
+
+  public override destroy(fromScene?: boolean): void {
+    if (this.lockIcon) {
+      this.lockIcon.destroy();
+      this.lockIcon = undefined;
+    }
+    super.destroy(fromScene);
   }
 }

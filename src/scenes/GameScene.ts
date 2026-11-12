@@ -45,6 +45,16 @@ export default class GameScene extends Phaser.Scene {
   private playerHazardVignette?: Phaser.GameObjects.Graphics;
   private playerHazardTween?: Phaser.Tweens.Tween;
 
+  // Super Power HUD
+  private playerPowerContainer?: Phaser.GameObjects.Container;
+  private playerPowerBar?: Phaser.GameObjects.Graphics;
+  private playerPowerText?: Phaser.GameObjects.Text;
+  private playerPowerGlowTween?: Phaser.Tweens.Tween;
+
+  private cpuPowerContainer?: Phaser.GameObjects.Container;
+  private cpuPowerBar?: Phaser.GameObjects.Graphics;
+  private cpuPowerText?: Phaser.GameObjects.Text;
+
   // Opponent (CPU or Online)
   private cpuBoard?: Board;
   private cpuCursor?: Cursor;
@@ -279,6 +289,7 @@ export default class GameScene extends Phaser.Scene {
       this.cpuBorder.setDepth(21);
       this.drawBoardFrame(this.cpuBorder, p2X, p2Y, p2BoardW, p2BoardH, p2Color, false);
       this.cpuBoard = new Board(this, p2X, p2Y, this.cpuBoardScale);
+      this.cpuBoard.characterId = this.opponentCharacterId;
       this.cpuBoard.applyDifficulty(this.difficulty);
       this.cpuBoard.addInitialPanels(Math.min(diffInfo.initialRows, 5), diffInfo.initialGarbageSlabs);
       this.cpuCursor = new Cursor(this, this.cpuBoard);
@@ -346,7 +357,15 @@ export default class GameScene extends Phaser.Scene {
         strokeThickness: 2
       });
 
-      p2Header.add([p2Sign, p2Badge, p2NameText, this.cpuScoreText]);
+      this.cpuPowerText = this.add.text(p2PlaqueW / 2 - 24, 0, '⚡ 0%', {
+        fontSize: '11px',
+        color: '#54a0ff',
+        fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 2
+      }).setOrigin(0.5);
+
+      p2Header.add([p2Sign, p2Badge, p2NameText, this.cpuScoreText, this.cpuPowerText]);
 
       // Timer Plaque at bottom of top section
       const timerContainer = this.add.container(leftColCenterX, topSectionBottom - 16);
@@ -401,6 +420,7 @@ export default class GameScene extends Phaser.Scene {
       this.playerBorder.setDepth(21);
       this.drawBoardFrame(this.playerBorder, p1X, p1Y, p1BoardW, p1BoardH, 0xff69b4, true);
       this.playerBoard = new Board(this, p1X, p1Y, this.playerBoardScale);
+      this.playerBoard.characterId = this.characterId;
       this.playerBoard.applyDifficulty(this.difficulty);
       this.playerBoard.addInitialPanels(Math.min(diffInfo.initialRows, 5), diffInfo.initialGarbageSlabs);
       this.playerCursor = new Cursor(this, this.playerBoard);
@@ -524,6 +544,7 @@ export default class GameScene extends Phaser.Scene {
       this.playerBorder.setDepth(21);
       this.drawBoardFrame(this.playerBorder, p1X, boardY, boardW, boardH, 0xff69b4, true);
       this.playerBoard = new Board(this, p1X, boardY, this.playerBoardScale);
+      this.playerBoard.characterId = this.characterId;
       this.playerBoard.applyDifficulty(this.difficulty);
       this.playerBoard.addInitialPanels(Math.min(diffInfo.initialRows, 5), diffInfo.initialGarbageSlabs);
       this.playerCursor = new Cursor(this, this.playerBoard);
@@ -597,6 +618,7 @@ export default class GameScene extends Phaser.Scene {
       this.cpuBorder.setDepth(21);
       this.drawBoardFrame(this.cpuBorder, p2X, boardY, boardW, boardH, p2Color, false);
       this.cpuBoard = new Board(this, p2X, boardY, this.cpuBoardScale);
+      this.cpuBoard.characterId = this.opponentCharacterId;
       this.cpuBoard.applyDifficulty(this.difficulty);
       this.cpuBoard.addInitialPanels(Math.min(diffInfo.initialRows, 5), diffInfo.initialGarbageSlabs);
       this.cpuCursor = new Cursor(this, this.cpuBoard);
@@ -652,7 +674,15 @@ export default class GameScene extends Phaser.Scene {
         strokeThickness: 2
       }).setOrigin(0.5);
 
-      p2Header.add([p2Sign, p2Badge, p2NameText, this.cpuScoreText, p2DiffBadge]);
+      this.cpuPowerText = this.add.text(p2PlaqueW / 2 - Math.round(94 * boardScaleRatio), 0, '⚡ 0%', {
+        fontSize: `${Math.round(12 * boardScaleRatio)}px`,
+        color: '#54a0ff',
+        fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 2
+      }).setOrigin(0.5);
+
+      p2Header.add([p2Sign, p2Badge, p2NameText, this.cpuScoreText, this.cpuPowerText, p2DiffBadge]);
 
       this.cpuChainText = this.add
         .text(p2X + boardW / 2, boardY + boardH + Math.round(18 * boardScaleRatio), '', {
@@ -749,6 +779,16 @@ export default class GameScene extends Phaser.Scene {
       this.endMatch('DEFEAT!', false);
     });
 
+    // Wire Player 1 Super Power Events
+    this.playerBoard.on('powerMeterChange', (e: { meter: number }) => this.updatePlayerPowerUI(e.meter));
+    this.playerBoard.on('powerReady', () => {
+      SoundFx.playVictory();
+    });
+    this.playerBoard.on('powerActivated', (data: any) => {
+      this.showSuperPowerBanner(true, data.characterId, data.powerName);
+      this.triggerAvatarAttack(true);
+    });
+
     // Wire Opponent Board Events (CPU or Online Rival)
     if (this.cpuBoard) {
       this.cpuBoard.on('stackRise', (e: { offset: number }) => this.cpuCursor?.setStackOffset(e.offset));
@@ -777,6 +817,13 @@ export default class GameScene extends Phaser.Scene {
         }
       });
       this.cpuBoard.on('topOut', () => this.endMatch('VICTORY!', true));
+
+      // Wire CPU Super Power Events
+      this.cpuBoard.on('powerMeterChange', (e: { meter: number }) => this.updateCpuPowerUI(e.meter));
+      this.cpuBoard.on('powerActivated', (data: any) => {
+        this.showSuperPowerBanner(false, data.characterId, data.powerName);
+        this.triggerAvatarAttack(false);
+      });
     }
 
     // Wire Online Network Events
@@ -852,6 +899,10 @@ export default class GameScene extends Phaser.Scene {
                 console.warn('Error in incoming attack animation complete:', err);
               }
             });
+          } else if (action.type === 'super_power_activated' && action.payload) {
+            if (this.cpuBoard) {
+              this.cpuBoard.activatePower(this.playerBoard);
+            }
           } else if (action.type === 'topOut') {
             this.endMatch('VICTORY!', true);
           }
@@ -965,6 +1016,7 @@ export default class GameScene extends Phaser.Scene {
     this.drawBoardFrame(this.playerBorder, boardX, boardY, boardW, boardH, 0xff69b4, true);
 
     this.playerBoard = new Board(this, boardX, boardY, this.playerBoardScale);
+    this.playerBoard.characterId = this.characterId;
     this.playerBoard.applyDifficulty(this.difficulty);
     const diffInfo = getDifficultyInfo(this.difficulty);
     this.playerBoard.addInitialPanels(diffInfo.initialRows, diffInfo.initialGarbageSlabs);
@@ -1112,6 +1164,16 @@ export default class GameScene extends Phaser.Scene {
       this.setBgmTension(false);
     });
     this.playerBoard.on('topOut', () => this.endMatch('TOP OUT!', false));
+
+    // Wire Endless Mode Power Events
+    this.playerBoard.on('powerMeterChange', (e: { meter: number }) => this.updatePlayerPowerUI(e.meter));
+    this.playerBoard.on('powerReady', () => {
+      SoundFx.playVictory();
+    });
+    this.playerBoard.on('powerActivated', (data: any) => {
+      this.showSuperPowerBanner(true, data.characterId, data.powerName);
+      this.triggerAvatarAttack(true);
+    });
 
     // Periodic arcade garbage challenge in Endless mode
     this.time.addEvent({
@@ -1387,6 +1449,11 @@ export default class GameScene extends Phaser.Scene {
         this.triggerPlayerSwap(this.playerCursor.gridX, this.playerCursor.gridY);
       }
 
+      // Super Power Burst (E / Q / Z / F / custom key)
+      if (this.matchesAction(event, 'power', ['E', 'KeyE', 'Q', 'KeyQ', 'Z', 'KeyZ', 'F', 'KeyF'])) {
+        this.triggerPlayerPower();
+      }
+
       // Lift (Keydown)
       if (this.matchesAction(event, 'lift', ['SHIFT', 'R', 'ShiftLeft', 'ShiftRight'])) {
         this.setPlayerLifting(true);
@@ -1555,13 +1622,13 @@ export default class GameScene extends Phaser.Scene {
     const liftBarX = isMobile ? width / 2 : this.boardP1X + bW / 2;
     const liftBarY = isMobile ? height - liftBarH / 2 - 8 : Math.min(height - 48, this.boardP1Y + bH + Math.round(32 * boardScaleRatio));
 
-    this.createMobileLiftBar(liftBarX, liftBarY, liftBarW, liftBarH, isMobile ? '11px' : `${Math.round(11 * boardScaleRatio)}px`);
+    this.createBottomActionBars(liftBarX, liftBarY, liftBarW, liftBarH, isMobile, boardScaleRatio);
 
     // Dynamic control hint for desktop
     if (!isMobile) {
       const hintY = Math.min(height - 14, liftBarY + Math.round(26 * boardScaleRatio));
-      this.add.text(width / 2, hintY, 'CLICK / TAP: Swap • RIGHT-CLICK / SCROLL / BAR: Fast Lift', {
-        fontSize: `${Math.round(13.5 * boardScaleRatio)}px`,
+      this.add.text(width / 2, hintY, 'CLICK/TAP: Swap • RIGHT-CLICK/BAR: Fast Lift • E/SPACE: Burst Power', {
+        fontSize: `${Math.round(13 * boardScaleRatio)}px`,
         color: '#dfe4ea',
         stroke: '#000000',
         strokeThickness: 1.5
@@ -1569,24 +1636,37 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
-  private createMobileLiftBar(x: number, y: number, w: number, h: number = 36, fontSizeStr: string = '13.5px'): Phaser.GameObjects.Container {
-    const container = this.add.container(x, y);
-    container.setDepth(35);
+  private createBottomActionBars(x: number, y: number, totalW: number, h: number = 38, isMobile: boolean = false, boardScaleRatio: number = 1.0): void {
+    const isNano = this.characterId === 'nano_banana';
+    const char = CHARACTERS.find((c) => c.id === this.characterId);
+    const powerName = char?.powerName || 'POWER';
 
-    const bg = this.add.graphics();
-    const draw = (active: boolean) => {
-      bg.clear();
-      bg.fillStyle(active ? 0x10ac84 : 0x1e272e, 0.88);
-      bg.fillRoundedRect(-w / 2, -h / 2, w, h, 8);
-      bg.lineStyle(1.8, active ? 0x2ed573 : 0x54a0ff, 0.85);
-      bg.strokeRoundedRect(-w / 2, -h / 2, w, h, 8);
-      // Subtle top highlight
-      bg.fillStyle(0xffffff, active ? 0.25 : 0.12);
-      bg.fillRoundedRect(-w / 2 + 4, -h / 2 + 3, w - 8, Math.round(h / 2) - 3, 4);
+    const gap = Math.round(8 * boardScaleRatio);
+    const burstW = Math.round(totalW * (isMobile ? 0.42 : 0.40));
+    const liftW = totalW - burstW - gap;
+
+    const liftX = x - totalW / 2 + liftW / 2;
+    const burstX = x + totalW / 2 - burstW / 2;
+
+    const fontSizeStr = isMobile ? '11.5px' : `${Math.round(12 * boardScaleRatio)}px`;
+
+    // 1. FAST LIFT BAR
+    const liftContainer = this.add.container(liftX, y);
+    liftContainer.setDepth(35);
+
+    const liftBg = this.add.graphics();
+    const drawLift = (active: boolean) => {
+      liftBg.clear();
+      liftBg.fillStyle(active ? 0x10ac84 : 0x1e272e, 0.9);
+      liftBg.fillRoundedRect(-liftW / 2, -h / 2, liftW, h, 8);
+      liftBg.lineStyle(1.8, active ? 0x2ed573 : 0x54a0ff, 0.85);
+      liftBg.strokeRoundedRect(-liftW / 2, -h / 2, liftW, h, 8);
+      liftBg.fillStyle(0xffffff, active ? 0.25 : 0.12);
+      liftBg.fillRoundedRect(-liftW / 2 + 3, -h / 2 + 2, liftW - 6, Math.round(h / 2) - 2, 4);
     };
-    draw(false);
+    drawLift(false);
 
-    const text = this.add.text(0, -1, '▲  HOLD TO FAST LIFT  ▲', {
+    const liftText = this.add.text(0, -1, '▲ FAST LIFT ▲', {
       fontSize: fontSizeStr,
       color: '#ffffff',
       fontStyle: 'bold',
@@ -1594,24 +1674,212 @@ export default class GameScene extends Phaser.Scene {
       strokeThickness: 2
     }).setOrigin(0.5);
 
-    const hit = this.add.rectangle(0, 0, w + 16, h + 10, 0x000000, 0);
-    hit.setInteractive({ useHandCursor: true });
-
-    hit.on('pointerdown', () => {
-      draw(true);
+    const liftHit = this.add.rectangle(0, 0, liftW + 8, h + 8, 0x000000, 0);
+    liftHit.setInteractive({ useHandCursor: true });
+    liftHit.on('pointerdown', () => {
+      drawLift(true);
       this.setPlayerLifting(true);
     });
-
     const stopLift = () => {
-      draw(false);
+      drawLift(false);
       this.setPlayerLifting(false);
     };
+    liftHit.on('pointerup', stopLift);
+    liftHit.on('pointerout', stopLift);
+    liftContainer.add([liftBg, liftText, liftHit]);
 
-    hit.on('pointerup', stopLift);
-    hit.on('pointerout', stopLift);
+    // 2. SUPER POWER / BURST BUTTON
+    this.playerPowerContainer = this.add.container(burstX, y);
+    this.playerPowerContainer.setDepth(35);
 
-    container.add([bg, text, hit]);
-    return container;
+    this.playerPowerBar = this.add.graphics();
+    this.playerPowerContainer.add(this.playerPowerBar);
+
+    this.playerPowerText = this.add.text(0, -1, isNano ? '🚫 NO POWER' : `⚡ ${powerName.toUpperCase()} 0%`, {
+      fontSize: fontSizeStr,
+      color: isNano ? '#747d8c' : '#ffffff',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 2
+    }).setOrigin(0.5);
+
+    const burstHit = this.add.rectangle(0, 0, burstW + 8, h + 8, 0x000000, 0);
+    burstHit.setInteractive({ useHandCursor: !isNano });
+    burstHit.on('pointerdown', () => {
+      this.triggerPlayerPower();
+    });
+
+    this.playerPowerContainer.add([this.playerPowerText, burstHit]);
+
+    // Draw initial 0% state
+    this.renderPowerBar(this.playerPowerBar, burstW, h, 0, false, isNano);
+  }
+
+  private renderPowerBar(
+    g: Phaser.GameObjects.Graphics,
+    w: number,
+    h: number,
+    percent: number,
+    isReady: boolean,
+    isNano: boolean = false
+  ): void {
+    g.clear();
+    const halfW = w / 2;
+    const halfH = h / 2;
+
+    // Dark track background
+    g.fillStyle(0x0c0618, 0.95);
+    g.fillRoundedRect(-halfW, -halfH, w, h, 8);
+
+    if (isNano) {
+      g.lineStyle(1.8, 0x57606f, 0.6);
+      g.strokeRoundedRect(-halfW, -halfH, w, h, 8);
+      return;
+    }
+
+    // Fill level
+    const fillW = Math.max(0, (w - 6) * (percent / 100));
+    if (fillW > 0) {
+      const fillColor = isReady ? 0xfeca57 : percent > 50 ? 0xa55eea : 0x54a0ff;
+      g.fillStyle(fillColor, 0.9);
+      g.fillRoundedRect(-halfW + 3, -halfH + 3, fillW, h - 6, 6);
+    }
+
+    // Border
+    const borderColor = isReady ? 0xfff200 : 0xa55eea;
+    g.lineStyle(isReady ? 2.5 : 1.8, borderColor, isReady ? 1.0 : 0.8);
+    g.strokeRoundedRect(-halfW, -halfH, w, h, 8);
+
+    // Glass gloss highlight
+    g.fillStyle(0xffffff, 0.16);
+    g.fillRoundedRect(-halfW + 3, -halfH + 2, w - 6, Math.round(h / 2) - 2, 4);
+  }
+
+  private updatePlayerPowerUI(meter: number): void {
+    if (!this.playerPowerContainer || !this.playerPowerBar || !this.playerPowerText) return;
+    if (this.characterId === 'nano_banana') return;
+
+    const char = CHARACTERS.find((c) => c.id === this.characterId);
+    const powerName = char?.powerName || 'POWER';
+    const isReady = meter >= 100;
+    const isMobile = this.isMobileLayout;
+    const w = this.playerPowerBar ? Math.round((isMobile ? Math.min(this.cameras.main.width - 24, 340) : 300) * 0.4) : 120;
+    const h = 38;
+
+    this.renderPowerBar(this.playerPowerBar, w, h, meter, isReady, false);
+
+    if (isReady) {
+      this.playerPowerText.setText(`⚡ ${powerName.toUpperCase()} READY! ⚡`);
+      this.playerPowerText.setColor('#fff200');
+
+      if (!this.playerPowerGlowTween) {
+        this.playerPowerGlowTween = this.tweens.add({
+          targets: this.playerPowerContainer,
+          scaleX: 1.05,
+          scaleY: 1.05,
+          duration: 350,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut'
+        });
+      }
+    } else {
+      this.playerPowerText.setText(`⚡ ${powerName.toUpperCase()} ${Math.round(meter)}%`);
+      this.playerPowerText.setColor('#ffffff');
+
+      if (this.playerPowerGlowTween) {
+        this.playerPowerGlowTween.stop();
+        this.playerPowerGlowTween = undefined;
+        this.playerPowerContainer.setScale(1.0);
+      }
+    }
+  }
+
+  private updateCpuPowerUI(meter: number): void {
+    if (this.cpuPowerText) {
+      const isReady = meter >= 100;
+      this.cpuPowerText.setText(isReady ? '⚡ BURST READY!' : `⚡ POWER: ${Math.round(meter)}%`);
+      this.cpuPowerText.setColor(isReady ? '#fff200' : '#54a0ff');
+    }
+  }
+
+  private triggerPlayerPower(): void {
+    if (!this.playerBoard || this.isMatchOver || this.isPaused) return;
+    if (!this.playerBoard.canActivatePower()) {
+      SoundFx.playCancel();
+      return;
+    }
+
+    const res = this.playerBoard.activatePower(this.cpuBoard);
+    if (res.success) {
+      if (this.gameMode === 'vs_online') {
+        this.sendNetAction({
+          type: 'super_power_activated',
+          payload: {
+            characterId: this.characterId,
+            powerName: res.powerName
+          }
+        });
+      }
+    }
+  }
+
+  private showSuperPowerBanner(fromPlayer: boolean, charId: string, powerName: string): void {
+    const width = this.cameras?.main?.width || 800;
+    const height = this.cameras?.main?.height || 600;
+    const char = CHARACTERS.find((c) => c.id === charId);
+    const charName = char ? char.name.toUpperCase() : charId.toUpperCase();
+    const bannerY = this.isMobileLayout ? (fromPlayer ? height * 0.44 : height * 0.22) : height * 0.35;
+
+    const container = this.add.container(width / 2, bannerY);
+    container.setDepth(60);
+
+    const bannerW = Math.min(width - 32, 380);
+    const bannerH = 46;
+
+    const bg = this.add.graphics();
+    bg.fillStyle(fromPlayer ? 0x2c0b3d : 0x0c2461, 0.94);
+    bg.fillRoundedRect(-bannerW / 2, -bannerH / 2, bannerW, bannerH, 12);
+    bg.lineStyle(2.5, fromPlayer ? 0xff69b4 : 0x54a0ff, 1);
+    bg.strokeRoundedRect(-bannerW / 2, -bannerH / 2, bannerW, bannerH, 12);
+
+    const text = this.add.text(
+      0,
+      0,
+      `⚡ ${charName}: ${powerName.toUpperCase()}! ⚡`,
+      {
+        fontSize: '16px',
+        color: fromPlayer ? '#feca57' : '#ffffff',
+        fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 3
+      }
+    ).setOrigin(0.5);
+
+    container.add([bg, text]);
+    container.setScale(0.5);
+    container.setAlpha(0);
+
+    this.tweens.add({
+      targets: container,
+      scaleX: 1.05,
+      scaleY: 1.05,
+      alpha: 1,
+      duration: 180,
+      ease: 'Back.easeOut',
+      onComplete: () => {
+        this.time.delayedCall(1100, () => {
+          this.tweens.add({
+            targets: container,
+            y: bannerY - 30,
+            alpha: 0,
+            duration: 350,
+            ease: 'Quad.easeIn',
+            onComplete: () => container.destroy()
+          });
+        });
+      }
+    });
   }
 
   /** Smoothly update selection rectangle to follow the mouse position over the player board */
@@ -2545,10 +2813,18 @@ export default class GameScene extends Phaser.Scene {
     }
     this.padPrevButtons.set(0, swapDown);
 
-    // Button 1 (B), Button 3 (Y), L1 (4), R1 (5), L2, R2 for FAST LIFT
+    // Button 3 (Y) for Super Power Burst
+    const powerDown = Boolean(pad.Y || pad.isButtonDown(3));
+    const prevPower = this.padPrevButtons.get(3) || false;
+    if (powerDown && !prevPower) {
+      this.triggerPlayerPower();
+    }
+    this.padPrevButtons.set(3, powerDown);
+
+    // Button 1 (B), L1 (4), R1 (5), L2, R2 for FAST LIFT
     const liftDown = Boolean(
-      pad.B || pad.Y || pad.L1 || pad.R1 ||
-      pad.isButtonDown(1) || pad.isButtonDown(3) || pad.isButtonDown(4) || pad.isButtonDown(5) ||
+      pad.B || pad.L1 || pad.R1 ||
+      pad.isButtonDown(1) || pad.isButtonDown(4) || pad.isButtonDown(5) ||
       (pad.L2 > 0.3) || (pad.R2 > 0.3)
     );
     const prevLift = this.padPrevButtons.get(1) || false;
