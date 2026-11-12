@@ -787,6 +787,7 @@ export default class GameScene extends Phaser.Scene {
     this.playerBoard.on('powerActivated', (data: any) => {
       this.showSuperPowerBanner(true, data.characterId, data.powerName);
       this.triggerAvatarAttack(true);
+      this.triggerPowerVisualEffects(true, data.characterId);
     });
 
     // Wire Opponent Board Events (CPU or Online Rival)
@@ -823,6 +824,7 @@ export default class GameScene extends Phaser.Scene {
       this.cpuBoard.on('powerActivated', (data: any) => {
         this.showSuperPowerBanner(false, data.characterId, data.powerName);
         this.triggerAvatarAttack(false);
+        this.triggerPowerVisualEffects(false, data.characterId);
       });
     }
 
@@ -1173,6 +1175,7 @@ export default class GameScene extends Phaser.Scene {
     this.playerBoard.on('powerActivated', (data: any) => {
       this.showSuperPowerBanner(true, data.characterId, data.powerName);
       this.triggerAvatarAttack(true);
+      this.triggerPowerVisualEffects(true, data.characterId);
     });
 
     // Periodic arcade garbage challenge in Endless mode
@@ -1880,6 +1883,497 @@ export default class GameScene extends Phaser.Scene {
         });
       }
     });
+  }
+
+  /** Trigger rich character-specific particle bursts and visual aura animations for super powers */
+  private triggerPowerVisualEffects(fromPlayer: boolean, charId: string): void {
+    if (!this.scene || !this.scene.isActive()) return;
+
+    const userIsP1 = fromPlayer;
+    const hasOpponent = !!this.cpuBoard;
+
+    const sourceX = userIsP1 ? this.boardP1X : this.boardP2X;
+    const sourceY = userIsP1 ? this.boardP1Y : this.boardP2Y;
+    const sourceScale = userIsP1 ? this.playerBoardScale : this.cpuBoardScale;
+    const sourceW = BOARD_WIDTH * PANEL_SIZE * sourceScale;
+    const sourceH = BOARD_VISIBLE_HEIGHT * PANEL_SIZE * sourceScale;
+
+    const targetX = userIsP1 ? (hasOpponent ? this.boardP2X : this.boardP1X) : this.boardP1X;
+    const targetY = userIsP1 ? (hasOpponent ? this.boardP2Y : this.boardP1Y) : this.boardP1Y;
+    const targetScale = userIsP1 ? (hasOpponent ? this.cpuBoardScale : this.playerBoardScale) : this.playerBoardScale;
+    const targetW = BOARD_WIDTH * PANEL_SIZE * targetScale;
+    const targetH = BOARD_VISIBLE_HEIGHT * PANEL_SIZE * targetScale;
+
+    switch (charId) {
+      case 'ember': {
+        // Blazing thermal glow overlay
+        const glow = this.add.graphics();
+        glow.fillStyle(0xff4757, 0.42);
+        glow.fillRoundedRect(sourceX, sourceY, sourceW, sourceH, 8);
+        glow.lineStyle(3, 0xffa502, 0.9);
+        glow.strokeRoundedRect(sourceX, sourceY, sourceW, sourceH, 8);
+        glow.setDepth(25);
+        this.tweens.add({
+          targets: glow,
+          alpha: 0,
+          duration: 650,
+          ease: 'Quad.easeOut',
+          onComplete: () => glow.destroy()
+        });
+
+        // Rising flame and ash particle bursts
+        for (let i = 0; i < 28; i++) {
+          const px = sourceX + Math.random() * sourceW;
+          const py = sourceY + sourceH * (0.35 + Math.random() * 0.65);
+          const flame = this.add.image(px, py, 'particle_flame');
+          flame.setDepth(27);
+          flame.setScale(0.75 + Math.random() * 0.5);
+          flame.setAlpha(0.95);
+          const speedY = -75 - Math.random() * 95;
+          const driftX = (Math.random() - 0.5) * 45;
+          this.tweens.add({
+            targets: flame,
+            x: px + driftX,
+            y: py + speedY,
+            angle: (Math.random() - 0.5) * 60,
+            scaleX: 0.1,
+            scaleY: 0.1,
+            alpha: 0,
+            duration: 500 + Math.random() * 400,
+            ease: 'Cubic.easeOut',
+            onComplete: () => flame.destroy()
+          });
+        }
+        this.cameras.main.shake(140, 0.0035);
+        break;
+      }
+
+      case 'mizu': {
+        // Cascading blue/aquamarine waterfall waves streaming downward on user's board
+        const waveContainer = this.add.container(sourceX, sourceY);
+        waveContainer.setDepth(25);
+
+        const waterVeil = this.add.graphics();
+        waterVeil.fillStyle(0x00d2d3, 0.25);
+        waterVeil.fillRoundedRect(0, 0, sourceW, sourceH, 6);
+        waterVeil.lineStyle(2, 0x54a0ff, 0.85);
+        waterVeil.strokeRoundedRect(0, 0, sourceW, sourceH, 6);
+        waveContainer.add(waterVeil);
+
+        const waveTimer = this.time.addEvent({
+          delay: 150,
+          repeat: 28,
+          callback: () => {
+            if (!this.scene || !this.scene.isActive()) return;
+            for (let d = 0; d < 3; d++) {
+              const dx = Math.random() * sourceW;
+              const drop = this.add.image(dx, 0, 'particle_water');
+              drop.setScale(0.7 + Math.random() * 0.5);
+              drop.setAlpha(0.85);
+              waveContainer.add(drop);
+              this.tweens.add({
+                targets: drop,
+                y: sourceH + 12,
+                x: dx + (Math.random() - 0.5) * 25,
+                alpha: 0,
+                duration: 900 + Math.random() * 400,
+                ease: 'Quad.easeIn',
+                onComplete: () => drop.destroy()
+              });
+            }
+          }
+        });
+
+        this.time.delayedCall(4900, () => {
+          if (!this.scene || !this.scene.isActive()) return;
+          this.tweens.add({
+            targets: waveContainer,
+            alpha: 0,
+            duration: 350,
+            onComplete: () => {
+              waveTimer.remove();
+              waveContainer.destroy();
+            }
+          });
+        });
+        break;
+      }
+
+      case 'volt': {
+        // Electric zap flash on target board
+        const zapFlash = this.add.graphics();
+        zapFlash.fillStyle(0xfffa65, 0.5);
+        zapFlash.fillRoundedRect(targetX, targetY, targetW, targetH, 8);
+        zapFlash.lineStyle(3, 0x00d2d3, 1);
+        zapFlash.strokeRoundedRect(targetX, targetY, targetW, targetH, 8);
+        zapFlash.setDepth(25);
+        this.tweens.add({
+          targets: zapFlash,
+          alpha: 0,
+          duration: 250,
+          onComplete: () => zapFlash.destroy()
+        });
+
+        // Crackling electric sparks jumping around target board
+        const sparkTimer = this.time.addEvent({
+          delay: 180,
+          repeat: 28,
+          callback: () => {
+            if (!this.scene || !this.scene.isActive()) return;
+            for (let s = 0; s < 3; s++) {
+              const sx = targetX + Math.random() * targetW;
+              const sy = targetY + Math.random() * targetH;
+              const spark = this.add.image(sx, sy, 'particle_spark');
+              spark.setDepth(27);
+              spark.setScale(0.8 + Math.random() * 0.6);
+              spark.setAngle(Math.random() * 360);
+              this.tweens.add({
+                targets: spark,
+                scaleX: 1.4,
+                scaleY: 1.4,
+                alpha: 0,
+                duration: 200,
+                ease: 'Stepped',
+                onComplete: () => spark.destroy()
+              });
+            }
+          }
+        });
+
+        // Electric border glow pulsing for 6 seconds
+        const electricBorder = this.add.graphics();
+        electricBorder.lineStyle(3, 0xfffa65, 0.9);
+        electricBorder.strokeRoundedRect(targetX - 2, targetY - 2, targetW + 4, targetH + 4, 8);
+        electricBorder.setDepth(26);
+        this.tweens.add({
+          targets: electricBorder,
+          alpha: 0.25,
+          yoyo: true,
+          repeat: 12,
+          duration: 240,
+          onComplete: () => {
+            sparkTimer.remove();
+            electricBorder.destroy();
+          }
+        });
+        break;
+      }
+
+      case 'poppy': {
+        const bottomH = 2 * PANEL_SIZE * sourceScale;
+        const bottomY = sourceY + sourceH - bottomH;
+        const centerX = sourceX + sourceW / 2;
+        const centerY = bottomY + bottomH / 2;
+
+        // Shockwave rings expanding outward
+        for (let r = 0; r < 2; r++) {
+          const ring = this.add.image(centerX, centerY, 'particle_ring');
+          ring.setDepth(28);
+          ring.setScale(0.4);
+          ring.setTint(0xff69b4);
+          this.tweens.add({
+            targets: ring,
+            scaleX: 3.2 + r * 0.8,
+            scaleY: 1.6 + r * 0.4,
+            alpha: 0,
+            duration: 450 + r * 150,
+            ease: 'Quad.easeOut',
+            onComplete: () => ring.destroy()
+          });
+        }
+
+        // Golden idol sparkle and star explosion
+        for (let i = 0; i < 28; i++) {
+          const star = this.add.image(centerX + (Math.random() - 0.5) * sourceW * 0.85, centerY, 'sparkle_star');
+          star.setDepth(29);
+          const tints = [0xff69b4, 0xfeca57, 0xffffff, 0xff477e];
+          star.setTint(tints[i % tints.length]);
+          const angle = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 0.85;
+          const speed = 90 + Math.random() * 110;
+          this.tweens.add({
+            targets: star,
+            x: star.x + Math.cos(angle) * speed,
+            y: star.y + Math.sin(angle) * speed,
+            angle: (Math.random() - 0.5) * 360,
+            scaleX: 0.1,
+            scaleY: 0.1,
+            alpha: 0,
+            duration: 550 + Math.random() * 300,
+            ease: 'Quad.easeOut',
+            onComplete: () => star.destroy()
+          });
+        }
+        this.cameras.main.shake(160, 0.005);
+        break;
+      }
+
+      case 'salty': {
+        const frostContainer = this.add.container(targetX, targetY);
+        frostContainer.setDepth(25);
+
+        const frostGlow = this.add.graphics();
+        frostGlow.fillStyle(0xdff9fb, 0.32);
+        frostGlow.fillRoundedRect(0, 0, targetW, targetH, 8);
+        frostGlow.lineStyle(3, 0x00d2d3, 0.95);
+        frostGlow.strokeRoundedRect(0, 0, targetW, targetH, 8);
+        frostContainer.add(frostGlow);
+
+        const frostTimer = this.time.addEvent({
+          delay: 200,
+          repeat: 26,
+          callback: () => {
+            if (!this.scene || !this.scene.isActive()) return;
+            for (let f = 0; f < 2; f++) {
+              const fx = Math.random() * targetW;
+              const flake = this.add.image(fx, 0, 'particle_frost');
+              flake.setScale(0.7 + Math.random() * 0.5);
+              flake.setAlpha(0.9);
+              frostContainer.add(flake);
+              this.tweens.add({
+                targets: flake,
+                y: targetH + 12,
+                x: fx + Math.sin(Math.random() * 10) * 18,
+                angle: (Math.random() - 0.5) * 180,
+                alpha: 0,
+                duration: 1200 + Math.random() * 600,
+                ease: 'Sine.easeInOut',
+                onComplete: () => flake.destroy()
+              });
+            }
+          }
+        });
+
+        this.time.delayedCall(5800, () => {
+          if (!this.scene || !this.scene.isActive()) return;
+          this.tweens.add({
+            targets: frostContainer,
+            alpha: 0,
+            duration: 350,
+            onComplete: () => {
+              frostTimer.remove();
+              frostContainer.destroy();
+            }
+          });
+        });
+        break;
+      }
+
+      case 'kiri': {
+        for (let g = 0; g < 4; g++) {
+          const startX = sourceX + sourceW / 2;
+          const startY = sourceY + sourceH * 0.3;
+          const destX = targetX + (0.18 + g * 0.22) * targetW;
+          const destY = targetY + (0.28 + (g % 3) * 0.24) * targetH;
+
+          const gear = this.add.image(startX, startY, 'panel_lock_gear');
+          gear.setDepth(50);
+          gear.setScale(0.55);
+
+          this.tweens.add({
+            targets: gear,
+            x: destX,
+            y: destY,
+            angle: 720,
+            scaleX: 1.15,
+            scaleY: 1.15,
+            duration: 350 + g * 60,
+            ease: 'Back.easeIn',
+            onComplete: () => {
+              gear.destroy();
+              const ring = this.add.image(destX, destY, 'particle_ring');
+              ring.setDepth(28);
+              ring.setTint(0xf39c12);
+              this.tweens.add({
+                targets: ring,
+                scaleX: 1.8,
+                scaleY: 1.8,
+                alpha: 0,
+                duration: 250,
+                onComplete: () => ring.destroy()
+              });
+            }
+          });
+        }
+        break;
+      }
+
+      case 'mocha': {
+        const splash = this.add.graphics();
+        splash.fillStyle(0xa55eea, 0.42);
+        splash.fillRoundedRect(targetX, targetY, targetW, targetH, 8);
+        splash.lineStyle(3, 0xd6a2e8, 1);
+        splash.strokeRoundedRect(targetX, targetY, targetW, targetH, 8);
+        splash.setDepth(25);
+        this.tweens.add({
+          targets: splash,
+          alpha: 0,
+          duration: 500,
+          onComplete: () => splash.destroy()
+        });
+
+        for (let b = 0; b < 24; b++) {
+          const bx = targetX + Math.random() * targetW;
+          const by = targetY + targetH * (0.35 + Math.random() * 0.65);
+          const bubble = this.add.image(bx, by, 'particle_bubble');
+          bubble.setDepth(27);
+          bubble.setScale(0.6 + Math.random() * 0.55);
+          this.tweens.add({
+            targets: bubble,
+            y: by - (60 + Math.random() * 80),
+            x: bx + (Math.random() - 0.5) * 35,
+            scaleX: 1.1,
+            scaleY: 1.1,
+            alpha: 0,
+            duration: 600 + Math.random() * 350,
+            ease: 'Cubic.easeOut',
+            onComplete: () => bubble.destroy()
+          });
+        }
+        break;
+      }
+
+      case 'void_slime': {
+        const vortexX = targetX + targetW / 2;
+        const vortexY = targetY + targetH * 0.4;
+        const siphonDestX = sourceX + sourceW / 2;
+        const siphonDestY = sourceY + sourceH * 0.4;
+
+        for (let v = 0; v < 16; v++) {
+          this.time.delayedCall(v * 35, () => {
+            if (!this.scene || !this.scene.isActive()) return;
+            const voidParticle = this.add.image(vortexX + (Math.random() - 0.5) * 40, vortexY + (Math.random() - 0.5) * 40, 'particle_void');
+            voidParticle.setDepth(50);
+            voidParticle.setScale(0.8 + Math.random() * 0.5);
+
+            this.tweens.add({
+              targets: voidParticle,
+              x: siphonDestX,
+              y: siphonDestY,
+              angle: 360,
+              scaleX: 0.2,
+              scaleY: 0.2,
+              alpha: 0.2,
+              duration: 450,
+              ease: 'Cubic.easeInOut',
+              onComplete: () => voidParticle.destroy()
+            });
+          });
+        }
+
+        const voidFlash = this.add.graphics();
+        voidFlash.fillStyle(0x0a0312, 0.55);
+        voidFlash.fillRect(0, 0, this.cameras.main.width, this.cameras.main.height);
+        voidFlash.setDepth(48);
+        this.tweens.add({
+          targets: voidFlash,
+          alpha: 0,
+          duration: 350,
+          onComplete: () => voidFlash.destroy()
+        });
+        break;
+      }
+
+      case 'riff': {
+        const centerX = sourceX + sourceW / 2;
+        const centerY = sourceY + sourceH / 2;
+        const ring = this.add.image(centerX, centerY, 'particle_ring');
+        ring.setDepth(28);
+        ring.setScale(0.5);
+        ring.setTint(0xff69b4);
+        this.tweens.add({
+          targets: ring,
+          scaleX: 2.8,
+          scaleY: 3.5,
+          alpha: 0,
+          duration: 500,
+          ease: 'Quad.easeOut',
+          onComplete: () => ring.destroy()
+        });
+
+        const noteTimer = this.time.addEvent({
+          delay: 240,
+          repeat: 28,
+          callback: () => {
+            if (!this.scene || !this.scene.isActive()) return;
+            const nx = sourceX + Math.random() * sourceW;
+            const ny = sourceY + sourceH * (0.6 + Math.random() * 0.4);
+            const note = this.add.image(nx, ny, 'particle_note');
+            note.setDepth(27);
+            note.setScale(0.8 + Math.random() * 0.5);
+            const tints = [0xff69b4, 0x00d2d3, 0xfffa65, 0xa55eea];
+            note.setTint(tints[Math.floor(Math.random() * tints.length)]);
+            this.tweens.add({
+              targets: note,
+              y: ny - (75 + Math.random() * 65),
+              x: nx + Math.sin(Math.random() * 6) * 25,
+              angle: (Math.random() - 0.5) * 40,
+              alpha: 0,
+              duration: 1000 + Math.random() * 400,
+              ease: 'Sine.easeOut',
+              onComplete: () => note.destroy()
+            });
+          }
+        });
+
+        const neonBorder = this.add.graphics();
+        neonBorder.lineStyle(3, 0xff69b4, 0.85);
+        neonBorder.strokeRoundedRect(sourceX - 2, sourceY - 2, sourceW + 4, sourceH + 4, 8);
+        neonBorder.setDepth(26);
+        this.tweens.add({
+          targets: neonBorder,
+          alpha: 0.25,
+          yoyo: true,
+          repeat: 16,
+          duration: 250,
+          onComplete: () => {
+            noteTimer.remove();
+            neonBorder.destroy();
+          }
+        });
+        break;
+      }
+
+      case 'nano_banana': {
+        const centerX = sourceX + sourceW / 2;
+        const centerY = sourceY + sourceH * 0.45;
+
+        for (let i = 0; i < 15; i++) {
+          const star = this.add.image(centerX, centerY, 'sparkle_star');
+          star.setDepth(29);
+          star.setTint(0xfffa65);
+          const angle = Math.random() * Math.PI * 2;
+          const speed = 40 + Math.random() * 50;
+          this.tweens.add({
+            targets: star,
+            x: centerX + Math.cos(angle) * speed,
+            y: centerY + Math.sin(angle) * speed,
+            alpha: 0,
+            scaleX: 0.2,
+            scaleY: 0.2,
+            duration: 400,
+            onComplete: () => star.destroy()
+          });
+        }
+
+        const popup = this.add.text(centerX, centerY, 'NO POWER! 🍌 PURE SKILL!', {
+          fontSize: '16px',
+          color: '#fffa65',
+          fontStyle: 'bold',
+          stroke: '#2c3e50',
+          strokeThickness: 3
+        }).setOrigin(0.5).setDepth(60);
+
+        this.tweens.add({
+          targets: popup,
+          y: centerY - 35,
+          alpha: 0,
+          duration: 1100,
+          ease: 'Back.easeOut',
+          onComplete: () => popup.destroy()
+        });
+        break;
+      }
+    }
   }
 
   /** Smoothly update selection rectangle to follow the mouse position over the player board */

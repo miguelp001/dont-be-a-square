@@ -267,6 +267,111 @@ export default class BootScene extends Phaser.Scene {
     graphics.fillTriangle(gCenter - 1.5, gCenter - 1, gCenter + 1.5, gCenter - 1, gCenter, gCenter + 3.5);
     graphics.generateTexture('panel_lock_gear', gSize, gSize);
 
+    // -------------------------------------------------------------
+    // Procedural Particle Textures for Character Superpowers
+    // -------------------------------------------------------------
+
+    // 1. Ember's Flame Particle (16x16)
+    graphics.clear();
+    graphics.fillStyle(0xff4757, 0.9); // Crimson flame edge
+    graphics.fillCircle(8, 10, 6);
+    graphics.fillTriangle(2, 10, 14, 10, 8, 1);
+    graphics.fillStyle(0xffa502, 1); // Bright orange body
+    graphics.fillCircle(8, 10, 4);
+    graphics.fillTriangle(4, 10, 12, 10, 8, 3);
+    graphics.fillStyle(0xfffa65, 1); // Intense yellow core
+    graphics.fillCircle(8, 11, 2);
+    graphics.generateTexture('particle_flame', 16, 16);
+
+    // 2. Mizu's Water Droplet / Bubble Particle (14x14)
+    graphics.clear();
+    graphics.fillStyle(0x00d2d3, 0.85); // Turquoise droplet body
+    graphics.fillCircle(7, 8, 5);
+    graphics.fillTriangle(3, 7, 11, 7, 7, 1);
+    graphics.fillStyle(0x54a0ff, 0.9); // Aqua highlight
+    graphics.fillCircle(7, 9, 3);
+    graphics.fillStyle(0xffffff, 0.95); // Crisp specular gleam
+    graphics.fillCircle(5.5, 6, 1.4);
+    graphics.generateTexture('particle_water', 14, 14);
+
+    // 3. Volt's Electric Spark / Lightning Shard (16x16)
+    graphics.clear();
+    graphics.lineStyle(2, 0x00d2d3, 0.8); // Outer electric cyan glow
+    graphics.beginPath();
+    graphics.moveTo(9, 1);
+    graphics.lineTo(5, 7);
+    graphics.lineTo(11, 7);
+    graphics.lineTo(6, 15);
+    graphics.strokePath();
+    graphics.fillStyle(0xfffa65, 1); // Core electric yellow bolt
+    graphics.fillTriangle(9, 1, 4, 7.5, 10, 7.5);
+    graphics.fillTriangle(6, 7.5, 11, 7.5, 6, 15);
+    graphics.fillStyle(0xffffff, 1); // Center spark point
+    graphics.fillCircle(8, 7.5, 1.5);
+    graphics.generateTexture('particle_spark', 16, 16);
+
+    // 4. Salty's Frost Snowflake / Ice Crystal (16x16)
+    graphics.clear();
+    graphics.lineStyle(2, 0xdff9fb, 1); // Crisp ice-blue crystalline arms
+    for (let a = 0; a < 3; a++) {
+      const rad = (a * Math.PI) / 3;
+      const cos = Math.cos(rad);
+      const sin = Math.sin(rad);
+      graphics.lineBetween(8 - cos * 7, 8 - sin * 7, 8 + cos * 7, 8 + sin * 7);
+      graphics.lineBetween(8 + cos * 4 - sin * 2, 8 + sin * 4 + cos * 2, 8 + cos * 4 + sin * 2, 8 + sin * 4 - cos * 2);
+      graphics.lineBetween(8 - cos * 4 - sin * 2, 8 - sin * 4 + cos * 2, 8 - cos * 4 + sin * 2, 8 - sin * 4 - cos * 2);
+    }
+    graphics.fillStyle(0xffffff, 1); // Core frosty sparkle
+    graphics.fillCircle(8, 8, 2);
+    graphics.generateTexture('particle_frost', 16, 16);
+
+    // 5. Riff's Neon Musical Eighth Note (16x16)
+    graphics.clear();
+    graphics.fillStyle(0xff69b4, 1); // Neon magenta note head
+    graphics.fillCircle(5, 12, 3);
+    graphics.lineStyle(2, 0xff69b4, 1); // Stem
+    graphics.lineBetween(7, 12, 7, 3);
+    graphics.beginPath();
+    graphics.moveTo(7, 3);
+    graphics.lineTo(12, 5);
+    graphics.lineTo(10, 8);
+    graphics.lineTo(7, 6);
+    graphics.closePath();
+    graphics.fillStyle(0x00d2d3, 1); // Cyan accented flag
+    graphics.fillPath();
+    graphics.fillStyle(0xffffff, 0.9); // Note shine
+    graphics.fillCircle(4.5, 11, 1);
+    graphics.generateTexture('particle_note', 16, 16);
+
+    // 6. Mocha's Cauldron Potion Bubble (14x14)
+    graphics.clear();
+    graphics.fillStyle(0xa55eea, 0.85); // Rich purple translucent sphere
+    graphics.fillCircle(7, 7, 6);
+    graphics.lineStyle(1.5, 0xd6a2e8, 0.9); // Shimmering rim
+    graphics.strokeCircle(7, 7, 5.5);
+    graphics.fillStyle(0xffffff, 0.9); // Crescent highlight
+    graphics.fillCircle(5, 5, 1.8);
+    graphics.fillCircle(9, 9, 1);
+    graphics.generateTexture('particle_bubble', 14, 14);
+
+    // 7. Void Slime's Cosmic Vortex (16x16)
+    graphics.clear();
+    graphics.fillStyle(0x3b1443, 0.9); // Dark nebula backdrop
+    graphics.fillCircle(8, 8, 7);
+    graphics.fillStyle(0x8854d0, 0.9); // Swirling vortex ring
+    graphics.fillCircle(8, 8, 5);
+    graphics.fillStyle(0x0a0312, 1); // Singularity core
+    graphics.fillCircle(8, 8, 2.5);
+    graphics.fillStyle(0xffffff, 1); // Tiny event horizon gleam
+    graphics.fillCircle(6.5, 6.5, 1);
+    graphics.generateTexture('particle_void', 16, 16);
+
+    // 8. Expanding Shockwave Ring (32x32)
+    graphics.clear();
+    graphics.lineStyle(2.5, 0xffffff, 0.95);
+    graphics.strokeCircle(16, 16, 13);
+    graphics.generateTexture('particle_ring', 32, 32);
+
     // Generic panel fallback
     graphics.clear();
     graphics.fillStyle(0xffffff);
