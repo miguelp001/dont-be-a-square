@@ -12,10 +12,10 @@ import LeaderboardScene from './scenes/LeaderboardScene';
 import { GAME_WIDTH, GAME_HEIGHT, CUTE_FONT } from './utils/Constants';
 
 const dpr = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1;
-// Render all text textures at high-DPI (Retina) resolution so fonts are crisp and razor-sharp
-export const HIGH_DPI_RESOLUTION = Math.min(Math.max(dpr, 2), 3);
+// Render text crisp and clean without burning excessive texture memory / GPU upload bandwidth
+export const HIGH_DPI_RESOLUTION = Math.min(Math.max(dpr, 1), 1.5);
 
-// Globally set the default font family, high-DPI crisp resolution, and minimum readable size for all Phaser text
+// Globally set the default font family, crisp resolution, and minimum readable size for all Phaser text
 const origSetStyle = (Phaser.GameObjects.TextStyle as any).prototype.setStyle;
 (Phaser.GameObjects.TextStyle as any).prototype.setStyle = function (
   style: any,
@@ -26,7 +26,7 @@ const origSetStyle = (Phaser.GameObjects.TextStyle as any).prototype.setStyle;
     if (!style.fontFamily) {
       style.fontFamily = CUTE_FONT;
     }
-    if (!style.resolution) {
+    if (style.resolution === undefined && !this.resolution) {
       style.resolution = HIGH_DPI_RESOLUTION;
     }
     // Prevent tiny font sizes from rendering unreadably small
@@ -55,9 +55,6 @@ const origSetStyle = (Phaser.GameObjects.TextStyle as any).prototype.setStyle;
     this.fontFamily = CUTE_FONT;
     this._font = [this.fontStyle, this.fontSize, this.fontFamily].join(' ').trim();
   }
-  if (!this.resolution || this.resolution === 1) {
-    this.resolution = HIGH_DPI_RESOLUTION;
-  }
   return result;
 };
 
@@ -70,9 +67,10 @@ const config: Phaser.Types.Core.GameConfig = {
   roundPixels: true,
   render: {
     pixelArt: false,
-    antialias: true,
-    antialiasGL: true,
-    roundPixels: true
+    antialias: false,
+    antialiasGL: false,
+    roundPixels: true,
+    powerPreference: 'high-performance'
   },
   input: {
     gamepad: true

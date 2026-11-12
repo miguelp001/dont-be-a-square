@@ -281,6 +281,21 @@ export default class AIBot {
       this.actionTimer = 0;
       this.step();
 
+      // AI Super Power Activation: Strategic decision based on character archetype
+      if (this.board.canActivatePower()) {
+        const isDefensive = this.board.characterId === 'poppy' || this.board.characterId === 'mizu';
+        if (isDefensive) {
+          if (this.board.isDanger || this.board.getStackHeight() >= 7) {
+            this.board.activatePower(this.opponentBoard);
+          }
+        } else {
+          // Offensive / Disruption characters fire when charged
+          if (Math.random() < 0.25) {
+            this.board.activatePower(this.opponentBoard);
+          }
+        }
+      }
+
       if (this.personality.burstSteps > 1) {
         this.currentBurstCount++;
         if (this.currentBurstCount >= this.personality.burstSteps) {
@@ -292,21 +307,6 @@ export default class AIBot {
 
     // Offensive lift timer based on personality
     this.updateOffensiveLift(delta);
-
-    // AI Super Power Activation: Strategic decision based on character archetype
-    if (this.board.canActivatePower()) {
-      const isDefensive = this.board.characterId === 'poppy' || this.board.characterId === 'mizu';
-      if (isDefensive) {
-        if (this.board.isDanger || this.board.getStackHeight() >= 7) {
-          this.board.activatePower(this.opponentBoard);
-        }
-      } else {
-        // Offensive / Disruption characters fire when charged
-        if (Math.random() < 0.035) {
-          this.board.activatePower(this.opponentBoard);
-        }
-      }
-    }
   }
 
   private updateOffensiveLift(delta: number): void {

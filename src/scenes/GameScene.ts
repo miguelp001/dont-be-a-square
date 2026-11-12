@@ -50,10 +50,13 @@ export default class GameScene extends Phaser.Scene {
   private playerPowerBar?: Phaser.GameObjects.Graphics;
   private playerPowerText?: Phaser.GameObjects.Text;
   private playerPowerGlowTween?: Phaser.Tweens.Tween;
+  private lastPlayerPowerMeter: number = -1;
+  private lastPlayerPowerReady: boolean = false;
 
   private cpuPowerContainer?: Phaser.GameObjects.Container;
   private cpuPowerBar?: Phaser.GameObjects.Graphics;
   private cpuPowerText?: Phaser.GameObjects.Text;
+  private lastCpuPowerMeter: number = -1;
 
   // Opponent (CPU or Online)
   private cpuBoard?: Board;
@@ -1762,14 +1765,21 @@ export default class GameScene extends Phaser.Scene {
     if (!this.playerPowerContainer || !this.playerPowerBar || !this.playerPowerText) return;
     if (this.characterId === 'nano_banana') return;
 
+    const rounded = Math.round(meter);
+    const isReady = rounded >= 100;
+    if (rounded === this.lastPlayerPowerMeter && isReady === this.lastPlayerPowerReady) {
+      return;
+    }
+    this.lastPlayerPowerMeter = rounded;
+    this.lastPlayerPowerReady = isReady;
+
     const char = CHARACTERS.find((c) => c.id === this.characterId);
     const powerName = char?.powerName || 'POWER';
-    const isReady = meter >= 100;
     const isMobile = this.isMobileLayout;
     const w = this.playerPowerBar ? Math.round((isMobile ? Math.min(this.cameras.main.width - 24, 340) : 300) * 0.4) : 120;
     const h = 38;
 
-    this.renderPowerBar(this.playerPowerBar, w, h, meter, isReady, false);
+    this.renderPowerBar(this.playerPowerBar, w, h, rounded, isReady, false);
 
     if (isReady) {
       this.playerPowerText.setText(`⚡ ${powerName.toUpperCase()} READY! ⚡`);
@@ -1787,7 +1797,7 @@ export default class GameScene extends Phaser.Scene {
         });
       }
     } else {
-      this.playerPowerText.setText(`⚡ ${powerName.toUpperCase()} ${Math.round(meter)}%`);
+      this.playerPowerText.setText(`⚡ ${powerName.toUpperCase()} ${rounded}%`);
       this.playerPowerText.setColor('#ffffff');
 
       if (this.playerPowerGlowTween) {
@@ -1800,8 +1810,11 @@ export default class GameScene extends Phaser.Scene {
 
   private updateCpuPowerUI(meter: number): void {
     if (this.cpuPowerText) {
-      const isReady = meter >= 100;
-      this.cpuPowerText.setText(isReady ? '⚡ BURST READY!' : `⚡ POWER: ${Math.round(meter)}%`);
+      const rounded = Math.round(meter);
+      if (rounded === this.lastCpuPowerMeter) return;
+      this.lastCpuPowerMeter = rounded;
+      const isReady = rounded >= 100;
+      this.cpuPowerText.setText(isReady ? '⚡ BURST READY!' : `⚡ POWER: ${rounded}%`);
       this.cpuPowerText.setColor(isReady ? '#fff200' : '#54a0ff');
     }
   }
@@ -1885,7 +1898,7 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
-  /** Trigger rich character-specific particle bursts and visual aura animations for super powers */
+  /** Trigger rich character-specific particle bursts and visual aura animations for super powers (optimized) */
   private triggerPowerVisualEffects(fromPlayer: boolean, charId: string): void {
     if (!this.scene || !this.scene.isActive()) return;
 
@@ -1906,156 +1919,112 @@ export default class GameScene extends Phaser.Scene {
 
     switch (charId) {
       case 'ember': {
-        // Blazing thermal glow overlay
         const glow = this.add.graphics();
-        glow.fillStyle(0xff4757, 0.42);
-        glow.fillRoundedRect(sourceX, sourceY, sourceW, sourceH, 8);
-        glow.lineStyle(3, 0xffa502, 0.9);
-        glow.strokeRoundedRect(sourceX, sourceY, sourceW, sourceH, 8);
+        glow.fillStyle(0xff4757, 0.35);
+        glow.fillRoundedRect(sourceX, sourceY, sourceW, sourceH, 6);
+        glow.lineStyle(2.5, 0xffa502, 0.85);
+        glow.strokeRoundedRect(sourceX, sourceY, sourceW, sourceH, 6);
         glow.setDepth(25);
         this.tweens.add({
           targets: glow,
           alpha: 0,
-          duration: 650,
+          duration: 450,
           ease: 'Quad.easeOut',
           onComplete: () => glow.destroy()
         });
 
-        // Rising flame and ash particle bursts
-        for (let i = 0; i < 28; i++) {
-          const px = sourceX + Math.random() * sourceW;
-          const py = sourceY + sourceH * (0.35 + Math.random() * 0.65);
+        // Lightweight 10-particle flame burst
+        for (let i = 0; i < 10; i++) {
+          const px = sourceX + (0.15 + i * 0.08) * sourceW;
+          const py = sourceY + sourceH * (0.5 + Math.random() * 0.4);
           const flame = this.add.image(px, py, 'particle_flame');
           flame.setDepth(27);
-          flame.setScale(0.75 + Math.random() * 0.5);
-          flame.setAlpha(0.95);
-          const speedY = -75 - Math.random() * 95;
-          const driftX = (Math.random() - 0.5) * 45;
+          flame.setScale(0.8);
           this.tweens.add({
             targets: flame,
-            x: px + driftX,
-            y: py + speedY,
-            angle: (Math.random() - 0.5) * 60,
+            y: py - 60 - Math.random() * 50,
+            x: px + (Math.random() - 0.5) * 30,
             scaleX: 0.1,
             scaleY: 0.1,
             alpha: 0,
-            duration: 500 + Math.random() * 400,
+            duration: 400 + Math.random() * 200,
             ease: 'Cubic.easeOut',
             onComplete: () => flame.destroy()
           });
         }
-        this.cameras.main.shake(140, 0.0035);
+        this.cameras.main.shake(100, 0.0025);
         break;
       }
 
       case 'mizu': {
-        // Cascading blue/aquamarine waterfall waves streaming downward on user's board
-        const waveContainer = this.add.container(sourceX, sourceY);
-        waveContainer.setDepth(25);
-
         const waterVeil = this.add.graphics();
-        waterVeil.fillStyle(0x00d2d3, 0.25);
-        waterVeil.fillRoundedRect(0, 0, sourceW, sourceH, 6);
-        waterVeil.lineStyle(2, 0x54a0ff, 0.85);
-        waterVeil.strokeRoundedRect(0, 0, sourceW, sourceH, 6);
-        waveContainer.add(waterVeil);
+        waterVeil.fillStyle(0x00d2d3, 0.22);
+        waterVeil.fillRoundedRect(sourceX, sourceY, sourceW, sourceH, 6);
+        waterVeil.lineStyle(2, 0x54a0ff, 0.8);
+        waterVeil.strokeRoundedRect(sourceX, sourceY, sourceW, sourceH, 6);
+        waterVeil.setDepth(25);
 
-        const waveTimer = this.time.addEvent({
-          delay: 150,
-          repeat: 28,
-          callback: () => {
-            if (!this.scene || !this.scene.isActive()) return;
-            for (let d = 0; d < 3; d++) {
-              const dx = Math.random() * sourceW;
-              const drop = this.add.image(dx, 0, 'particle_water');
-              drop.setScale(0.7 + Math.random() * 0.5);
-              drop.setAlpha(0.85);
-              waveContainer.add(drop);
-              this.tweens.add({
-                targets: drop,
-                y: sourceH + 12,
-                x: dx + (Math.random() - 0.5) * 25,
-                alpha: 0,
-                duration: 900 + Math.random() * 400,
-                ease: 'Quad.easeIn',
-                onComplete: () => drop.destroy()
-              });
-            }
-          }
-        });
-
-        this.time.delayedCall(4900, () => {
-          if (!this.scene || !this.scene.isActive()) return;
+        // 6 cascading droplets with staggered tweens
+        for (let d = 0; d < 6; d++) {
+          const dx = sourceX + (0.15 + d * 0.14) * sourceW;
+          const drop = this.add.image(dx, sourceY, 'particle_water');
+          drop.setDepth(27);
+          drop.setScale(0.8);
+          drop.setAlpha(0);
           this.tweens.add({
-            targets: waveContainer,
-            alpha: 0,
-            duration: 350,
-            onComplete: () => {
-              waveTimer.remove();
-              waveContainer.destroy();
-            }
+            targets: drop,
+            y: sourceY + sourceH,
+            alpha: { from: 0.9, to: 0 },
+            delay: d * 220,
+            duration: 800,
+            ease: 'Quad.easeIn',
+            onComplete: () => drop.destroy()
           });
+        }
+
+        this.tweens.add({
+          targets: waterVeil,
+          alpha: 0,
+          delay: 2400,
+          duration: 600,
+          onComplete: () => waterVeil.destroy()
         });
         break;
       }
 
       case 'volt': {
-        // Electric zap flash on target board
         const zapFlash = this.add.graphics();
-        zapFlash.fillStyle(0xfffa65, 0.5);
-        zapFlash.fillRoundedRect(targetX, targetY, targetW, targetH, 8);
-        zapFlash.lineStyle(3, 0x00d2d3, 1);
-        zapFlash.strokeRoundedRect(targetX, targetY, targetW, targetH, 8);
+        zapFlash.fillStyle(0xfffa65, 0.45);
+        zapFlash.fillRoundedRect(targetX, targetY, targetW, targetH, 6);
+        zapFlash.lineStyle(2.5, 0x00d2d3, 0.9);
+        zapFlash.strokeRoundedRect(targetX, targetY, targetW, targetH, 6);
         zapFlash.setDepth(25);
         this.tweens.add({
           targets: zapFlash,
           alpha: 0,
-          duration: 250,
+          duration: 200,
           onComplete: () => zapFlash.destroy()
         });
 
-        // Crackling electric sparks jumping around target board
-        const sparkTimer = this.time.addEvent({
-          delay: 180,
-          repeat: 28,
-          callback: () => {
+        // 6 crisp sparks over time
+        for (let s = 0; s < 6; s++) {
+          this.time.delayedCall(s * 350, () => {
             if (!this.scene || !this.scene.isActive()) return;
-            for (let s = 0; s < 3; s++) {
-              const sx = targetX + Math.random() * targetW;
-              const sy = targetY + Math.random() * targetH;
-              const spark = this.add.image(sx, sy, 'particle_spark');
-              spark.setDepth(27);
-              spark.setScale(0.8 + Math.random() * 0.6);
-              spark.setAngle(Math.random() * 360);
-              this.tweens.add({
-                targets: spark,
-                scaleX: 1.4,
-                scaleY: 1.4,
-                alpha: 0,
-                duration: 200,
-                ease: 'Stepped',
-                onComplete: () => spark.destroy()
-              });
-            }
-          }
-        });
-
-        // Electric border glow pulsing for 6 seconds
-        const electricBorder = this.add.graphics();
-        electricBorder.lineStyle(3, 0xfffa65, 0.9);
-        electricBorder.strokeRoundedRect(targetX - 2, targetY - 2, targetW + 4, targetH + 4, 8);
-        electricBorder.setDepth(26);
-        this.tweens.add({
-          targets: electricBorder,
-          alpha: 0.25,
-          yoyo: true,
-          repeat: 12,
-          duration: 240,
-          onComplete: () => {
-            sparkTimer.remove();
-            electricBorder.destroy();
-          }
-        });
+            const sx = targetX + Math.random() * targetW;
+            const sy = targetY + Math.random() * targetH;
+            const spark = this.add.image(sx, sy, 'particle_spark');
+            spark.setDepth(27);
+            spark.setScale(0.9);
+            this.tweens.add({
+              targets: spark,
+              scaleX: 1.3,
+              scaleY: 1.3,
+              alpha: 0,
+              duration: 180,
+              onComplete: () => spark.destroy()
+            });
+          });
+        }
         break;
       }
 
@@ -2065,118 +2034,98 @@ export default class GameScene extends Phaser.Scene {
         const centerX = sourceX + sourceW / 2;
         const centerY = bottomY + bottomH / 2;
 
-        // Shockwave rings expanding outward
-        for (let r = 0; r < 2; r++) {
-          const ring = this.add.image(centerX, centerY, 'particle_ring');
-          ring.setDepth(28);
-          ring.setScale(0.4);
-          ring.setTint(0xff69b4);
-          this.tweens.add({
-            targets: ring,
-            scaleX: 3.2 + r * 0.8,
-            scaleY: 1.6 + r * 0.4,
-            alpha: 0,
-            duration: 450 + r * 150,
-            ease: 'Quad.easeOut',
-            onComplete: () => ring.destroy()
-          });
-        }
+        const ring = this.add.image(centerX, centerY, 'particle_ring');
+        ring.setDepth(28);
+        ring.setScale(0.4);
+        ring.setTint(0xff69b4);
+        this.tweens.add({
+          targets: ring,
+          scaleX: 3.0,
+          scaleY: 1.5,
+          alpha: 0,
+          duration: 400,
+          ease: 'Quad.easeOut',
+          onComplete: () => ring.destroy()
+        });
 
-        // Golden idol sparkle and star explosion
-        for (let i = 0; i < 28; i++) {
-          const star = this.add.image(centerX + (Math.random() - 0.5) * sourceW * 0.85, centerY, 'sparkle_star');
+        for (let i = 0; i < 10; i++) {
+          const star = this.add.image(centerX + (Math.random() - 0.5) * sourceW * 0.7, centerY, 'sparkle_star');
           star.setDepth(29);
-          const tints = [0xff69b4, 0xfeca57, 0xffffff, 0xff477e];
+          const tints = [0xff69b4, 0xfeca57, 0xffffff];
           star.setTint(tints[i % tints.length]);
-          const angle = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 0.85;
-          const speed = 90 + Math.random() * 110;
+          const angle = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 0.7;
+          const speed = 70 + Math.random() * 60;
           this.tweens.add({
             targets: star,
             x: star.x + Math.cos(angle) * speed,
             y: star.y + Math.sin(angle) * speed,
-            angle: (Math.random() - 0.5) * 360,
             scaleX: 0.1,
             scaleY: 0.1,
             alpha: 0,
-            duration: 550 + Math.random() * 300,
+            duration: 450,
             ease: 'Quad.easeOut',
             onComplete: () => star.destroy()
           });
         }
-        this.cameras.main.shake(160, 0.005);
+        this.cameras.main.shake(100, 0.003);
         break;
       }
 
       case 'salty': {
-        const frostContainer = this.add.container(targetX, targetY);
-        frostContainer.setDepth(25);
-
         const frostGlow = this.add.graphics();
-        frostGlow.fillStyle(0xdff9fb, 0.32);
-        frostGlow.fillRoundedRect(0, 0, targetW, targetH, 8);
-        frostGlow.lineStyle(3, 0x00d2d3, 0.95);
-        frostGlow.strokeRoundedRect(0, 0, targetW, targetH, 8);
-        frostContainer.add(frostGlow);
+        frostGlow.fillStyle(0xdff9fb, 0.28);
+        frostGlow.fillRoundedRect(targetX, targetY, targetW, targetH, 6);
+        frostGlow.lineStyle(2.5, 0x00d2d3, 0.9);
+        frostGlow.strokeRoundedRect(targetX, targetY, targetW, targetH, 6);
+        frostGlow.setDepth(25);
 
-        const frostTimer = this.time.addEvent({
-          delay: 200,
-          repeat: 26,
-          callback: () => {
+        for (let f = 0; f < 6; f++) {
+          this.time.delayedCall(f * 380, () => {
             if (!this.scene || !this.scene.isActive()) return;
-            for (let f = 0; f < 2; f++) {
-              const fx = Math.random() * targetW;
-              const flake = this.add.image(fx, 0, 'particle_frost');
-              flake.setScale(0.7 + Math.random() * 0.5);
-              flake.setAlpha(0.9);
-              frostContainer.add(flake);
-              this.tweens.add({
-                targets: flake,
-                y: targetH + 12,
-                x: fx + Math.sin(Math.random() * 10) * 18,
-                angle: (Math.random() - 0.5) * 180,
-                alpha: 0,
-                duration: 1200 + Math.random() * 600,
-                ease: 'Sine.easeInOut',
-                onComplete: () => flake.destroy()
-              });
-            }
-          }
-        });
-
-        this.time.delayedCall(5800, () => {
-          if (!this.scene || !this.scene.isActive()) return;
-          this.tweens.add({
-            targets: frostContainer,
-            alpha: 0,
-            duration: 350,
-            onComplete: () => {
-              frostTimer.remove();
-              frostContainer.destroy();
-            }
+            const fx = targetX + (0.15 + f * 0.14) * targetW;
+            const flake = this.add.image(fx, targetY, 'particle_frost');
+            flake.setDepth(27);
+            flake.setScale(0.8);
+            this.tweens.add({
+              targets: flake,
+              y: targetY + targetH,
+              alpha: { from: 0.9, to: 0 },
+              duration: 900,
+              ease: 'Sine.easeInOut',
+              onComplete: () => flake.destroy()
+            });
           });
+        }
+
+        this.tweens.add({
+          targets: frostGlow,
+          alpha: 0,
+          delay: 2800,
+          duration: 500,
+          onComplete: () => frostGlow.destroy()
         });
         break;
       }
 
       case 'kiri': {
-        for (let g = 0; g < 4; g++) {
+        for (let g = 0; g < 3; g++) {
           const startX = sourceX + sourceW / 2;
           const startY = sourceY + sourceH * 0.3;
-          const destX = targetX + (0.18 + g * 0.22) * targetW;
-          const destY = targetY + (0.28 + (g % 3) * 0.24) * targetH;
+          const destX = targetX + (0.25 + g * 0.25) * targetW;
+          const destY = targetY + (0.35 + (g % 2) * 0.25) * targetH;
 
           const gear = this.add.image(startX, startY, 'panel_lock_gear');
           gear.setDepth(50);
-          gear.setScale(0.55);
+          gear.setScale(0.6);
 
           this.tweens.add({
             targets: gear,
             x: destX,
             y: destY,
-            angle: 720,
-            scaleX: 1.15,
-            scaleY: 1.15,
-            duration: 350 + g * 60,
+            angle: 360,
+            scaleX: 1.1,
+            scaleY: 1.1,
+            duration: 320 + g * 50,
             ease: 'Back.easeIn',
             onComplete: () => {
               gear.destroy();
@@ -2185,10 +2134,10 @@ export default class GameScene extends Phaser.Scene {
               ring.setTint(0xf39c12);
               this.tweens.add({
                 targets: ring,
-                scaleX: 1.8,
-                scaleY: 1.8,
+                scaleX: 1.5,
+                scaleY: 1.5,
                 alpha: 0,
-                duration: 250,
+                duration: 200,
                 onComplete: () => ring.destroy()
               });
             }
@@ -2199,32 +2148,31 @@ export default class GameScene extends Phaser.Scene {
 
       case 'mocha': {
         const splash = this.add.graphics();
-        splash.fillStyle(0xa55eea, 0.42);
-        splash.fillRoundedRect(targetX, targetY, targetW, targetH, 8);
-        splash.lineStyle(3, 0xd6a2e8, 1);
-        splash.strokeRoundedRect(targetX, targetY, targetW, targetH, 8);
+        splash.fillStyle(0xa55eea, 0.35);
+        splash.fillRoundedRect(targetX, targetY, targetW, targetH, 6);
+        splash.lineStyle(2.5, 0xd6a2e8, 0.9);
+        splash.strokeRoundedRect(targetX, targetY, targetW, targetH, 6);
         splash.setDepth(25);
         this.tweens.add({
           targets: splash,
           alpha: 0,
-          duration: 500,
+          duration: 400,
           onComplete: () => splash.destroy()
         });
 
-        for (let b = 0; b < 24; b++) {
-          const bx = targetX + Math.random() * targetW;
-          const by = targetY + targetH * (0.35 + Math.random() * 0.65);
+        for (let b = 0; b < 8; b++) {
+          const bx = targetX + (0.15 + b * 0.1) * targetW;
+          const by = targetY + targetH * (0.5 + Math.random() * 0.4);
           const bubble = this.add.image(bx, by, 'particle_bubble');
           bubble.setDepth(27);
-          bubble.setScale(0.6 + Math.random() * 0.55);
+          bubble.setScale(0.7);
           this.tweens.add({
             targets: bubble,
-            y: by - (60 + Math.random() * 80),
-            x: bx + (Math.random() - 0.5) * 35,
-            scaleX: 1.1,
-            scaleY: 1.1,
+            y: by - 55,
+            scaleX: 1.0,
+            scaleY: 1.0,
             alpha: 0,
-            duration: 600 + Math.random() * 350,
+            duration: 450 + Math.random() * 200,
             ease: 'Cubic.easeOut',
             onComplete: () => bubble.destroy()
           });
@@ -2238,38 +2186,26 @@ export default class GameScene extends Phaser.Scene {
         const siphonDestX = sourceX + sourceW / 2;
         const siphonDestY = sourceY + sourceH * 0.4;
 
-        for (let v = 0; v < 16; v++) {
-          this.time.delayedCall(v * 35, () => {
+        for (let v = 0; v < 6; v++) {
+          this.time.delayedCall(v * 50, () => {
             if (!this.scene || !this.scene.isActive()) return;
-            const voidParticle = this.add.image(vortexX + (Math.random() - 0.5) * 40, vortexY + (Math.random() - 0.5) * 40, 'particle_void');
+            const voidParticle = this.add.image(vortexX + (Math.random() - 0.5) * 30, vortexY + (Math.random() - 0.5) * 30, 'particle_void');
             voidParticle.setDepth(50);
-            voidParticle.setScale(0.8 + Math.random() * 0.5);
+            voidParticle.setScale(0.75);
 
             this.tweens.add({
               targets: voidParticle,
               x: siphonDestX,
               y: siphonDestY,
-              angle: 360,
               scaleX: 0.2,
               scaleY: 0.2,
               alpha: 0.2,
-              duration: 450,
+              duration: 380,
               ease: 'Cubic.easeInOut',
               onComplete: () => voidParticle.destroy()
             });
           });
         }
-
-        const voidFlash = this.add.graphics();
-        voidFlash.fillStyle(0x0a0312, 0.55);
-        voidFlash.fillRect(0, 0, this.cameras.main.width, this.cameras.main.height);
-        voidFlash.setDepth(48);
-        this.tweens.add({
-          targets: voidFlash,
-          alpha: 0,
-          duration: 350,
-          onComplete: () => voidFlash.destroy()
-        });
         break;
       }
 
@@ -2282,54 +2218,34 @@ export default class GameScene extends Phaser.Scene {
         ring.setTint(0xff69b4);
         this.tweens.add({
           targets: ring,
-          scaleX: 2.8,
-          scaleY: 3.5,
+          scaleX: 2.5,
+          scaleY: 3.0,
           alpha: 0,
-          duration: 500,
+          duration: 400,
           ease: 'Quad.easeOut',
           onComplete: () => ring.destroy()
         });
 
-        const noteTimer = this.time.addEvent({
-          delay: 240,
-          repeat: 28,
-          callback: () => {
+        for (let n = 0; n < 6; n++) {
+          this.time.delayedCall(n * 350, () => {
             if (!this.scene || !this.scene.isActive()) return;
-            const nx = sourceX + Math.random() * sourceW;
-            const ny = sourceY + sourceH * (0.6 + Math.random() * 0.4);
+            const nx = sourceX + (0.15 + n * 0.14) * sourceW;
+            const ny = sourceY + sourceH * 0.7;
             const note = this.add.image(nx, ny, 'particle_note');
             note.setDepth(27);
-            note.setScale(0.8 + Math.random() * 0.5);
-            const tints = [0xff69b4, 0x00d2d3, 0xfffa65, 0xa55eea];
-            note.setTint(tints[Math.floor(Math.random() * tints.length)]);
+            note.setScale(0.8);
+            const tints = [0xff69b4, 0x00d2d3, 0xfffa65];
+            note.setTint(tints[n % tints.length]);
             this.tweens.add({
               targets: note,
-              y: ny - (75 + Math.random() * 65),
-              x: nx + Math.sin(Math.random() * 6) * 25,
-              angle: (Math.random() - 0.5) * 40,
+              y: ny - 60,
               alpha: 0,
-              duration: 1000 + Math.random() * 400,
+              duration: 700,
               ease: 'Sine.easeOut',
               onComplete: () => note.destroy()
             });
-          }
-        });
-
-        const neonBorder = this.add.graphics();
-        neonBorder.lineStyle(3, 0xff69b4, 0.85);
-        neonBorder.strokeRoundedRect(sourceX - 2, sourceY - 2, sourceW + 4, sourceH + 4, 8);
-        neonBorder.setDepth(26);
-        this.tweens.add({
-          targets: neonBorder,
-          alpha: 0.25,
-          yoyo: true,
-          repeat: 16,
-          duration: 250,
-          onComplete: () => {
-            noteTimer.remove();
-            neonBorder.destroy();
-          }
-        });
+          });
+        }
         break;
       }
 
@@ -2337,26 +2253,25 @@ export default class GameScene extends Phaser.Scene {
         const centerX = sourceX + sourceW / 2;
         const centerY = sourceY + sourceH * 0.45;
 
-        for (let i = 0; i < 15; i++) {
+        for (let i = 0; i < 6; i++) {
           const star = this.add.image(centerX, centerY, 'sparkle_star');
           star.setDepth(29);
           star.setTint(0xfffa65);
-          const angle = Math.random() * Math.PI * 2;
-          const speed = 40 + Math.random() * 50;
+          const angle = (i * Math.PI) / 3;
           this.tweens.add({
             targets: star,
-            x: centerX + Math.cos(angle) * speed,
-            y: centerY + Math.sin(angle) * speed,
+            x: centerX + Math.cos(angle) * 45,
+            y: centerY + Math.sin(angle) * 45,
             alpha: 0,
             scaleX: 0.2,
             scaleY: 0.2,
-            duration: 400,
+            duration: 350,
             onComplete: () => star.destroy()
           });
         }
 
         const popup = this.add.text(centerX, centerY, 'NO POWER! 🍌 PURE SKILL!', {
-          fontSize: '16px',
+          fontSize: '15px',
           color: '#fffa65',
           fontStyle: 'bold',
           stroke: '#2c3e50',
@@ -2365,9 +2280,9 @@ export default class GameScene extends Phaser.Scene {
 
         this.tweens.add({
           targets: popup,
-          y: centerY - 35,
+          y: centerY - 30,
           alpha: 0,
-          duration: 1100,
+          duration: 900,
           ease: 'Back.easeOut',
           onComplete: () => popup.destroy()
         });
