@@ -45,7 +45,7 @@ export function computeOptionsMenuLayout(
   const starOffset = isMobile ? Math.min(160, Math.round(width * 0.38)) : Math.round(160 * uiScale);
   const starScale = (isMobile ? 0.85 : 1.2) * (isMobile ? 1.0 : uiScale);
 
-  // Two-row navigation tabs on mobile for generous, touch-friendly, unmissable buttons
+  // Two-row navigation tabs on mobile for generous, touch-friendly 2x2 grid (Gameplay, Audio / Stats, About)
   const isTwoRowTabs = isMobile;
   const tabHeight = Math.round((isMobile ? 26 : 32) * (isMobile ? 1.0 : Math.min(1.2, uiScale)));
   const tabSpacing = isMobile ? (width < 390 ? 5 : 6) : Math.round(6 * uiScale);
@@ -56,20 +56,20 @@ export function computeOptionsMenuLayout(
   const tabY2 = isTwoRowTabs ? tabY + tabHeight + 5 : tabY;
   const tabBottom = isTwoRowTabs ? tabY2 + tabHeight / 2 : tabY + tabHeight / 2;
 
-  // On mobile: Row 1 has 3 tabs (Audio, Controls, Guide), Row 2 has 2 tabs (AI, Stats)
-  const row1TabWidth = isTwoRowTabs ? Math.floor((availableW - 2 * tabSpacing) / 3) : 0;
+  // On mobile: 2x2 grid (Row 1: Gameplay, Audio; Row 2: Stats, About)
+  const row1TabWidth = isTwoRowTabs ? Math.floor((availableW - 1 * tabSpacing) / 2) : 0;
   const row2TabWidth = isTwoRowTabs ? Math.floor((availableW - 1 * tabSpacing) / 2) : 0;
 
-  // Desktop single-row metrics (5 tabs):
-  const tabCount = 5;
+  // Desktop single-row metrics (4 tabs: Gameplay, Audio, Stats, About):
+  const tabCount = 4;
   const maxTabW = isMobile
     ? row1TabWidth
     : Math.floor((availableW - (tabCount - 1) * tabSpacing) / tabCount);
   const tabWidth = isMobile
     ? row1TabWidth
-    : Math.max(90, Math.min(maxTabW, Math.round(110 * uiScale)));
+    : Math.max(100, Math.min(maxTabW, Math.round(120 * uiScale)));
   const totalTabWidth = isTwoRowTabs
-    ? Math.max(row1TabWidth * 3 + tabSpacing * 2, row2TabWidth * 2 + tabSpacing)
+    ? Math.max(row1TabWidth * 2 + tabSpacing, row2TabWidth * 2 + tabSpacing)
     : tabCount * tabWidth + (tabCount - 1) * tabSpacing;
   const useShortLabels = isMobile && width < 480;
 

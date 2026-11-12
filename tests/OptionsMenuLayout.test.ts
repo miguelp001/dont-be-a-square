@@ -85,4 +85,20 @@ describe('OptionsMenuLayout - Responsive Mobile & Desktop Layout', () => {
     expect(layout.backBtnY).toBeLessThanOrEqual(720 - 20);
     expect(layout.useMobileControlsSubTabs).toBe(false);
   });
+
+  it('6. Streamlined 4-Tab Reorganization (Gameplay, Audio, Stats, About)', () => {
+    // Mobile 2x2 grid tabs fit within mobile width
+    const mobileLayout = computeOptionsMenuLayout(360, 640, 1.0);
+    expect(mobileLayout.isTwoRowTabs).toBe(true);
+    expect(mobileLayout.row1TabWidth).toBeDefined();
+    expect(mobileLayout.row2TabWidth).toBeDefined();
+    // 2 tabs per row
+    expect((mobileLayout.row1TabWidth! * 2) + mobileLayout.tabSpacing).toBeLessThanOrEqual(360 - 16);
+
+    // Desktop 4 tabs in a single row
+    const desktopLayout = computeOptionsMenuLayout(1280, 720, 1.0);
+    expect(desktopLayout.isTwoRowTabs).toBe(false);
+    expect(desktopLayout.totalTabWidth).toBeLessThanOrEqual(1280 - 32);
+    expect(desktopLayout.tabWidth).toBeGreaterThanOrEqual(100);
+  });
 });
