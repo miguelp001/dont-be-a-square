@@ -95,10 +95,10 @@ export default class ChallengeMapScene extends Phaser.Scene {
     const diffInfo = getDifficultyInfo(this.difficulty);
     this.add
       .text(width / 2, isMobile ? 46 : Math.round(54 * uiScale), `[${diffInfo.badgeText}] • Defeat all 7 challengers in any order to claim the crown!`, {
-        fontSize: isMobile ? '10px' : Math.round(11 * uiScale) + 'px',
+        fontSize: isMobile ? '12px' : Math.round(13 * uiScale) + 'px',
         color: diffInfo.hexColor,
         stroke: '#000000',
-        strokeThickness: 2
+        strokeThickness: 1.5
       })
       .setOrigin(0.5);
 
@@ -121,29 +121,29 @@ export default class ChallengeMapScene extends Phaser.Scene {
 
     if (isMobile) {
       this.add.text(barX + 38, barY + barH / 2 - 7, `${playerChar.name}`, {
-        fontSize: '11px',
+        fontSize: '13px',
         color: '#ff69b4',
         fontStyle: 'bold',
         stroke: '#000000',
-        strokeThickness: 2
+        strokeThickness: 1.5
       });
       this.add.text(barX + 38, barY + barH / 2 + 7, `⭐ ${this.challengeScore.toLocaleString()} PTS`, {
-        fontSize: '10px',
+        fontSize: '12px',
         color: '#2ed573',
         fontStyle: 'bold',
         stroke: '#000000',
-        strokeThickness: 2
+        strokeThickness: 1.5
       });
     } else {
       this.add.text(barX + Math.round(50 * uiScale), barY + barH / 2 - Math.round(10 * uiScale), `Fighter: ${playerChar.name}`, {
-        fontSize: Math.round(13 * uiScale) + 'px',
+        fontSize: Math.round(15 * uiScale) + 'px',
         color: '#ff69b4',
         fontStyle: 'bold',
         stroke: '#000000',
         strokeThickness: 2
       });
       this.add.text(barX + Math.round(50 * uiScale), barY + barH / 2 + Math.round(7 * uiScale), playerChar.species, {
-        fontSize: Math.round(10.5 * uiScale) + 'px',
+        fontSize: Math.round(12.5 * uiScale) + 'px',
         color: '#ff9ff3',
         fontStyle: 'italic',
         stroke: '#000000',
@@ -474,17 +474,17 @@ export default class ChallengeMapScene extends Phaser.Scene {
     const contentX = isMobile ? x + 18 : x;
     const nameY = isMobile ? y - 18 : y + Math.round(2 * cardScale);
     const nameText = this.add.text(contentX, nameY, char.name, {
-      fontSize: isMobile ? '12px' : Math.round(12 * cardScale) + 'px',
+      fontSize: isMobile ? '13px' : Math.round(14 * cardScale) + 'px',
       color: isDefeated ? '#a4b0be' : '#ffffff',
       fontStyle: 'bold',
       stroke: '#000000',
-      strokeThickness: 2
+      strokeThickness: 1.5
     });
     nameText.setOrigin(0.5);
 
     const titleY = isMobile ? y - 5 : y + Math.round(17 * cardScale);
     const titleText = this.add.text(contentX, titleY, personality?.title || char.species, {
-      fontSize: isMobile ? '8px' : Math.round(8.5 * cardScale) + 'px',
+      fontSize: isMobile ? '11px' : Math.round(11.5 * cardScale) + 'px',
       color: isDefeated ? '#747d8c' : '#feca57',
       fontStyle: 'italic',
       stroke: '#000000',
@@ -525,11 +525,11 @@ export default class ChallengeMapScene extends Phaser.Scene {
 
     if (isDefeated) {
       const clearBadge = this.add.text(contentX, actionY, '✓ DEFEATED', {
-        fontSize: isMobile ? '10px' : Math.round(11 * cardScale) + 'px',
+        fontSize: isMobile ? '11.5px' : Math.round(12.5 * cardScale) + 'px',
         color: '#2ed573',
         fontStyle: 'bold',
         stroke: '#000000',
-        strokeThickness: 2
+        strokeThickness: 1.5
       });
       clearBadge.setOrigin(0.5);
     } else {
@@ -542,11 +542,11 @@ export default class ChallengeMapScene extends Phaser.Scene {
       btnBg.strokeRoundedRect(contentX - btnW / 2, actionY - btnH / 2, btnW, btnH, 6);
 
       const battleText = this.add.text(contentX, actionY, 'BATTLE!', {
-        fontSize: isMobile ? '10px' : Math.round(11 * cardScale) + 'px',
+        fontSize: isMobile ? '11.5px' : Math.round(12.5 * cardScale) + 'px',
         color: '#ffffff',
         fontStyle: 'bold',
         stroke: '#000000',
-        strokeThickness: 2
+        strokeThickness: 1.5
       });
       battleText.setOrigin(0.5);
     }

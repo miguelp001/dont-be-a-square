@@ -237,7 +237,7 @@ export default class CharacterProfileScene extends Phaser.Scene {
     const badgeText = this.add
       .text(0, -cardH / 2 + Math.round(18 * uiScale), badgeLabel, {
         fontFamily: CUTE_FONT,
-        fontSize: `${Math.round(11 * uiScale)}px`,
+        fontSize: `${Math.round(12.5 * uiScale)}px`,
         color: char.isSecret ? '#feca57' : '#a4b0be',
         fontStyle: 'bold'
       })
@@ -281,7 +281,7 @@ export default class CharacterProfileScene extends Phaser.Scene {
     const speciesText = this.add
       .text(-cardW / 2 + Math.round(126 * uiScale), -cardH / 2 + Math.round(72 * uiScale), `${char.species} • ${personality.title}`, {
         fontFamily: CUTE_FONT,
-        fontSize: `${Math.round(12 * uiScale)}px`,
+        fontSize: `${Math.round(14 * uiScale)}px`,
         color: '#dfe4ea',
         fontStyle: 'bold'
       })
@@ -299,7 +299,7 @@ export default class CharacterProfileScene extends Phaser.Scene {
     const quoteText = this.add
       .text(0, quoteBoxY + Math.round(18 * uiScale), `💬 "${char.quote}"`, {
         fontFamily: CUTE_FONT,
-        fontSize: `${Math.round(13 * uiScale)}px`,
+        fontSize: `${Math.round(14.5 * uiScale)}px`,
         color: '#fff3c4',
         fontStyle: 'italic bold',
         stroke: '#000000',
@@ -310,7 +310,7 @@ export default class CharacterProfileScene extends Phaser.Scene {
     const defeatText = this.add
       .text(0, quoteBoxY + Math.round(42 * uiScale), `Defeat: "${char.defeatQuote}"`, {
         fontFamily: CUTE_FONT,
-        fontSize: `${Math.round(11 * uiScale)}px`,
+        fontSize: `${Math.round(12.5 * uiScale)}px`,
         color: '#a4b0be',
         fontStyle: 'italic'
       })
@@ -320,7 +320,7 @@ export default class CharacterProfileScene extends Phaser.Scene {
     const bioHeader = this.add
       .text(-cardW / 2 + Math.round(22 * uiScale), -cardH / 2 + Math.round(196 * uiScale), 'ABOUT & BATTLE STRATEGY', {
         fontFamily: CUTE_FONT,
-        fontSize: `${Math.round(11.5 * uiScale)}px`,
+        fontSize: `${Math.round(13 * uiScale)}px`,
         color: theme.light,
         fontStyle: 'bold'
       })
@@ -333,7 +333,7 @@ export default class CharacterProfileScene extends Phaser.Scene {
         `${char.description}\n\n${personality.description}`,
         {
           fontFamily: CUTE_FONT,
-          fontSize: `${Math.round(11.5 * uiScale)}px`,
+          fontSize: `${Math.round(13 * uiScale)}px`,
           color: '#ffffff',
           lineSpacing: Math.round(4 * uiScale),
           wordWrap: { width: cardW - Math.round(44 * uiScale) }
@@ -363,7 +363,7 @@ export default class CharacterProfileScene extends Phaser.Scene {
       const l = this.add
         .text(cx, statsY + Math.round(11 * uiScale), label, {
           fontFamily: CUTE_FONT,
-          fontSize: `${Math.round(10 * uiScale)}px`,
+          fontSize: `${Math.round(12 * uiScale)}px`,
           color: '#a4b0be',
           fontStyle: 'bold'
         })
@@ -372,7 +372,7 @@ export default class CharacterProfileScene extends Phaser.Scene {
       const s = this.add
         .text(cx, statsY + Math.round(27 * uiScale), starStr, {
           fontFamily: CUTE_FONT,
-          fontSize: `${Math.round(11 * uiScale)}px`,
+          fontSize: `${Math.round(13 * uiScale)}px`,
           color: '#feca57'
         })
         .setOrigin(0.5);

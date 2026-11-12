@@ -65,16 +65,16 @@ export default class LeaderboardScene extends Phaser.Scene {
     // Subtitle instruction
     this.add
       .text(width / 2, titleY + Math.round((isMobile ? 20 : 24) * uiScale), 'Arcade rankings persisted server-side • Zero login needed', {
-        fontSize: `${Math.round((isMobile ? 9.5 : 11) * uiScale)}px`,
+        fontSize: `${Math.round((isMobile ? 12 : 13) * uiScale)}px`,
         color: '#c8d6e5',
         stroke: '#000000',
-        strokeThickness: 2
+        strokeThickness: 1.5
       })
       .setOrigin(0.5);
 
     // Mode Selector Tabs
     const modeBtnW = isMobile ? Math.min(145, Math.floor((width - 36) / 2)) : Math.round(160 * uiScale);
-    const modeBtnH = Math.round((isMobile ? 30 : 34) * uiScale);
+    const modeBtnH = Math.round((isMobile ? 32 : 36) * uiScale);
     const modeY = titleY + Math.round((isMobile ? 44 : 54) * uiScale);
 
     this.endlessBtn = CuteUI.createPillButton(
@@ -83,7 +83,7 @@ export default class LeaderboardScene extends Phaser.Scene {
       modeY,
       'ENDLESS MARATHON',
       () => this.setMode('endless'),
-      { textureKey: this.selectedMode === 'endless' ? 'pill_green' : 'pill_grey', width: modeBtnW, height: modeBtnH, fontSize: `${Math.round((isMobile ? 10 : 11.5) * uiScale)}px`, autoScale: false }
+      { textureKey: this.selectedMode === 'endless' ? 'pill_green' : 'pill_grey', width: modeBtnW, height: modeBtnH, fontSize: `${Math.round((isMobile ? 12 : 13.5) * uiScale)}px`, autoScale: false }
     );
 
     this.challengeBtn = CuteUI.createPillButton(
@@ -92,7 +92,7 @@ export default class LeaderboardScene extends Phaser.Scene {
       modeY,
       'CHALLENGE MODE',
       () => this.setMode('challenge'),
-      { textureKey: this.selectedMode === 'challenge' ? 'pill_pink' : 'pill_grey', width: modeBtnW, height: modeBtnH, fontSize: `${Math.round((isMobile ? 10 : 11.5) * uiScale)}px`, autoScale: false }
+      { textureKey: this.selectedMode === 'challenge' ? 'pill_pink' : 'pill_grey', width: modeBtnW, height: modeBtnH, fontSize: `${Math.round((isMobile ? 12 : 13.5) * uiScale)}px`, autoScale: false }
     );
 
     // Difficulty Selector Row
@@ -103,17 +103,17 @@ export default class LeaderboardScene extends Phaser.Scene {
 
     CuteUI.createPillButton(this, width / 2 - diffBtnW / 2 + arrowW / 2, diffY, '◀', () => {
       this.cycleDifficulty(-1);
-    }, { textureKey: 'pill_blue', width: arrowW, height: Math.round(30 * uiScale), fontSize: `${Math.round(13 * uiScale)}px`, autoScale: false });
+    }, { textureKey: 'pill_blue', width: arrowW, height: Math.round(30 * uiScale), fontSize: `${Math.round(14 * uiScale)}px`, autoScale: false });
 
     const centerPill = CuteUI.createPillButton(this, width / 2, diffY, '', () => {
       this.cycleDifficulty(1);
-    }, { textureKey: 'pill_purple', width: centerW, height: Math.round(30 * uiScale), fontSize: `${Math.round(11 * uiScale)}px`, autoScale: false });
+    }, { textureKey: 'pill_purple', width: centerW, height: Math.round(30 * uiScale), fontSize: `${Math.round(13 * uiScale)}px`, autoScale: false });
 
     this.diffCenterText = centerPill.list.find((c) => c instanceof Phaser.GameObjects.Text) as Phaser.GameObjects.Text;
 
     CuteUI.createPillButton(this, width / 2 + diffBtnW / 2 - arrowW / 2, diffY, '▶', () => {
       this.cycleDifficulty(1);
-    }, { textureKey: 'pill_blue', width: arrowW, height: Math.round(30 * uiScale), fontSize: `${Math.round(13 * uiScale)}px`, autoScale: false });
+    }, { textureKey: 'pill_blue', width: arrowW, height: Math.round(30 * uiScale), fontSize: `${Math.round(14 * uiScale)}px`, autoScale: false });
 
     this.updateDifficultyDisplay();
 
@@ -128,16 +128,16 @@ export default class LeaderboardScene extends Phaser.Scene {
     CuteUI.createPillButton(this, footerStartX, footerY, '🔄 REFRESH', () => {
       SoundFx.playCursor();
       this.loadLeaderboardData();
-    }, { textureKey: 'pill_blue', width: footerBtnW, height: footerBtnH, fontSize: `${Math.round(10.5 * uiScale)}px`, autoScale: false });
+    }, { textureKey: 'pill_blue', width: footerBtnW, height: footerBtnH, fontSize: `${Math.round(12 * uiScale)}px`, autoScale: false });
 
     CuteUI.createPillButton(this, footerStartX + footerGap, footerY, '✏️ NAME', () => {
       this.promptChangeName();
-    }, { textureKey: 'pill_purple', width: footerBtnW, height: footerBtnH, fontSize: `${Math.round(10.5 * uiScale)}px`, autoScale: false });
+    }, { textureKey: 'pill_purple', width: footerBtnW, height: footerBtnH, fontSize: `${Math.round(12 * uiScale)}px`, autoScale: false });
 
     CuteUI.createPillButton(this, footerStartX + footerGap * 2, footerY, 'BACK', () => {
       SoundFx.playCursor();
       this.scene.start(this.returnScene);
-    }, { textureKey: 'pill_grey', width: footerBtnW, height: footerBtnH, fontSize: `${Math.round(10.5 * uiScale)}px`, autoScale: false });
+    }, { textureKey: 'pill_grey', width: footerBtnW, height: footerBtnH, fontSize: `${Math.round(12 * uiScale)}px`, autoScale: false });
 
     // Setup Keyboard Shortcuts
     this.input.keyboard?.on('keydown-LEFT', () => this.cycleDifficulty(-1));
@@ -262,8 +262,8 @@ export default class LeaderboardScene extends Phaser.Scene {
     const rowH = Math.min(28, Math.floor((cardH - 42) / 10));
     const headerY = cardTopY + 16;
     const header = this.add.text(-cardW / 2 + 16, headerY, '#   FIGHTER   PLAYER          HIGH SCORE         CHAIN', {
-      fontSize: `${Math.round(8.5 * uiScale)}px`,
-      color: '#747d8c',
+      fontSize: `${Math.round(11 * uiScale)}px`,
+      color: '#a4b0be',
       fontStyle: 'bold'
     });
     this.tableContainer.add(header);
@@ -291,7 +291,7 @@ export default class LeaderboardScene extends Phaser.Scene {
       // Rank Badge
       const medal = row.rank === 1 ? '🥇' : row.rank === 2 ? '🥈' : row.rank === 3 ? '🥉' : `#${row.rank}`;
       const rankText = this.add.text(-cardW / 2 + 14, y, medal, {
-        fontSize: `${Math.round((row.rank <= 3 ? 12 : 10) * uiScale)}px`,
+        fontSize: `${Math.round((row.rank <= 3 ? 14 : 12) * uiScale)}px`,
         color: row.rank === 1 ? '#feca57' : row.rank === 2 ? '#dfe4ea' : row.rank === 3 ? '#ff9f43' : '#a4b0be',
         fontStyle: 'bold'
       }).setOrigin(0, 0.5);
@@ -305,7 +305,7 @@ export default class LeaderboardScene extends Phaser.Scene {
 
       // Player Name
       const nameText = this.add.text(-cardW / 2 + Math.round(76 * uiScale), y, row.displayName, {
-        fontSize: `${Math.round(10.5 * uiScale)}px`,
+        fontSize: `${Math.round(12.5 * uiScale)}px`,
         color: isMe ? '#feca57' : '#ffffff',
         fontStyle: 'bold',
         stroke: '#000000',
@@ -317,7 +317,7 @@ export default class LeaderboardScene extends Phaser.Scene {
       const scoreLabel = `${row.score.toLocaleString()} pts`;
 
       const scoreText = this.add.text(cardW / 2 - Math.round(65 * uiScale), y, scoreLabel, {
-        fontSize: `${Math.round(10.5 * uiScale)}px`,
+        fontSize: `${Math.round(12.5 * uiScale)}px`,
         color: this.selectedMode === 'endless' ? '#2ed573' : '#feca57',
         fontStyle: 'bold',
         stroke: '#000000',
@@ -327,7 +327,7 @@ export default class LeaderboardScene extends Phaser.Scene {
 
       // Max Chain Badge
       const chainText = this.add.text(cardW / 2 - 14, y, `x${row.maxChain || 1}`, {
-        fontSize: `${Math.round(9.5 * uiScale)}px`,
+        fontSize: `${Math.round(11.5 * uiScale)}px`,
         color: '#ff9ff3',
         fontStyle: 'bold'
       }).setOrigin(1, 0.5);

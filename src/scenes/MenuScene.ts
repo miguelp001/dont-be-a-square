@@ -82,7 +82,7 @@ export default class MenuScene extends Phaser.Scene {
     const btnW = Math.round(250 * uiScale);
     const btnH = Math.round((isMobile ? 36 : 40) * uiScale);
     const btnSpacing = Math.round((isMobile ? 46 : 50) * uiScale);
-    const btnFont = `${Math.round((isMobile ? 12.5 : 13.5) * uiScale)}px`;
+    const btnFont = `${Math.round((isMobile ? 14 : 15.5) * uiScale)}px`;
     const totalBtnSpan = btnSpacing * 4;
 
     const titleBottom = titleY + Math.round(28 * (isMobile ? 1.0 : Math.min(1.3, uiScale)));
@@ -221,11 +221,11 @@ export default class MenuScene extends Phaser.Scene {
         sprite.setDisplaySize(38, 38);
 
         const name = this.add.text(0, 26, char.name, {
-          fontSize: '10.5px',
+          fontSize: '12.5px',
           color: '#ffffff',
           fontStyle: 'bold',
           stroke: '#000000',
-          strokeThickness: 2
+          strokeThickness: 1.5
         }).setOrigin(0.5);
 
         charContainer.add([hitArea, sprite, name]);
@@ -271,7 +271,7 @@ export default class MenuScene extends Phaser.Scene {
       const colSpacing = Math.min(Math.floor((width - 40) / unlockedCharacters.length), Math.round(68 * uiScale));
       const showStartX = Math.floor((width - (unlockedCharacters.length - 1) * colSpacing) / 2);
       const spriteSize = Math.round(44 * uiScale);
-      const nameSize = `${Math.round(11.5 * uiScale)}px`;
+      const nameSize = `${Math.round(13 * uiScale)}px`;
 
       unlockedCharacters.forEach((char, i) => {
         const x = showStartX + i * colSpacing;

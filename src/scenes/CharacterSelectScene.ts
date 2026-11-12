@@ -86,7 +86,7 @@ export default class CharacterSelectScene extends Phaser.Scene {
       
       const labelText = !isCharUnlocked ? '???' : (char.isSecret ? `${char.name} 👑` : char.name);
       const nameText = this.add.text(x, y + Math.round((isMobile ? 24 : 28) * Math.min(1.3, uiScale)), labelText, {
-        fontSize: `${Math.round((isMobile ? 9 : 10.5) * Math.min(1.3, uiScale))}px`,
+        fontSize: `${Math.round((isMobile ? 12 : 13) * Math.min(1.3, uiScale))}px`,
         color: !isCharUnlocked ? '#747d8c' : (char.isSecret ? '#feca57' : '#ffffff'),
         stroke: '#000000',
         strokeThickness: 2
@@ -116,7 +116,7 @@ export default class CharacterSelectScene extends Phaser.Scene {
 
     // Character info
     this.charText = this.add.text(width / 2, charTextY, '', {
-      fontSize: `${Math.round((isMobile ? 11 : 12) * uiScale)}px`,
+      fontSize: `${Math.round((isMobile ? 13 : 14.5) * uiScale)}px`,
       color: '#ffffff',
       align: 'center',
       stroke: '#000000',
@@ -130,17 +130,17 @@ export default class CharacterSelectScene extends Phaser.Scene {
     // Action buttons
     const btnW = isMobile ? Math.min(220, width - 40) : Math.round(240 * uiScale);
     const btnH = isMobile ? 36 : Math.round(42 * uiScale);
-    const btnFont = `${Math.round((isMobile ? 12.5 : 14.5) * uiScale)}px`;
+    const btnFont = `${Math.round((isMobile ? 14 : 15.5) * uiScale)}px`;
 
     // Difficulty Selector Row
     const diffBtnW = isMobile ? Math.min(260, width - 36) : Math.round(280 * uiScale);
     const arrowW = isMobile ? 36 : Math.round(40 * uiScale);
     const centerW = diffBtnW - (arrowW * 2) - 8;
-    const diffFont = `${Math.round((isMobile ? 11 : 12.5) * uiScale)}px`;
+    const diffFont = `${Math.round((isMobile ? 13 : 14.5) * uiScale)}px`;
 
     CuteUI.createPillButton(this, (width / 2) - (diffBtnW / 2) + (arrowW / 2), diffBtnY, '◀', () => {
       this.cycleDifficulty(-1);
-    }, { textureKey: 'pill_blue', width: arrowW, height: isMobile ? 32 : Math.round(36 * uiScale), fontSize: `${Math.round((isMobile ? 13 : 15) * uiScale)}px`, autoScale: false });
+    }, { textureKey: 'pill_blue', width: arrowW, height: isMobile ? 32 : Math.round(36 * uiScale), fontSize: `${Math.round((isMobile ? 14 : 16) * uiScale)}px`, autoScale: false });
 
     const centerPill = CuteUI.createPillButton(this, width / 2, diffBtnY, '', () => {
       this.cycleDifficulty(1);
@@ -150,24 +150,24 @@ export default class CharacterSelectScene extends Phaser.Scene {
 
     CuteUI.createPillButton(this, (width / 2) + (diffBtnW / 2) - (arrowW / 2), diffBtnY, '▶', () => {
       this.cycleDifficulty(1);
-    }, { textureKey: 'pill_blue', width: arrowW, height: isMobile ? 32 : Math.round(36 * uiScale), fontSize: `${Math.round((isMobile ? 13 : 15) * uiScale)}px`, autoScale: false });
+    }, { textureKey: 'pill_blue', width: arrowW, height: isMobile ? 32 : Math.round(36 * uiScale), fontSize: `${Math.round((isMobile ? 14 : 16) * uiScale)}px`, autoScale: false });
 
     this.diffDescText = this.add.text(width / 2, diffDescY - (isMobile ? 4 : 5), '', {
-      fontSize: `${Math.round((isMobile ? 10 : 11) * uiScale)}px`,
+      fontSize: `${Math.round((isMobile ? 12 : 13) * uiScale)}px`,
       color: '#54a0ff',
       align: 'center',
       fontStyle: 'bold',
       stroke: '#000000',
-      strokeThickness: 2
+      strokeThickness: 1.5
     }).setOrigin(0.5);
 
     this.diffRecordText = this.add.text(width / 2, diffDescY + (isMobile ? 10 : 12), '', {
-      fontSize: `${Math.round((isMobile ? 9.5 : 10.5) * uiScale)}px`,
+      fontSize: `${Math.round((isMobile ? 11.5 : 12.5) * uiScale)}px`,
       color: '#feca57',
       align: 'center',
       fontStyle: 'bold',
       stroke: '#000000',
-      strokeThickness: 2
+      strokeThickness: 1.5
     }).setOrigin(0.5);
 
     this.updateDifficultyDisplay();

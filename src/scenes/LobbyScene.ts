@@ -86,11 +86,11 @@ export default class LobbyScene extends Phaser.Scene {
       Math.round(76 * uiScale),
       this.socketMgr.isConnected ? '🟢 Server Connected' : '🟡 Connecting to Server...',
       {
-        fontSize: Math.round(11.5 * uiScale) + 'px',
+        fontSize: Math.round(13.5 * uiScale) + 'px',
         color: this.socketMgr.isConnected ? '#2ed573' : '#feca57',
         fontStyle: 'bold',
         stroke: '#000000',
-        strokeThickness: 2
+        strokeThickness: 1.5
       }
     ).setOrigin(0.5);
 
@@ -164,8 +164,8 @@ export default class LobbyScene extends Phaser.Scene {
 
     // Name & Title
     const textOffset = Math.round(65 * uiScale);
-    this.charNameText = this.add.text(x - textOffset, y - Math.round(10 * uiScale), char.isSecret ? `Fighter: ${char.name} 👑` : `Fighter: ${char.name}`, {
-      fontSize: Math.round(15 * uiScale) + 'px',
+    this.charNameText = this.add.text(x - textOffset, y - Math.round(11 * uiScale), char.isSecret ? `Fighter: ${char.name} 👑` : `Fighter: ${char.name}`, {
+      fontSize: Math.round(16 * uiScale) + 'px',
       color: '#ffffff',
       fontStyle: 'bold',
       stroke: '#000000',
@@ -173,8 +173,8 @@ export default class LobbyScene extends Phaser.Scene {
     });
 
     this.charDescText = this.add.text(x - textOffset, y + Math.round(11 * uiScale), char.shortDescription || char.species, {
-      fontSize: Math.round(11 * uiScale) + 'px',
-      color: '#a4b0be'
+      fontSize: Math.round(13 * uiScale) + 'px',
+      color: '#c8d6e5'
     });
 
     // Make banner center text interactive so clicking switches fighter

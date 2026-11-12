@@ -299,7 +299,7 @@ export default class OptionsMenuScene extends Phaser.Scene {
 
     this.musicBarGraphics = this.add.graphics();
     this.musicVolumeText = this.add.text(0, -64, '', {
-      fontSize: '12px',
+      fontSize: '13.5px',
       color: '#ffffff',
       fontStyle: 'bold'
     }).setOrigin(0.5);
@@ -318,16 +318,16 @@ export default class OptionsMenuScene extends Phaser.Scene {
 
     // 2. SFX Volume Row
     const sfxLabel = this.add.text(0, -36, '🔊 SOUND EFFECTS VOLUME', {
-      fontSize: isMobile ? '12px' : '13px',
+      fontSize: isMobile ? '13px' : '14px',
       color: '#ff69b4',
       fontStyle: 'bold',
       stroke: '#000000',
-      strokeThickness: 3
+      strokeThickness: 2.5
     }).setOrigin(0.5);
 
     this.sfxBarGraphics = this.add.graphics();
     this.sfxVolumeText = this.add.text(0, 0, '', {
-      fontSize: '12px',
+      fontSize: '13.5px',
       color: '#ffffff',
       fontStyle: 'bold'
     }).setOrigin(0.5);
@@ -359,23 +359,23 @@ export default class OptionsMenuScene extends Phaser.Scene {
 
     const diffMinusBtn = CuteUI.createPillButton(this, -diffBtnW / 2 + arrowW / 2, 48, '◀', () => {
       this.cycleDifficulty(-1);
-    }, { textureKey: 'pill_blue', width: arrowW, height: 26, fontSize: '13px', autoScale: false });
+    }, { textureKey: 'pill_blue', width: arrowW, height: 26, fontSize: '14px', autoScale: false });
 
     const diffCenterPill = CuteUI.createPillButton(this, 0, 48, '', () => {
       this.cycleDifficulty(1);
-    }, { textureKey: 'pill_pink', width: centerW, height: 26, fontSize: '11px', autoScale: false });
+    }, { textureKey: 'pill_pink', width: centerW, height: 26, fontSize: '13px', autoScale: false });
     this.diffCenterText = diffCenterPill.list.find((c) => c instanceof Phaser.GameObjects.Text) as Phaser.GameObjects.Text;
 
     const diffPlusBtn = CuteUI.createPillButton(this, diffBtnW / 2 - arrowW / 2, 48, '▶', () => {
       this.cycleDifficulty(1);
-    }, { textureKey: 'pill_blue', width: arrowW, height: 26, fontSize: '13px', autoScale: false });
+    }, { textureKey: 'pill_blue', width: arrowW, height: 26, fontSize: '14px', autoScale: false });
 
     this.diffDescText = this.add.text(0, 70, '', {
-      fontSize: isMobile ? '9px' : '10px',
+      fontSize: isMobile ? '12px' : '13px',
       color: '#54a0ff',
       fontStyle: 'bold',
       stroke: '#000000',
-      strokeThickness: 2
+      strokeThickness: 1.5
     }).setOrigin(0.5);
 
     this.updateDifficultyDisplay();
@@ -394,7 +394,7 @@ export default class OptionsMenuScene extends Phaser.Scene {
           alert("To install as an app:\n• On Chrome/Edge/Android: Tap browser menu (⋮) -> 'Install App'\n• On iPhone/Safari: Tap Share icon (⎋) -> 'Add to Home Screen'");
         }
       },
-      { textureKey: 'pill_green', fontSize: '11.5px', width: installBtnW, height: 28 }
+      { textureKey: 'pill_green', fontSize: '12.5px', width: installBtnW, height: 28 }
     );
 
     this.audioTabContainer.add([
@@ -468,11 +468,11 @@ export default class OptionsMenuScene extends Phaser.Scene {
         const rowY = startRowY + idx * rowHeight;
 
         const actText = this.add.text(-205, rowY, act.label, {
-          fontSize: '11px',
+          fontSize: '13px',
           color: '#d2dae2',
           fontStyle: 'bold',
           stroke: '#000000',
-          strokeThickness: 2
+          strokeThickness: 1.5
         }).setOrigin(0, 0.5);
 
         // Key binding button (click to remap)
@@ -488,7 +488,7 @@ export default class OptionsMenuScene extends Phaser.Scene {
         drawBtn(false);
 
         const keyLabel = this.add.text(0, -1, this.formatKeyName(Settings.keyBindings[act.key]), {
-          fontSize: '10.5px',
+          fontSize: '12px',
           color: '#ffffff',
           fontStyle: 'bold'
         }).setOrigin(0.5);
@@ -517,11 +517,11 @@ export default class OptionsMenuScene extends Phaser.Scene {
       this.controlsTabContainer.add(guideBox);
 
       const guideTitle = this.add.text(122, -84, '🎮 GAMEPAD MAP', {
-        fontSize: '11px',
+        fontSize: '12.5px',
         color: '#2ed573',
         fontStyle: 'bold',
         stroke: '#000000',
-        strokeThickness: 2
+        strokeThickness: 1.5
       }).setOrigin(0.5);
 
       const padLines = [
@@ -536,7 +536,7 @@ export default class OptionsMenuScene extends Phaser.Scene {
       ];
 
       const guideText = this.add.text(38, -68, padLines.join('\n'), {
-        fontSize: '9.5px',
+        fontSize: '11.5px',
         color: '#c8d6e5',
         lineSpacing: 3
       });
@@ -588,7 +588,7 @@ export default class OptionsMenuScene extends Phaser.Scene {
         drawSubTab(st.id === this.mobileControlsSubTab);
 
         const stText = this.add.text(0, -1, st.label, {
-          fontSize: '10.5px',
+          fontSize: '12px',
           color: '#ffffff',
           fontStyle: 'bold'
         }).setOrigin(0.5);
@@ -617,11 +617,11 @@ export default class OptionsMenuScene extends Phaser.Scene {
         const rowY = rowStartY + idx * rowHeight;
 
         const actText = this.add.text(labelX, rowY, act.label, {
-          fontSize: '10px',
+          fontSize: '12px',
           color: '#d2dae2',
           fontStyle: 'bold',
           stroke: '#000000',
-          strokeThickness: 2
+          strokeThickness: 1.5
         }).setOrigin(0, 0.5);
 
         const btnContainer = this.add.container(btnX, rowY);
@@ -636,7 +636,7 @@ export default class OptionsMenuScene extends Phaser.Scene {
         drawBtn(false);
 
         const keyLabel = this.add.text(0, -1, this.formatKeyName(Settings.keyBindings[act.key]), {
-          fontSize: '10px',
+          fontSize: '11.5px',
           color: '#ffffff',
           fontStyle: 'bold'
         }).setOrigin(0.5);
@@ -665,7 +665,7 @@ export default class OptionsMenuScene extends Phaser.Scene {
           this.updateKeyRemapLabels();
           SoundFx.playCursor();
         },
-        { textureKey: 'pill_sm_grey', fontSize: '11px', width: 140, height: 26 }
+        { textureKey: 'pill_sm_grey', fontSize: '12px', width: 140, height: 26 }
       );
       this.mobileKeysContainer.add(resetBtn);
 
@@ -691,7 +691,7 @@ export default class OptionsMenuScene extends Phaser.Scene {
       ];
 
       const gText = this.add.text(-guideBoxW / 2 + 14, -54, padGuideLines.join('\n'), {
-        fontSize: '9.5px',
+        fontSize: '11.5px',
         color: '#c8d6e5',
         lineSpacing: 3,
         wordWrap: { width: guideBoxW - 28 }

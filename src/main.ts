@@ -11,20 +11,52 @@ import CharacterProfileScene from './scenes/CharacterProfileScene';
 import LeaderboardScene from './scenes/LeaderboardScene';
 import { GAME_WIDTH, GAME_HEIGHT, CUTE_FONT } from './utils/Constants';
 
-// Globally set the default font family for all Phaser text objects to our cute & legible font
+const dpr = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1;
+// Render all text textures at high-DPI (Retina) resolution so fonts are crisp and razor-sharp
+export const HIGH_DPI_RESOLUTION = Math.min(Math.max(dpr, 2), 3);
+
+// Globally set the default font family, high-DPI crisp resolution, and minimum readable size for all Phaser text
 const origSetStyle = (Phaser.GameObjects.TextStyle as any).prototype.setStyle;
 (Phaser.GameObjects.TextStyle as any).prototype.setStyle = function (
   style: any,
   updateText: boolean,
   setDefaults: boolean
 ) {
-  if (style && !style.fontFamily) {
-    style.fontFamily = CUTE_FONT;
+  if (style) {
+    if (!style.fontFamily) {
+      style.fontFamily = CUTE_FONT;
+    }
+    if (!style.resolution) {
+      style.resolution = HIGH_DPI_RESOLUTION;
+    }
+    // Prevent tiny font sizes from rendering unreadably small
+    if (style.fontSize) {
+      const match = String(style.fontSize).match(/^([\d.]+)(px)?$/);
+      if (match) {
+        const val = parseFloat(match[1]);
+        if (val < 12) {
+          style.fontSize = `${Math.max(12, val + 2)}px`;
+        }
+      }
+    }
+    // Heavy strokes on small fonts choke letterforms and cause blurry/muddy glyphs
+    if (style.strokeThickness && style.strokeThickness > 1.5) {
+      const sizeVal = parseFloat(String(style.fontSize || this.fontSize || '14'));
+      if (!isNaN(sizeVal) && sizeVal <= 13) {
+        style.strokeThickness = 1.5;
+      }
+    }
+  } else {
+    style = { fontFamily: CUTE_FONT, resolution: HIGH_DPI_RESOLUTION };
   }
+
   const result = origSetStyle.call(this, style, updateText, setDefaults);
   if (this.fontFamily === 'Courier' || !this.fontFamily) {
     this.fontFamily = CUTE_FONT;
     this._font = [this.fontStyle, this.fontSize, this.fontFamily].join(' ').trim();
+  }
+  if (!this.resolution || this.resolution === 1) {
+    this.resolution = HIGH_DPI_RESOLUTION;
   }
   return result;
 };
@@ -35,6 +67,13 @@ const config: Phaser.Types.Core.GameConfig = {
   height: GAME_HEIGHT,
   parent: 'game-container',
   backgroundColor: '#1a1a2e',
+  roundPixels: true,
+  render: {
+    pixelArt: false,
+    antialias: true,
+    antialiasGL: true,
+    roundPixels: true
+  },
   input: {
     gamepad: true
   },
