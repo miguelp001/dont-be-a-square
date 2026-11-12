@@ -6,6 +6,7 @@ import { computeOptionsMenuLayout, OptionsMenuLayout } from '../ui/OptionsMenuLa
 import { GameDifficulty, DIFFICULTY_ORDER, getDifficultyInfo } from '../utils/Difficulty';
 import { StatsManager, GameStats } from '../utils/StatsManager';
 import { CHARACTERS } from '../utils/Constants';
+import { LeaderboardClient } from '../utils/LeaderboardClient';
 
 export default class OptionsMenuScene extends Phaser.Scene {
   private returnScene: string = 'MenuScene';
@@ -45,6 +46,15 @@ export default class OptionsMenuScene extends Phaser.Scene {
   private sfxBarGraphics!: Phaser.GameObjects.Graphics;
   private diffCenterText?: Phaser.GameObjects.Text;
   private diffDescText?: Phaser.GameObjects.Text;
+  private handleBtnText?: Phaser.GameObjects.Text;
+
+  // Leaderboard Handle Modal refs
+  private nameModalContainer?: Phaser.GameObjects.Container;
+  private nameSlotsText?: Phaser.GameObjects.Text;
+  private nameErrorText?: Phaser.GameObjects.Text;
+  private inputName: string = '';
+  private isUpdatingName: boolean = false;
+  private modalKeydownHandler?: (e: KeyboardEvent) => void;
 
   // Controls tab refs
   private listeningAction: keyof KeyBindings | null = null;
@@ -124,6 +134,9 @@ export default class OptionsMenuScene extends Phaser.Scene {
       }
     );
 
+    // In-Game Leaderboard Handle Modal (Depth 80, above cards and tabs)
+    this.createNameModalUI(width / 2, height / 2, rawUiScale);
+
     // Setup global keyboard & gamepad navigation for the options menu
     this.setupMenuNavigation();
 
@@ -148,6 +161,10 @@ export default class OptionsMenuScene extends Phaser.Scene {
     if (this.keydownListener) {
       window.removeEventListener('keydown', this.keydownListener);
       this.keydownListener = undefined;
+    }
+    if (this.modalKeydownHandler) {
+      window.removeEventListener('keydown', this.modalKeydownHandler);
+      this.modalKeydownHandler = undefined;
     }
     if (this.onResizeListener) {
       this.scale.off('resize', this.onResizeListener);
@@ -289,36 +306,36 @@ export default class OptionsMenuScene extends Phaser.Scene {
     const stepBtnOffset = Math.min(160, Math.round(cardW / 2 - 28));
 
     // 1. Music Volume Row
-    const musicLabel = this.add.text(0, -100, '🎵 BGM MUSIC VOLUME', {
+    const musicLabel = this.add.text(0, -102, '🎵 BGM MUSIC VOLUME', {
       fontSize: isMobile ? '12px' : '13px',
       color: '#feca57',
       fontStyle: 'bold',
       stroke: '#000000',
-      strokeThickness: 3
+      strokeThickness: 2.5
     }).setOrigin(0.5);
 
     this.musicBarGraphics = this.add.graphics();
-    this.musicVolumeText = this.add.text(0, -64, '', {
-      fontSize: '13.5px',
+    this.musicVolumeText = this.add.text(0, -80, '', {
+      fontSize: '13px',
       color: '#ffffff',
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    const musicMinusBtn = this.createStepButton(-stepBtnOffset, -76, '➖', () => {
+    const musicMinusBtn = this.createStepButton(-stepBtnOffset, -80, '➖', () => {
       Settings.setMusicVolume(Settings.musicVolume - 0.1, this);
       this.updateAudioDisplays();
       SoundFx.playCursor();
     });
 
-    const musicPlusBtn = this.createStepButton(stepBtnOffset, -76, '➕', () => {
+    const musicPlusBtn = this.createStepButton(stepBtnOffset, -80, '➕', () => {
       Settings.setMusicVolume(Settings.musicVolume + 0.1, this);
       this.updateAudioDisplays();
       SoundFx.playCursor();
     });
 
     // 2. SFX Volume Row
-    const sfxLabel = this.add.text(0, -36, '🔊 SOUND EFFECTS VOLUME', {
-      fontSize: isMobile ? '13px' : '14px',
+    const sfxLabel = this.add.text(0, -48, '🔊 SOUND EFFECTS VOLUME', {
+      fontSize: isMobile ? '12px' : '13px',
       color: '#ff69b4',
       fontStyle: 'bold',
       stroke: '#000000',
@@ -326,53 +343,53 @@ export default class OptionsMenuScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     this.sfxBarGraphics = this.add.graphics();
-    this.sfxVolumeText = this.add.text(0, 0, '', {
-      fontSize: '13.5px',
+    this.sfxVolumeText = this.add.text(0, -26, '', {
+      fontSize: '13px',
       color: '#ffffff',
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    const sfxMinusBtn = this.createStepButton(-stepBtnOffset, -12, '➖', () => {
+    const sfxMinusBtn = this.createStepButton(-stepBtnOffset, -26, '➖', () => {
       Settings.setSfxVolume(Settings.sfxVolume - 0.1);
       this.updateAudioDisplays();
       SoundFx.playSwap();
     });
 
-    const sfxPlusBtn = this.createStepButton(stepBtnOffset, -12, '➕', () => {
+    const sfxPlusBtn = this.createStepButton(stepBtnOffset, -26, '➕', () => {
       Settings.setSfxVolume(Settings.sfxVolume + 0.1);
       this.updateAudioDisplays();
       SoundFx.playMatch();
     });
 
     // 3. Default Game Difficulty Row
-    const diffLabel = this.add.text(0, 22, '⭐ DEFAULT GAME DIFFICULTY', {
-      fontSize: isMobile ? '11.5px' : '12.5px',
+    const diffLabel = this.add.text(0, 6, '⭐ DEFAULT GAME DIFFICULTY', {
+      fontSize: isMobile ? '11px' : '12px',
       color: '#54a0ff',
       fontStyle: 'bold',
       stroke: '#000000',
-      strokeThickness: 3
+      strokeThickness: 2.5
     }).setOrigin(0.5);
 
     const diffBtnW = Math.min(240, cardW - 40);
     const arrowW = 32;
     const centerW = diffBtnW - (arrowW * 2) - 6;
 
-    const diffMinusBtn = CuteUI.createPillButton(this, -diffBtnW / 2 + arrowW / 2, 48, '◀', () => {
+    const diffMinusBtn = CuteUI.createPillButton(this, -diffBtnW / 2 + arrowW / 2, 28, '◀', () => {
       this.cycleDifficulty(-1);
     }, { textureKey: 'pill_blue', width: arrowW, height: 26, fontSize: '14px', autoScale: false });
 
-    const diffCenterPill = CuteUI.createPillButton(this, 0, 48, '', () => {
+    const diffCenterPill = CuteUI.createPillButton(this, 0, 28, '', () => {
       this.cycleDifficulty(1);
     }, { textureKey: 'pill_pink', width: centerW, height: 26, fontSize: '13px', autoScale: false });
     this.diffCenterText = diffCenterPill.list.find((c) => c instanceof Phaser.GameObjects.Text) as Phaser.GameObjects.Text;
 
-    const diffPlusBtn = CuteUI.createPillButton(this, diffBtnW / 2 - arrowW / 2, 48, '▶', () => {
+    const diffPlusBtn = CuteUI.createPillButton(this, diffBtnW / 2 - arrowW / 2, 28, '▶', () => {
       this.cycleDifficulty(1);
     }, { textureKey: 'pill_blue', width: arrowW, height: 26, fontSize: '14px', autoScale: false });
 
-    this.diffDescText = this.add.text(0, 70, '', {
-      fontSize: isMobile ? '12px' : '13px',
-      color: '#54a0ff',
+    this.diffDescText = this.add.text(0, 48, '', {
+      fontSize: isMobile ? '10.5px' : '11.5px',
+      color: '#70a1ff',
       fontStyle: 'bold',
       stroke: '#000000',
       strokeThickness: 1.5
@@ -380,12 +397,35 @@ export default class OptionsMenuScene extends Phaser.Scene {
 
     this.updateDifficultyDisplay();
 
-    // Install App button
-    const installBtnW = Math.min(190, cardW - 40);
+    // 4. Leaderboard Arcade Handle (Name) Row
+    const handleLabel = this.add.text(0, 66, '🏆 LEADERBOARD ARCADE HANDLE', {
+      fontSize: isMobile ? '11px' : '12px',
+      color: '#feca57',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 2.5
+    }).setOrigin(0.5);
+
+    const handleBtnW = Math.min(230, cardW - 40);
+    const currentName = LeaderboardClient.getDisplayName();
+    const handleBtn = CuteUI.createPillButton(
+      this,
+      0,
+      88,
+      `👤 ${currentName}  [✏️ CHANGE]`,
+      () => {
+        this.openNameModal();
+      },
+      { textureKey: 'pill_purple', fontSize: isMobile ? '11.5px' : '12.5px', width: handleBtnW, height: 26, autoScale: false }
+    );
+    this.handleBtnText = handleBtn.list.find((c) => c instanceof Phaser.GameObjects.Text) as Phaser.GameObjects.Text;
+
+    // 5. Install App button
+    const installBtnW = Math.min(180, cardW - 40);
     const installBtn = CuteUI.createPillButton(
       this,
       0,
-      104,
+      115,
       '📲 INSTALL APP (PWA)',
       () => {
         if ((window as any).deferredInstallPrompt && (window as any).promptPwaInstall) {
@@ -394,7 +434,7 @@ export default class OptionsMenuScene extends Phaser.Scene {
           alert("To install as an app:\n• On Chrome/Edge/Android: Tap browser menu (⋮) -> 'Install App'\n• On iPhone/Safari: Tap Share icon (⎋) -> 'Add to Home Screen'");
         }
       },
-      { textureKey: 'pill_green', fontSize: '12.5px', width: installBtnW, height: 28 }
+      { textureKey: 'pill_green', fontSize: '11.5px', width: installBtnW, height: 24 }
     );
 
     this.audioTabContainer.add([
@@ -413,6 +453,8 @@ export default class OptionsMenuScene extends Phaser.Scene {
       diffCenterPill,
       diffPlusBtn,
       this.diffDescText,
+      handleLabel,
+      handleBtn,
       installBtn
     ]);
 
@@ -1725,19 +1767,26 @@ export default class OptionsMenuScene extends Phaser.Scene {
   private setupMenuNavigation(): void {
     // Keyboard shortcuts to switch tabs
     this.input.keyboard?.on('keydown-TAB', (e: KeyboardEvent) => {
+      if (this.nameModalContainer?.visible) return;
       e.preventDefault();
       this.cycleTab(1);
     });
 
     this.input.keyboard?.on('keydown-Q', () => {
+      if (this.nameModalContainer?.visible) return;
       if (!this.listeningAction) this.cycleTab(-1);
     });
 
     this.input.keyboard?.on('keydown-E', () => {
+      if (this.nameModalContainer?.visible) return;
       if (!this.listeningAction) this.cycleTab(1);
     });
 
     this.input.keyboard?.on('keydown-ESC', () => {
+      if (this.nameModalContainer?.visible) {
+        this.closeNameModal();
+        return;
+      }
       if (this.listeningAction) {
         // Cancel listening
         const btnData = this.keyRemapButtons.get(this.listeningAction);
@@ -1756,6 +1805,12 @@ export default class OptionsMenuScene extends Phaser.Scene {
       });
 
       this.input.gamepad.on('down', (_pad: Phaser.Input.Gamepad.Gamepad, button: Phaser.Input.Gamepad.Button) => {
+        if (this.nameModalContainer?.visible) {
+          if (button.index === 1) { // B -> Cancel modal
+            this.closeNameModal();
+          }
+          return;
+        }
         // Shoulder buttons or D-pad Left/Right cycle tabs
         if (button.index === 4) { // LB
           this.cycleTab(-1);
@@ -1782,5 +1837,266 @@ export default class OptionsMenuScene extends Phaser.Scene {
     const nextIdx = (currentIdx + direction + tabs.length) % tabs.length;
     SoundFx.playCursor();
     this.switchTab(tabs[nextIdx]);
+  }
+
+  // -------------------------------------------------------------
+  // Leaderboard Arcade Handle (Name) Modal
+  // -------------------------------------------------------------
+  private createNameModalUI(centerX: number, centerY: number, uiScale: number): void {
+    const width = this.cameras.main.width;
+    const height = this.cameras.main.height;
+
+    this.nameModalContainer = this.add.container(centerX, centerY);
+    this.nameModalContainer.setDepth(80);
+    this.nameModalContainer.setVisible(false);
+
+    // Dark semi-transparent modal backdrop blocking input behind it
+    const backdrop = this.add.rectangle(0, 0, width, height, 0x000000, 0.78);
+    backdrop.setInteractive();
+
+    const isMobile = width < 600 || height >= width * 1.05;
+    const modalW = isMobile ? Math.min(width - 24, 340) : Math.round(360 * uiScale);
+    const modalH = Math.round(230 * uiScale);
+
+    // Modal Window Box
+    const box = this.add.graphics();
+    box.fillStyle(0x160d2b, 0.98);
+    box.fillRoundedRect(-modalW / 2, -modalH / 2, modalW, modalH, 14);
+    box.lineStyle(2.5, 0xa55eea, 1);
+    box.strokeRoundedRect(-modalW / 2, -modalH / 2, modalW, modalH, 14);
+
+    const title = this.add.text(0, -Math.round(82 * uiScale), '✏️ ARCADE HANDLE (NAME)', {
+      fontSize: `${Math.round(16 * uiScale)}px`,
+      color: '#feca57',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 3
+    }).setOrigin(0.5);
+
+    const promptText = this.add.text(0, -Math.round(56 * uiScale), 'Type 2-10 letters/numbers (or use prompt)', {
+      fontSize: `${Math.round(11 * uiScale)}px`,
+      color: '#a4b0be'
+    }).setOrigin(0.5);
+
+    // Text box outline for handle
+    const slotW = Math.round(260 * uiScale);
+    const slotH = Math.round(34 * uiScale);
+    const slotBox = this.add.graphics();
+    slotBox.fillStyle(0x0c0618, 0.95);
+    slotBox.fillRoundedRect(-slotW / 2, -Math.round(38 * uiScale), slotW, slotH, 8);
+    slotBox.lineStyle(1.5, 0xfeca57, 0.8);
+    slotBox.strokeRoundedRect(-slotW / 2, -Math.round(38 * uiScale), slotW, slotH, 8);
+
+    this.nameSlotsText = this.add.text(0, -Math.round(21 * uiScale), '', {
+      fontSize: `${Math.round(18 * uiScale)}px`,
+      color: '#feca57',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 2
+    }).setOrigin(0.5);
+
+    this.nameErrorText = this.add.text(0, Math.round(6 * uiScale), '', {
+      fontSize: `${Math.round(11 * uiScale)}px`,
+      color: '#ff4757',
+      fontStyle: 'bold',
+      align: 'center'
+    }).setOrigin(0.5);
+
+    // Row 1: Touch buttons: PROMPT / DEL / CLEAR
+    const row1Y = Math.round(38 * uiScale);
+    const smBtnOffset = Math.round(88 * uiScale);
+
+    const promptBtn = this.createSmallModalButton(-smBtnOffset, row1Y, '⌨️ PROMPT', 0x54a0ff, () => {
+      const p = window.prompt('Enter your arcade handle (2-10 characters):', this.inputName);
+      if (p !== null) {
+        const cleaned = p.replace(/[^a-zA-Z0-9_-]/g, '').toUpperCase().slice(0, 10);
+        if (cleaned) {
+          this.inputName = cleaned;
+          this.updateNameDisplay();
+        }
+      }
+    }, uiScale);
+
+    const delBtn = this.createSmallModalButton(0, row1Y, '⌫ DEL', 0x9b59b6, () => {
+      if (this.inputName.length > 0) {
+        SoundFx.playCursor();
+        this.inputName = this.inputName.slice(0, -1);
+        this.updateNameDisplay();
+      }
+    }, uiScale);
+
+    const clearBtn = this.createSmallModalButton(smBtnOffset, row1Y, 'CLEAR', 0x747d8c, () => {
+      SoundFx.playCursor();
+      this.inputName = '';
+      this.updateNameDisplay();
+    }, uiScale);
+
+    // Row 2: SAVE and CANCEL buttons
+    const row2Y = Math.round(78 * uiScale);
+    const lgBtnW = Math.round(118 * uiScale);
+    const lgBtnH = Math.round(32 * uiScale);
+    const lgOffset = Math.round(68 * uiScale);
+
+    const saveBtn = CuteUI.createPillButton(this, -lgOffset, row2Y, 'CONFIRM ✔', () => {
+      this.submitNameChange();
+    }, {
+      textureKey: 'pill_green',
+      fontSize: `${Math.round(12 * uiScale)}px`,
+      width: lgBtnW,
+      height: lgBtnH,
+      autoScale: false
+    });
+
+    const cancelBtn = CuteUI.createPillButton(this, lgOffset, row2Y, 'CANCEL', () => {
+      this.closeNameModal();
+    }, {
+      textureKey: 'pill_grey',
+      fontSize: `${Math.round(12 * uiScale)}px`,
+      width: lgBtnW,
+      height: lgBtnH,
+      autoScale: false
+    });
+
+    this.nameModalContainer.add([
+      backdrop,
+      box,
+      title,
+      promptText,
+      slotBox,
+      this.nameSlotsText,
+      this.nameErrorText,
+      promptBtn,
+      delBtn,
+      clearBtn,
+      saveBtn,
+      cancelBtn
+    ]);
+  }
+
+  private createSmallModalButton(
+    x: number,
+    y: number,
+    text: string,
+    color: number,
+    callback: () => void,
+    uiScale: number = 1.0
+  ): Phaser.GameObjects.Container {
+    let texture = 'pill_sm_grey';
+    if (color === 0x2ed573) texture = 'pill_sm_green';
+    else if (color === 0x1e90ff || color === 0x54a0ff) texture = 'pill_sm_blue';
+    else if (color === 0xff4757 || color === 0xff69b4) texture = 'pill_sm_pink';
+    else if (color === 0x9b59b6 || color === 0xa55eea) texture = 'pill_sm_purple';
+
+    const btnW = Math.round(76 * uiScale);
+    const btnH = Math.round(28 * uiScale);
+
+    return CuteUI.createPillButton(this, x, y, text, callback, {
+      textureKey: texture,
+      fontSize: `${Math.round(11 * uiScale)}px`,
+      width: btnW,
+      height: btnH,
+      autoScale: false
+    });
+  }
+
+  private updateNameDisplay(): void {
+    if (!this.nameSlotsText) return;
+    let display = '';
+    for (let i = 0; i < 10; i++) {
+      if (i < this.inputName.length) {
+        display += this.inputName[i] + ' ';
+      } else {
+        display += '_ ';
+      }
+    }
+    this.nameSlotsText.setText(display.trim());
+  }
+
+  private openNameModal(): void {
+    SoundFx.playDecide();
+    if (!this.nameModalContainer) return;
+    this.inputName = LeaderboardClient.getDisplayName().toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 10);
+    this.updateNameDisplay();
+    this.nameErrorText?.setText('');
+    this.nameModalContainer.setVisible(true);
+
+    if (this.modalKeydownHandler) {
+      window.removeEventListener('keydown', this.modalKeydownHandler);
+    }
+
+    this.modalKeydownHandler = (e: KeyboardEvent) => {
+      if (this.isUpdatingName) return;
+
+      if (e.key === 'Escape') {
+        this.closeNameModal();
+        return;
+      }
+      if (e.key === 'Enter') {
+        this.submitNameChange();
+        return;
+      }
+      if (e.key === 'Backspace') {
+        if (this.inputName.length > 0) {
+          SoundFx.playCursor();
+          this.inputName = this.inputName.slice(0, -1);
+          this.updateNameDisplay();
+        }
+        return;
+      }
+      if (/^[a-zA-Z0-9_-]$/.test(e.key) && this.inputName.length < 10) {
+        SoundFx.playCursor();
+        this.inputName += e.key.toUpperCase();
+        this.updateNameDisplay();
+      }
+    };
+
+    window.addEventListener('keydown', this.modalKeydownHandler);
+  }
+
+  private closeNameModal(): void {
+    SoundFx.playCancel();
+    if (this.modalKeydownHandler) {
+      window.removeEventListener('keydown', this.modalKeydownHandler);
+      this.modalKeydownHandler = undefined;
+    }
+    this.nameModalContainer?.setVisible(false);
+  }
+
+  private async submitNameChange(): Promise<void> {
+    if (this.isUpdatingName) return;
+
+    const trimmed = this.inputName.trim();
+    if (trimmed.length < 2) {
+      this.nameErrorText?.setText('Handle must be at least 2 characters!').setColor('#ff4757');
+      SoundFx.playCancel();
+      return;
+    }
+
+    if (trimmed.length > 10) {
+      this.nameErrorText?.setText('Handle cannot exceed 10 characters!').setColor('#ff4757');
+      SoundFx.playCancel();
+      return;
+    }
+
+    this.isUpdatingName = true;
+    this.nameErrorText?.setText('Updating arcade handle on server...').setColor('#54a0ff');
+
+    try {
+      const res = await LeaderboardClient.updateDisplayName(trimmed);
+      this.isUpdatingName = false;
+
+      if (res && res.success) {
+        SoundFx.playMatch();
+        this.closeNameModal();
+        this.handleBtnText?.setText(`👤 ${res.displayName || trimmed}  [✏️ CHANGE]`);
+      } else {
+        this.nameErrorText?.setText(res?.error || 'Failed to update handle!').setColor('#ff4757');
+        SoundFx.playCancel();
+      }
+    } catch (e: any) {
+      this.isUpdatingName = false;
+      this.nameErrorText?.setText('Connection failed. Please try again.').setColor('#ff4757');
+      SoundFx.playCancel();
+    }
   }
 }

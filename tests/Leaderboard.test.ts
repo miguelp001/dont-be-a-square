@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import { LeaderboardManager } from '../server/leaderboard';
+import { LeaderboardClient } from '../src/utils/LeaderboardClient';
 
 const TEST_DB_PATH = path.join(process.cwd(), 'tests', 'test_leaderboards.json');
 
@@ -228,5 +229,21 @@ describe('Server-Side Accountless Leaderboard System', () => {
 
     const board = mgr.getLeaderboard('endless', 'novice');
     expect(board.top[0].displayName).toBe('SUPER_PRO');
+  });
+
+  it('8. LeaderboardClient sanitizes and sets display name for Options Menu & UI', () => {
+    const sanitized1 = LeaderboardClient.setDisplayName('cool_pilot_99');
+    expect(sanitized1).toBe('COOL_PILOT'); // uppercase, max 10 chars
+    expect(LeaderboardClient.getDisplayName()).toBe('COOL_PILOT');
+
+    // Invalid characters stripped
+    const sanitized2 = LeaderboardClient.setDisplayName('A!@#$%^B');
+    expect(sanitized2).toBe('AB');
+    expect(LeaderboardClient.getDisplayName()).toBe('AB');
+
+    // Too short (less than 2 chars) defaults safely to PLAYER
+    const sanitized3 = LeaderboardClient.setDisplayName('X');
+    expect(sanitized3).toBe('PLAYER');
+    expect(LeaderboardClient.getDisplayName()).toBe('PLAYER');
   });
 });
