@@ -200,12 +200,21 @@ export default class GameScene extends Phaser.Scene {
       this.opponentCharacterId = otherChars[Math.floor(Math.random() * otherChars.length)].id;
     }
 
-    // Determine custom thematically appropriate background
+    // Determine custom thematically appropriate background and grid frame
     this.matchBackgroundKey = this.getMatchBackgroundKey();
     const bgKey = `bg_${this.matchBackgroundKey}`;
     if (!this.textures.exists(bgKey)) {
       this.load.image(bgKey, `assets/ui/backgrounds/bg_${this.matchBackgroundKey}.webp?v=bg_v1`);
     }
+    const frameKey = `board_frame_${this.matchBackgroundKey}`;
+    if (!this.textures.exists(frameKey)) {
+      this.load.image(frameKey, `assets/ui/frames/board_frame_${this.matchBackgroundKey}.webp?v=fr_v1`);
+    }
+
+    this.playerWoodFrame = undefined;
+    this.cpuWoodFrame = undefined;
+    this.playerWoodBackdrop = undefined;
+    this.cpuWoodBackdrop = undefined;
 
     // On-demand load character attack spritesheets and battle music if not already in cache
     const matchChars = [this.characterId, this.opponentCharacterId].filter(Boolean);
@@ -1301,10 +1310,15 @@ export default class GameScene extends Phaser.Scene {
       backdrop.setDisplaySize(w, h);
     }
 
-    // 2. High-res carved timber frame with leaves and flowers on top
+    // 2. High-res themed frame for the grid matching the current background
     let frameImg = isPlayer ? this.playerWoodFrame : this.cpuWoodFrame;
-    if (this.textures.exists('board_wood_frame')) {
-      const tex = this.textures.get('board_wood_frame');
+    const themedFrameKey = `board_frame_${this.matchBackgroundKey}`;
+    const frameKey = (this.matchBackgroundKey && this.textures.exists(themedFrameKey))
+      ? themedFrameKey
+      : (this.textures.exists('board_wood_frame') ? 'board_wood_frame' : '');
+
+    if (frameKey && this.textures.exists(frameKey)) {
+      const tex = this.textures.get(frameKey);
       const srcImg = tex?.getSourceImage() as (HTMLImageElement | undefined);
       const srcW = srcImg ? srcImg.width : 720;
 
@@ -1322,7 +1336,7 @@ export default class GameScene extends Phaser.Scene {
       const frameY = y - borderTop * frameScale;
 
       if (!frameImg) {
-        frameImg = this.add.image(frameX, frameY, 'board_wood_frame');
+        frameImg = this.add.image(frameX, frameY, frameKey);
         frameImg.setName(isPlayer ? 'p1_wood_frame' : 'cpu_wood_frame');
         frameImg.setOrigin(0, 0);
         frameImg.setScale(frameScale);
@@ -1331,6 +1345,7 @@ export default class GameScene extends Phaser.Scene {
         if (isPlayer) this.playerWoodFrame = frameImg;
         else this.cpuWoodFrame = frameImg;
       } else {
+        frameImg.setTexture(frameKey);
         frameImg.setPosition(frameX, frameY);
         frameImg.setScale(frameScale);
       }

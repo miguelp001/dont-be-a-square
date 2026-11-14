@@ -4,8 +4,9 @@ import path from 'path';
 import { CHARACTERS } from '../src/utils/Constants';
 import { CHARACTER_BG_PARTICLES, selectMatchBackground } from '../src/utils/Backgrounds';
 
-describe('Character Custom Thematic Backgrounds', () => {
+describe('Character Custom Thematic Backgrounds & Grid Frames', () => {
   const backgroundsDir = path.resolve(__dirname, '../assets/ui/backgrounds');
+  const framesDir = path.resolve(__dirname, '../assets/ui/frames');
 
   it('should ensure all 10 characters have custom background assets generated and present on disk', () => {
     expect(CHARACTERS.length).toBe(10);
@@ -19,6 +20,21 @@ describe('Character Custom Thematic Backgrounds', () => {
 
       const webpStats = fs.statSync(webpPath);
       expect(webpStats.size).toBeGreaterThan(10000); // Verify non-empty file (>10KB)
+    });
+  });
+
+  it('should ensure each background has a custom themed grid frame present on disk', () => {
+    CHARACTERS.forEach((char) => {
+      const framePng = path.join(framesDir, `board_frame_${char.id}.png`);
+      const frameWebp = path.join(framesDir, `board_frame_${char.id}.webp`);
+
+      expect(fs.existsSync(framePng), `Missing PNG grid frame for ${char.id}`).toBe(true);
+      expect(fs.existsSync(frameWebp), `Missing WebP grid frame for ${char.id}`).toBe(true);
+
+      const pngStats = fs.statSync(framePng);
+      const webpStats = fs.statSync(frameWebp);
+      expect(pngStats.size).toBeGreaterThan(10000);
+      expect(webpStats.size).toBeGreaterThan(5000);
     });
   });
 

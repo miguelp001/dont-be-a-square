@@ -70,10 +70,11 @@ export default class PreloadScene extends Phaser.Scene {
       this.load.image(`panel_${i}`, `assets/sprites/slimes/panel_${i}.png?v=32px_v5`);
     }
 
-    // Load character portrait assets (optimized WebP ~30KB each)
+    // Load character portrait assets, custom battle backgrounds, and themed grid frames
     CHARACTERS.forEach(char => {
       this.load.image(char.id, `assets/sprites/characters/${char.id}.webp?v=wbp_v3`);
       this.load.image(`bg_${char.id}`, `assets/ui/backgrounds/bg_${char.id}.webp?v=bg_v1`);
+      this.load.image(`board_frame_${char.id}`, `assets/ui/frames/board_frame_${char.id}.webp?v=fr_v1`);
     });
 
     // Core BGM for initial menus and battle
