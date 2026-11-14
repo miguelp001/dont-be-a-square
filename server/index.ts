@@ -1,13 +1,15 @@
 import { Server } from 'socket.io';
 import { createServer, IncomingMessage, ServerResponse } from 'http';
 import { LeaderboardManager, SubmitScorePayload } from './leaderboard';
+import { TelemetryManager } from './telemetry';
 
 const leaderboard = new LeaderboardManager();
+const telemetry = new TelemetryManager();
 
 const httpServer = createServer((req: IncomingMessage, res: ServerResponse) => {
-  // Simple CORS headers
+  // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
@@ -16,7 +18,14 @@ const httpServer = createServer((req: IncomingMessage, res: ServerResponse) => {
     return;
   }
 
-  const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
+  let url: URL;
+  try {
+    url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
+  } catch (e) {
+    res.writeHead(400, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ success: false, error: 'Malformed request URL or Host header' }));
+    return;
+  }
 
   if (url.pathname === '/api/leaderboard/name' || (url.pathname === '/api/leaderboard' && (req.method === 'PUT' || req.method === 'PATCH'))) {
     let body = '';
@@ -72,6 +81,35 @@ const httpServer = createServer((req: IncomingMessage, res: ServerResponse) => {
     }
   }
 
+  if (url.pathname === '/api/telemetry') {
+    if (req.method === 'GET') {
+      const summary = telemetry.getSummary();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(summary));
+      return;
+    }
+
+    if (req.method === 'POST') {
+      let body = '';
+      req.on('data', (chunk) => {
+        body += chunk;
+        if (body.length > 50000) req.destroy();
+      });
+      req.on('end', () => {
+        try {
+          const payload = JSON.parse(body);
+          const success = telemetry.recordMatch(payload);
+          res.writeHead(success ? 200 : 400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success }));
+        } catch (e) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'Malformed JSON payload' }));
+        }
+      });
+      return;
+    }
+  }
+
   // Default healthcheck
   if (url.pathname === '/health' || url.pathname === '/') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -101,9 +139,20 @@ interface Room {
   isPublic: boolean;
   seed: number;
   rematchVotes?: Set<string>;
+  state?: 'waiting' | 'in_game';
 }
 
 const rooms = new Map<string, Room>();
+
+function generateUniqueRoomId(): string {
+  let roomId = '';
+  let attempts = 0;
+  do {
+    roomId = Math.random().toString(36).substring(2, 8).toUpperCase();
+    attempts++;
+  } while ((rooms.has(roomId) || roomId.length !== 6) && attempts < 100);
+  return roomId;
+}
 
 io.on('connection', (socket) => {
   console.log('Player connected:', socket.id);
@@ -111,7 +160,7 @@ io.on('connection', (socket) => {
   // Create a room (private or public for quick match)
   socket.on('create_room', (data: { characterId?: string; isPublic?: boolean } = {}) => {
     const safeData = data && typeof data === 'object' ? data : {};
-    const roomId = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const roomId = generateUniqueRoomId();
     const characterId = typeof safeData.characterId === 'string' && safeData.characterId ? safeData.characterId : 'kiri';
 
     const room: Room = {
@@ -119,7 +168,8 @@ io.on('connection', (socket) => {
       players: [{ socketId: socket.id, characterId }],
       isPublic: safeData.isPublic ?? false,
       seed: Math.floor(Math.random() * 1000000),
-      rematchVotes: new Set<string>()
+      rematchVotes: new Set<string>(),
+      state: 'waiting'
     };
 
     rooms.set(roomId, room);
@@ -142,8 +192,14 @@ io.on('connection', (socket) => {
     const room = rooms.get(roomId);
     const characterId = typeof data.characterId === 'string' && data.characterId ? data.characterId : 'mizu';
 
-    if (room && room.players.length < 2) {
+    if (
+      room &&
+      room.players.length < 2 &&
+      room.state !== 'in_game' &&
+      !room.players.some((p) => p.socketId === socket.id)
+    ) {
       room.players.push({ socketId: socket.id, characterId });
+      room.state = 'in_game';
       socket.join(roomId);
 
       socket.emit('room_joined', { roomId, characterId });
@@ -169,7 +225,12 @@ io.on('connection', (socket) => {
     // Search for waiting public room
     let availableRoom: Room | null = null;
     for (const r of rooms.values()) {
-      if (r.isPublic && r.players.length === 1) {
+      if (
+        r.isPublic &&
+        r.players.length === 1 &&
+        r.state !== 'in_game' &&
+        !r.players.some((p) => p.socketId === socket.id)
+      ) {
         availableRoom = r;
         break;
       }
@@ -177,6 +238,7 @@ io.on('connection', (socket) => {
 
     if (availableRoom) {
       availableRoom.players.push({ socketId: socket.id, characterId });
+      availableRoom.state = 'in_game';
       socket.join(availableRoom.id);
       socket.emit('room_joined', { roomId: availableRoom.id, characterId });
 
@@ -189,13 +251,14 @@ io.on('connection', (socket) => {
       console.log(`Quick match paired room ${availableRoom.id}`);
     } else {
       // Create new waiting room
-      const roomId = Math.random().toString(36).substring(2, 8).toUpperCase();
+      const roomId = generateUniqueRoomId();
       const room: Room = {
         id: roomId,
         players: [{ socketId: socket.id, characterId }],
         isPublic: true,
         seed: Math.floor(Math.random() * 1000000),
-        rematchVotes: new Set<string>()
+        rematchVotes: new Set<string>(),
+        state: 'waiting'
       };
       rooms.set(roomId, room);
       socket.join(roomId);
@@ -216,6 +279,12 @@ io.on('connection', (socket) => {
     const room = rooms.get(roomId);
     if (!room) {
       socket.emit('room_error', { message: 'Room no longer exists.' });
+      return;
+    }
+
+    // Verify sender is actually a player in this room
+    if (!room.players.some((p) => p.socketId === socket.id)) {
+      socket.emit('room_error', { message: 'Unauthorized: you are not a player in this room.' });
       return;
     }
 
@@ -245,16 +314,25 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Forward game actions (attacks, topouts, cursor updates) to the other player in the room
+  // Forward game actions (attacks, topouts, cursor updates, stack lift) to the other player in the room
   socket.on('game_action', (data: { roomId?: string; type: string; payload?: any }) => {
     if (!data || typeof data !== 'object') return;
     let roomId = typeof data.roomId === 'string' ? data.roomId : undefined;
     if (!roomId) {
       roomId = Array.from(socket.rooms).find((r) => r !== socket.id);
     }
-    if (roomId) {
-      socket.to(roomId).emit('opponent_action', data);
-    }
+    if (!roomId) return;
+
+    // Validate that sender is an actual member of this room
+    if (!socket.rooms.has(roomId)) return;
+    const room = rooms.get(roomId);
+    if (!room || !room.players.some((p) => p.socketId === socket.id)) return;
+
+    // Whitelist allowable game action types (including stack lift)
+    const allowedTypes = ['cursor', 'swap', 'lift', 'attack', 'board_sync', 'super_power_activated', 'topOut'];
+    if (typeof data.type !== 'string' || !allowedTypes.includes(data.type)) return;
+
+    socket.to(roomId).emit('opponent_action', data);
   });
 
   socket.on('leave_room', (data: { roomId?: string } = {}) => {
@@ -264,6 +342,11 @@ io.on('connection', (socket) => {
       const idx = room.players.findIndex((p) => p.socketId === socket.id);
       if (idx !== -1) {
         room.players.splice(idx, 1);
+        if (room.state === 'in_game') {
+          room.state = 'finished' as any;
+        } else {
+          room.state = 'waiting';
+        }
         room.rematchVotes?.delete(socket.id);
         socket.leave(roomId);
         socket.to(roomId).emit('opponent_disconnected', { message: 'Opponent left the room.' });
@@ -282,35 +365,56 @@ io.on('connection', (socket) => {
       data: { mode?: string; difficulty?: string; playerId?: string; limit?: number } = {},
       callback?: (res: any) => void
     ) => {
-      const mode = data.mode || 'endless';
-      const difficulty = data.difficulty || 'adept';
-      const playerId = data.playerId;
-      const limit = Number(data.limit) || 20;
+      try {
+        const mode = data?.mode || 'endless';
+        const difficulty = data?.difficulty || 'adept';
+        const playerId = data?.playerId;
+        const limit = Number(data?.limit) || 20;
 
-      const result = leaderboard.getLeaderboard(mode, difficulty, playerId, limit);
-      if (typeof callback === 'function') {
-        callback(result);
-      } else {
-        socket.emit('leaderboard_data', result);
+        const result = leaderboard.getLeaderboard(mode, difficulty, playerId, limit);
+        if (typeof callback === 'function') {
+          callback(result);
+        } else {
+          socket.emit('leaderboard_data', result);
+        }
+      } catch (err) {
+        console.error('Error fetching leaderboard:', err);
+        const fallback = { entries: [], totalCount: 0 };
+        if (typeof callback === 'function') callback(fallback);
+        else socket.emit('leaderboard_data', fallback);
       }
     }
   );
 
   socket.on('submit_score', (data: SubmitScorePayload, callback?: (res: any) => void) => {
-    const result = leaderboard.submitScore(data);
-    if (typeof callback === 'function') {
-      callback(result);
-    } else {
-      socket.emit('score_submitted', result);
+    try {
+      const result = leaderboard.submitScore(data);
+      if (typeof callback === 'function') {
+        callback(result);
+      } else {
+        socket.emit('score_submitted', result);
+      }
+    } catch (err) {
+      console.error('Error submitting score:', err);
+      const fallback = { success: false, error: 'Internal server error', isNewBest: false, rank: -1 };
+      if (typeof callback === 'function') callback(fallback);
+      else socket.emit('score_submitted', fallback);
     }
   });
 
   socket.on('update_player_name', (data: { playerId: string; playerSecret: string; displayName: string }, callback?: (res: any) => void) => {
-    const result = leaderboard.updatePlayerName(data?.playerId, data?.playerSecret, data?.displayName);
-    if (typeof callback === 'function') {
-      callback(result);
-    } else {
-      socket.emit('player_name_updated', result);
+    try {
+      const result = leaderboard.updatePlayerName(data?.playerId, data?.playerSecret, data?.displayName);
+      if (typeof callback === 'function') {
+        callback(result);
+      } else {
+        socket.emit('player_name_updated', result);
+      }
+    } catch (err) {
+      console.error('Error updating player name:', err);
+      const fallback = { success: false, error: 'Internal server error' };
+      if (typeof callback === 'function') callback(fallback);
+      else socket.emit('player_name_updated', fallback);
     }
   });
 
@@ -320,6 +424,11 @@ io.on('connection', (socket) => {
       const idx = room.players.findIndex((p) => p.socketId === socket.id);
       if (idx !== -1) {
         room.players.splice(idx, 1);
+        if (room.state === 'in_game') {
+          room.state = 'finished' as any;
+        } else {
+          room.state = 'waiting';
+        }
         room.rematchVotes?.delete(socket.id);
         socket.to(roomId).emit('opponent_disconnected', { message: 'Opponent disconnected!' });
         if (room.players.length === 0) {
@@ -329,6 +438,17 @@ io.on('connection', (socket) => {
     }
   });
 });
+
+// Graceful process shutdown
+const handleShutdown = () => {
+  console.log('Flushing pending leaderboard and telemetry saves to disk...');
+  leaderboard.flushPendingSave();
+  telemetry.flushPendingSave();
+  process.exit(0);
+};
+
+process.on('SIGINT', handleShutdown);
+process.on('SIGTERM', handleShutdown);
 
 const PORT = process.env.PORT || 3001;
 httpServer.listen(PORT, () => {

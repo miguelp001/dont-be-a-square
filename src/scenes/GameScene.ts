@@ -19,6 +19,7 @@ import { GameDifficulty, getDifficultyInfo } from '../utils/Difficulty';
 import { RecordManager } from '../utils/DifficultyRecords';
 import { LeaderboardClient } from '../utils/LeaderboardClient';
 import { StatsManager } from '../utils/StatsManager';
+import { TelemetryClient } from '../utils/TelemetryClient';
 
 export default class GameScene extends Phaser.Scene {
   public gameMode: 'vs_cpu' | 'endless' | 'vs_online' | 'challenge' = 'challenge';
@@ -28,7 +29,24 @@ export default class GameScene extends Phaser.Scene {
   public difficulty: GameDifficulty = GameDifficulty.ADEPT;
   public initialChallengeScore: number = 0;
   public roundScore: number = 0;
+  public cumulativeChallengeTime: number = 0;
   private endlessBestText?: Phaser.GameObjects.Text;
+
+  // Match-scoped Telemetry
+  private matchSwaps: number = 0;
+  private matchFastLifts: number = 0;
+  private matchPanelsCleared: number = 0;
+  private matchGarbageCleared: number = 0;
+  private matchCombos4: number = 0;
+  private matchCombos5: number = 0;
+  private matchCombos6Plus: number = 0;
+  private matchChains2: number = 0;
+  private matchChains3: number = 0;
+  private matchChains4: number = 0;
+  private matchChains5Plus: number = 0;
+  private playerPowerActivationsCount: number = 0;
+  private cpuPowerActivationsCount: number = 0;
+  private lastInputDevice: 'keyboard' | 'touch' | 'gamepad' = 'keyboard';
 
   // Player 1
   private playerBoard!: Board;
@@ -40,6 +58,7 @@ export default class GameScene extends Phaser.Scene {
   private playerAvatar?: Phaser.GameObjects.Image;
   private playerMascot?: Phaser.GameObjects.Image;
   private playerWoodFrame?: Phaser.GameObjects.Image;
+  private playerWoodBackdrop?: Phaser.GameObjects.Image;
   private playerSpeechBubble?: Phaser.GameObjects.Text;
   private playerDangerText?: Phaser.GameObjects.Text;
   private playerHazardVignette?: Phaser.GameObjects.Graphics;
@@ -69,6 +88,7 @@ export default class GameScene extends Phaser.Scene {
   private cpuAvatar?: Phaser.GameObjects.Image;
   private cpuMascot?: Phaser.GameObjects.Image;
   private cpuWoodFrame?: Phaser.GameObjects.Image;
+  private cpuWoodBackdrop?: Phaser.GameObjects.Image;
   private cpuSpeechBubble?: Phaser.GameObjects.Text;
   private cpuDangerText?: Phaser.GameObjects.Text;
   private lastRiffPowerChordTime: number = 0;
@@ -148,11 +168,14 @@ export default class GameScene extends Phaser.Scene {
   private opponentDisconnected: boolean = false;
   private onlinePlayAgainBtnText?: Phaser.GameObjects.Text;
 
+  private initialData: any = {};
+
   constructor() {
     super({ key: 'GameScene' });
   }
 
   init(data: any): void {
+    this.initialData = data ? { ...data } : {};
     this.gameMode = data?.mode || 'challenge';
     this.characterId = data?.characterId || 'kiri';
     this.defeatedOpponents = data?.defeatedOpponents || [];
@@ -198,11 +221,17 @@ export default class GameScene extends Phaser.Scene {
     }
 
     this.initialChallengeScore = (this.gameMode === 'challenge') ? (Number(data?.challengeScore) || 0) : 0;
+    this.cumulativeChallengeTime = (this.gameMode === 'challenge') ? (Number(data?.challengeElapsedSeconds) || 0) : 0;
     this.roundScore = 0;
     this.playerScore = this.initialChallengeScore;
     this.cpuScore = 0;
-    this.gameTime = 240;
+    this.gameTime = (this.gameMode === 'endless') ? 0 : 240;
     this.isMatchOver = false;
+    this.isPaused = false;
+    this.pauseModalContainer = undefined;
+    this.pauseButtons = [];
+    this.pauseActions = [];
+    this.pauseModalIndex = 0;
     this.isRematchRequested = false;
     this.opponentWantsRematch = false;
     this.opponentDisconnected = false;
@@ -214,6 +243,21 @@ export default class GameScene extends Phaser.Scene {
     this.gameOverPadRepeatTimer = 0;
     this.lastMouseX = -1;
     this.lastMouseY = -1;
+
+    this.matchSwaps = 0;
+    this.matchFastLifts = 0;
+    this.matchPanelsCleared = 0;
+    this.matchGarbageCleared = 0;
+    this.matchCombos4 = 0;
+    this.matchCombos5 = 0;
+    this.matchCombos6Plus = 0;
+    this.matchChains2 = 0;
+    this.matchChains3 = 0;
+    this.matchChains4 = 0;
+    this.matchChains5Plus = 0;
+    this.playerPowerActivationsCount = 0;
+    this.cpuPowerActivationsCount = 0;
+    this.lastInputDevice = 'keyboard';
   }
 
   create(): void {
@@ -760,7 +804,10 @@ export default class GameScene extends Phaser.Scene {
     });
     this.playerBoard.on('chainEnd', () => this.playerChainText.setText(''));
     this.playerBoard.on('garbageLand', (e: GarbageLandEvent) => this.handleGarbageLand(e, true));
-    this.playerBoard.on('garbageCleared', (e: { count: number }) => StatsManager.recordGarbageCleared(e.count));
+    this.playerBoard.on('garbageCleared', (e: { count: number }) => {
+      this.matchGarbageCleared += (e.count || 1);
+      StatsManager.recordGarbageCleared(e.count);
+    });
     this.playerBoard.on('dangerStart', () => {
       this.triggerAvatarHurt(true);
       this.updateDangerUI(true, true, this.playerBoard.dangerGraceDuration / 1000);
@@ -788,6 +835,7 @@ export default class GameScene extends Phaser.Scene {
       SoundFx.playVictory();
     });
     this.playerBoard.on('powerActivated', (data: any) => {
+      this.playerPowerActivationsCount++;
       this.showSuperPowerBanner(true, data.characterId, data.powerName);
       this.triggerAvatarAttack(true);
       this.triggerPowerVisualEffects(true, data.characterId);
@@ -820,11 +868,14 @@ export default class GameScene extends Phaser.Scene {
           this.setBgmTension(false);
         }
       });
-      this.cpuBoard.on('topOut', () => this.endMatch('VICTORY!', true));
+      if (this.gameMode !== 'vs_online') {
+        this.cpuBoard.on('topOut', () => this.endMatch('VICTORY!', true));
+      }
 
       // Wire CPU Super Power Events
       this.cpuBoard.on('powerMeterChange', (e: { meter: number }) => this.updateCpuPowerUI(e.meter));
       this.cpuBoard.on('powerActivated', (data: any) => {
+        this.cpuPowerActivationsCount++;
         this.showSuperPowerBanner(false, data.characterId, data.powerName);
         this.triggerAvatarAttack(false);
         this.triggerPowerVisualEffects(false, data.characterId);
@@ -930,6 +981,7 @@ export default class GameScene extends Phaser.Scene {
           this.onlinePlayAgainBtnText.setText('REMATCH STARTING!');
         }
         this.time.delayedCall(500, () => {
+          this.isRematchRequested = true;
           this.scene.restart({
             mode: 'vs_online',
             roomId: payload.roomId || this.roomId,
@@ -1155,7 +1207,10 @@ export default class GameScene extends Phaser.Scene {
     });
     this.playerBoard.on('chainEnd', () => this.playerChainText.setText(''));
     this.playerBoard.on('garbageLand', (e: GarbageLandEvent) => this.handleGarbageLand(e, true));
-    this.playerBoard.on('garbageCleared', (e: { count: number }) => StatsManager.recordGarbageCleared(e.count));
+    this.playerBoard.on('garbageCleared', (e: { count: number }) => {
+      this.matchGarbageCleared += (e.count || 1);
+      StatsManager.recordGarbageCleared(e.count);
+    });
     this.playerBoard.on('dangerStart', () => {
       this.triggerAvatarHurt(true);
       this.updateDangerUI(true, true, this.playerBoard.dangerGraceDuration / 1000);
@@ -1176,6 +1231,7 @@ export default class GameScene extends Phaser.Scene {
       SoundFx.playVictory();
     });
     this.playerBoard.on('powerActivated', (data: any) => {
+      this.playerPowerActivationsCount++;
       this.showSuperPowerBanner(true, data.characterId, data.powerName);
       this.triggerAvatarAttack(true);
       this.triggerPowerVisualEffects(true, data.characterId);
@@ -1208,22 +1264,22 @@ export default class GameScene extends Phaser.Scene {
     g.clear();
 
     // 1. Dark warm wood backdrop behind board grid
-    const backdropKey = isPlayer ? 'p1_wood_backdrop' : 'cpu_wood_backdrop';
-    let backdrop = this.children.getByName(backdropKey) as Phaser.GameObjects.Image;
+    let backdrop = isPlayer ? this.playerWoodBackdrop : this.cpuWoodBackdrop;
     if (!backdrop && this.textures.exists('board_wood_backdrop')) {
       backdrop = this.add.image(x, y, 'board_wood_backdrop');
-      backdrop.setName(backdropKey);
+      backdrop.setName(isPlayer ? 'p1_wood_backdrop' : 'cpu_wood_backdrop');
       backdrop.setOrigin(0, 0);
       backdrop.setDisplaySize(w, h);
       backdrop.setDepth(1); // Behind board container (depth 10)
+      if (isPlayer) this.playerWoodBackdrop = backdrop;
+      else this.cpuWoodBackdrop = backdrop;
     } else if (backdrop) {
       backdrop.setPosition(x, y);
       backdrop.setDisplaySize(w, h);
     }
 
     // 2. High-res carved timber frame with leaves and flowers on top
-    const frameKey = isPlayer ? 'p1_wood_frame' : 'cpu_wood_frame';
-    let frameImg = this.children.getByName(frameKey) as Phaser.GameObjects.Image;
+    let frameImg = isPlayer ? this.playerWoodFrame : this.cpuWoodFrame;
     if (this.textures.exists('board_wood_frame')) {
       const tex = this.textures.get('board_wood_frame');
       const srcImg = tex?.getSourceImage() as (HTMLImageElement | undefined);
@@ -1244,7 +1300,7 @@ export default class GameScene extends Phaser.Scene {
 
       if (!frameImg) {
         frameImg = this.add.image(frameX, frameY, 'board_wood_frame');
-        frameImg.setName(frameKey);
+        frameImg.setName(isPlayer ? 'p1_wood_frame' : 'cpu_wood_frame');
         frameImg.setOrigin(0, 0);
         frameImg.setScale(frameScale);
         frameImg.setDepth(5); // Render behind slimes (depth 10) so the slimes are ALWAYS 100% visible!
@@ -1379,6 +1435,8 @@ export default class GameScene extends Phaser.Scene {
   private triggerPlayerSwap(gx: number, gy: number, inputType: 'keyboard' | 'touch' | 'gamepad' = 'keyboard'): boolean {
     const success = this.playerBoard.swap(gx, gy);
     if (success) {
+      this.matchSwaps++;
+      this.lastInputDevice = inputType;
       StatsManager.recordSwap(inputType);
       if (this.gameMode === 'vs_online') {
         this.sendNetAction({
@@ -1392,6 +1450,7 @@ export default class GameScene extends Phaser.Scene {
 
   private setPlayerLifting(lifting: boolean): void {
     if (lifting && this.playerBoard && !this.playerBoard.isLifting) {
+      this.matchFastLifts++;
       StatsManager.recordFastLift();
     }
     this.playerBoard.setLifting(lifting);
@@ -1465,23 +1524,25 @@ export default class GameScene extends Phaser.Scene {
         this.setPlayerLifting(true);
       }
 
-      // Garbage Test Hotkeys
-      if (event.code === 'KeyG') {
-        this.playerBoard.queueGarbage(3, 1);
-        this.showAttackAlert(false, 1);
-        this.triggerAvatarHurt(true);
-      } else if (event.code === 'KeyH') {
-        this.playerBoard.queueGarbage(6, 1);
-        this.showAttackAlert(false, 1);
-        this.triggerAvatarHurt(true);
-      } else if (event.code === 'KeyB') {
-        this.playerBoard.queueGarbage(6, 2);
-        this.showAttackAlert(false, 2);
-        this.triggerAvatarHurt(true);
-      } else if (event.code === 'KeyY' && this.cpuBoard) {
-        this.cpuBoard.queueGarbage(3, 1);
-        this.showAttackAlert(true, 1);
-        this.triggerAvatarHurt(false);
+      // Garbage Test Hotkeys (Development only)
+      if ((import.meta as any).env?.DEV) {
+        if (event.code === 'KeyG') {
+          this.playerBoard.queueGarbage(3, 1);
+          this.showAttackAlert(false, 1);
+          this.triggerAvatarHurt(true);
+        } else if (event.code === 'KeyH') {
+          this.playerBoard.queueGarbage(6, 1);
+          this.showAttackAlert(false, 1);
+          this.triggerAvatarHurt(true);
+        } else if (event.code === 'KeyB') {
+          this.playerBoard.queueGarbage(6, 2);
+          this.showAttackAlert(false, 2);
+          this.triggerAvatarHurt(true);
+        } else if (event.code === 'KeyY' && this.cpuBoard) {
+          this.cpuBoard.queueGarbage(3, 1);
+          this.showAttackAlert(true, 1);
+          this.triggerAvatarHurt(false);
+        }
       }
     };
 
@@ -1515,9 +1576,26 @@ export default class GameScene extends Phaser.Scene {
         this.touchController.destroy();
         this.touchController = undefined;
       }
+      if (this.cpuBot) {
+        this.cpuBot.destroy();
+        this.cpuBot = undefined;
+      }
+      if (this.playerBoard) {
+        this.playerBoard.destroy();
+      }
+      if (this.cpuBoard) {
+        this.cpuBoard.destroy();
+        this.cpuBoard = undefined;
+      }
+      if (this.socketMgr) {
+        this.socketMgr.removeGameListeners();
+      }
       if (this.gameMode === 'vs_online' && this.socketMgr && this.roomId && !this.isRematchRequested) {
         this.socketMgr.leaveRoom(this.roomId);
       }
+      SoundFx.stopAll();
+      this.time.removeAllEvents();
+      this.tweens.killAll();
     });
 
     // 1. Mobile & Desktop Pause Button (Top-Left on Mobile, Top-Right on Desktop)
@@ -1558,6 +1636,8 @@ export default class GameScene extends Phaser.Scene {
       this.touchController = new TouchController(this, this.playerBoard, this.playerCursor, {
         occlusionOffsetY: 0,
         onSwapCommit: (col, row) => {
+          this.matchSwaps++;
+          this.lastInputDevice = 'touch';
           StatsManager.recordSwap('touch');
           this.broadcastCursor();
           if (this.gameMode === 'vs_online') {
@@ -1615,6 +1695,18 @@ export default class GameScene extends Phaser.Scene {
 
       if (this.touchController) {
         this.touchController.handlePointerUp(pointer);
+      }
+    });
+
+    this.input.on('pointerupoutside', (pointer: Phaser.Input.Pointer) => {
+      if (this.touchController) {
+        this.touchController.handlePointerUp(pointer);
+      }
+    });
+
+    this.input.on('gameout', () => {
+      if (this.touchController) {
+        this.touchController.handlePointerCancel();
       }
     });
 
@@ -2336,7 +2428,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private togglePause(): void {
-    if (this.isMatchOver) return;
+    if (this.isMatchOver || this.gameMode === 'vs_online') return;
     if (this.isPaused) {
       this.resumeGame();
     } else {
@@ -2345,6 +2437,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private pauseGame(): void {
+    if (this.gameMode === 'vs_online') return;
     this.isPaused = true;
     SoundFx.playCursor();
 
@@ -2391,12 +2484,12 @@ export default class GameScene extends Phaser.Scene {
 
       const optionsBtn = CuteUI.createPillButton(this, 0, btnY2, '⚙️ OPTIONS', () => {
         this.resumeGame();
-        this.scene.start('OptionsMenuScene', { returnScene: 'GameScene' });
+        this.scene.start('OptionsMenuScene', { returnScene: 'GameScene', returnData: this.initialData });
       }, { textureKey: 'pill_purple', fontSize: btnFont, width: btnW, height: btnH, autoScale: false });
 
       const restartBtn = CuteUI.createPillButton(this, 0, btnY3, 'RESTART', () => {
         this.resumeGame();
-        this.scene.restart();
+        this.scene.restart(this.initialData);
       }, { textureKey: 'pill_blue', fontSize: btnFont, width: btnW, height: btnH, autoScale: false });
 
       const menuBtn = CuteUI.createPillButton(this, 0, btnY4, 'MAIN MENU', () => {
@@ -2412,11 +2505,11 @@ export default class GameScene extends Phaser.Scene {
         () => this.resumeGame(),
         () => {
           this.resumeGame();
-          this.scene.start('OptionsMenuScene', { returnScene: 'GameScene' });
+          this.scene.start('OptionsMenuScene', { returnScene: 'GameScene', returnData: this.initialData });
         },
         () => {
           this.resumeGame();
-          this.scene.restart();
+          this.scene.restart(this.initialData);
         },
         () => {
           if (this.gameMode === 'vs_online' && this.socketMgr && this.roomId) {
@@ -2490,12 +2583,22 @@ export default class GameScene extends Phaser.Scene {
 
     const mascot = isPlayer1 ? this.playerMascot : this.cpuMascot;
     if (mascot) {
+      if (mascot.getData('baselineY') === undefined) {
+        mascot.setData('baselineY', mascot.y);
+      }
+      const baselineY = mascot.getData('baselineY') as number;
+      this.tweens.killTweensOf(mascot);
       this.tweens.add({
         targets: mascot,
-        y: mascot.y - 20,
+        y: baselineY - 20,
         duration: 160,
         yoyo: true,
-        ease: 'Back.easeOut'
+        ease: 'Back.easeOut',
+        onComplete: () => {
+          if (mascot.active) {
+            mascot.y = baselineY;
+          }
+        }
       });
     }
 
@@ -2649,7 +2752,10 @@ export default class GameScene extends Phaser.Scene {
 
     this.tweens.killTweensOf(mascot);
 
-    const origY = mascot.y;
+    if (mascot.getData('baselineY') === undefined) {
+      mascot.setData('baselineY', mascot.y);
+    }
+    const origY = mascot.getData('baselineY') as number;
     const origScaleX = mascot.scaleX;
     const origScaleY = mascot.scaleY;
     const origDisplayW = mascot.displayWidth;
@@ -2914,6 +3020,16 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private handlePlayerMatch(event: MatchEvent): void {
+    this.matchPanelsCleared += Math.max(3, event.comboSize);
+    if (event.comboSize === 4) this.matchCombos4++;
+    else if (event.comboSize === 5) this.matchCombos5++;
+    else if (event.comboSize >= 6) this.matchCombos6Plus++;
+
+    if (event.chainLevel === 2) this.matchChains2++;
+    else if (event.chainLevel === 3) this.matchChains3++;
+    else if (event.chainLevel === 4) this.matchChains4++;
+    else if (event.chainLevel >= 5) this.matchChains5Plus++;
+
     StatsManager.recordMatchEvent(event.comboSize, event.chainLevel);
     this.playerScore += event.scoreGained;
     this.roundScore += event.scoreGained;
@@ -2925,12 +3041,22 @@ export default class GameScene extends Phaser.Scene {
     }
 
     if (this.playerMascot && (event.comboSize >= 4 || event.chainLevel > 1)) {
+      if (this.playerMascot.getData('baselineY') === undefined) {
+        this.playerMascot.setData('baselineY', this.playerMascot.y);
+      }
+      const baselineY = this.playerMascot.getData('baselineY') as number;
+      this.tweens.killTweensOf(this.playerMascot);
       this.tweens.add({
         targets: this.playerMascot,
-        y: this.playerMascot.y - 18,
+        y: baselineY - 18,
         duration: 160,
         yoyo: true,
-        ease: 'Back.easeOut'
+        ease: 'Back.easeOut',
+        onComplete: () => {
+          if (this.playerMascot?.active) {
+            this.playerMascot.y = baselineY;
+          }
+        }
       });
     }
 
@@ -3098,6 +3224,13 @@ export default class GameScene extends Phaser.Scene {
 
   private updateTimer(): void {
     if (this.isMatchOver || this.isPaused) return;
+
+    if (this.gameMode === 'endless') {
+      this.gameTime++;
+      this.timeText.setText(this.formatTime(this.gameTime));
+      return;
+    }
+
     this.gameTime--;
     this.timeText.setText(this.formatTime(this.gameTime));
 
@@ -3350,8 +3483,42 @@ export default class GameScene extends Phaser.Scene {
     if (this.isMatchOver) return;
     this.isMatchOver = true;
 
+    if (this.isPaused) {
+      this.isPaused = false;
+      if (this.pauseModalContainer) {
+        this.pauseModalContainer.setVisible(false);
+      }
+    }
+
     const matchDurationSec = Math.max(1, Math.round((Date.now() - this.matchStartTimeMs) / 1000));
     StatsManager.recordMatchEnd(this.gameMode, matchDurationSec, isVictory, this.difficulty);
+
+    TelemetryClient.submitMatchTelemetry({
+      mode: this.gameMode,
+      difficulty: this.difficulty,
+      characterId: this.characterId,
+      opponentCharacterId: this.opponentCharacterId || undefined,
+      isVictory: isVictory,
+      score: this.playerScore,
+      maxChain: this.playerBoard?.maxChain || 1,
+      matchDurationSeconds: matchDurationSec,
+      panelsCleared: this.matchPanelsCleared,
+      garbageCleared: this.matchGarbageCleared,
+      swaps: this.matchSwaps,
+      fastLifts: this.matchFastLifts,
+      combos4: this.matchCombos4,
+      combos5: this.matchCombos5,
+      combos6Plus: this.matchCombos6Plus,
+      chains2: this.matchChains2,
+      chains3: this.matchChains3,
+      chains4: this.matchChains4,
+      chains5Plus: this.matchChains5Plus,
+      powerActivations: {
+        [this.characterId]: this.playerPowerActivationsCount,
+        ...(this.opponentCharacterId ? { [this.opponentCharacterId]: this.cpuPowerActivationsCount } : {})
+      },
+      inputDevice: this.lastInputDevice
+    }).catch(() => {});
 
     if (this.timerEvent) {
       this.timerEvent.remove();
@@ -3433,9 +3600,10 @@ export default class GameScene extends Phaser.Scene {
         this.playerBoard.maxChain
       ).catch(() => {});
     } else if (this.gameMode === 'challenge') {
+      const thisRoundElapsed = Math.max(1, 240 - this.gameTime);
+      const totalElapsedSeconds = this.cumulativeChallengeTime + thisRoundElapsed;
       if (isChampion) {
-        const elapsedSeconds = Math.max(1, 240 - this.gameTime);
-        RecordManager.recordChallengeClear(this.difficulty, this.characterId, elapsedSeconds, this.playerScore);
+        RecordManager.recordChallengeClear(this.difficulty, this.characterId, totalElapsedSeconds, this.playerScore);
         if (this.opponentCharacterId === 'void_slime' || this.defeatedOpponents.includes('void_slime')) {
           RecordManager.recordVoidSlimeDefeat();
         }
@@ -3570,13 +3738,17 @@ export default class GameScene extends Phaser.Scene {
     const btnSpacing = Math.round(52 * uiScale);
 
     if (this.gameMode === 'challenge') {
+      const thisRoundElapsed = Math.max(1, 240 - this.gameTime);
+      const totalElapsedSeconds = this.cumulativeChallengeTime + thisRoundElapsed;
+
       if (isChampion) {
         const claimBtn = CuteUI.createPillButton(this, 0, startBtnY, 'CLAIM CHAMPION CROWN 🏆', () => {
           this.scene.start('ChallengeMapScene', {
             characterId: this.characterId,
             defeatedOpponents: this.defeatedOpponents,
             difficulty: this.difficulty,
-            challengeScore: this.playerScore
+            challengeScore: this.playerScore,
+            challengeElapsedSeconds: totalElapsedSeconds
           });
         }, { textureKey: 'pill_pink', fontSize: btnFont, width: btnW, height: btnH, autoScale: false });
 
@@ -3598,7 +3770,8 @@ export default class GameScene extends Phaser.Scene {
             characterId: this.characterId,
             defeatedOpponents: this.defeatedOpponents,
             difficulty: this.difficulty,
-            challengeScore: this.playerScore
+            challengeScore: this.playerScore,
+            challengeElapsedSeconds: totalElapsedSeconds
           }),
           () => this.scene.start('LeaderboardScene', { returnScene: 'MenuScene', initialMode: 'challenge', initialDifficulty: this.difficulty }),
           () => this.scene.start('MenuScene')
@@ -3612,7 +3785,8 @@ export default class GameScene extends Phaser.Scene {
             characterId: this.characterId,
             defeatedOpponents: this.defeatedOpponents,
             difficulty: this.difficulty,
-            challengeScore: this.playerScore
+            challengeScore: this.playerScore,
+            challengeElapsedSeconds: totalElapsedSeconds
           });
         }, { textureKey: 'pill_green', fontSize: btnFont, width: btnW, height: btnH, autoScale: false });
 
@@ -3626,7 +3800,8 @@ export default class GameScene extends Phaser.Scene {
             characterId: this.characterId,
             defeatedOpponents: this.defeatedOpponents,
             difficulty: this.difficulty,
-            challengeScore: this.playerScore
+            challengeScore: this.playerScore,
+            challengeElapsedSeconds: totalElapsedSeconds
           }),
           () => this.scene.start('MenuScene')
         ];
@@ -3638,7 +3813,8 @@ export default class GameScene extends Phaser.Scene {
             opponentCharacterId: this.opponentCharacterId,
             defeatedOpponents: this.defeatedOpponents,
             difficulty: this.difficulty,
-            challengeScore: this.initialChallengeScore
+            challengeScore: this.initialChallengeScore,
+            challengeElapsedSeconds: this.cumulativeChallengeTime
           });
         }, { textureKey: 'pill_blue', fontSize: btnFont, width: btnW, height: btnH, autoScale: false });
 
@@ -3647,7 +3823,8 @@ export default class GameScene extends Phaser.Scene {
             characterId: this.characterId,
             defeatedOpponents: this.defeatedOpponents,
             difficulty: this.difficulty,
-            challengeScore: this.initialChallengeScore
+            challengeScore: this.initialChallengeScore,
+            challengeElapsedSeconds: this.cumulativeChallengeTime
           });
         }, { textureKey: 'pill_pink', fontSize: btnFont, width: btnW, height: btnH, autoScale: false });
 
@@ -3663,13 +3840,15 @@ export default class GameScene extends Phaser.Scene {
             opponentCharacterId: this.opponentCharacterId,
             defeatedOpponents: this.defeatedOpponents,
             difficulty: this.difficulty,
-            challengeScore: this.initialChallengeScore
+            challengeScore: this.initialChallengeScore,
+            challengeElapsedSeconds: this.cumulativeChallengeTime
           }),
           () => this.scene.start('ChallengeMapScene', {
             characterId: this.characterId,
             defeatedOpponents: this.defeatedOpponents,
             difficulty: this.difficulty,
-            challengeScore: this.initialChallengeScore
+            challengeScore: this.initialChallengeScore,
+            challengeElapsedSeconds: this.cumulativeChallengeTime
           }),
           () => this.scene.start('MenuScene')
         ];
@@ -3745,7 +3924,7 @@ export default class GameScene extends Phaser.Scene {
 
       const lbBtn = CuteUI.createPillButton(this, 0, startBtnY + btnSpacing, 'GLOBAL LEADERBOARD 🏆', () => {
         this.scene.start('LeaderboardScene', {
-          returnScene: 'GameScene',
+          returnScene: 'MenuScene',
           initialMode: 'endless',
           initialDifficulty: this.difficulty
         });

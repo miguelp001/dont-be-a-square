@@ -38,10 +38,13 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Bypass non-GET requests, API calls, and WebSocket/Socket.io traffic
+  // Bypass non-GET requests, API calls, WebSocket traffic, and telemetry dashboard
   if (
     request.method !== 'GET' ||
     url.pathname.startsWith('/api') ||
+    url.pathname.startsWith('/stats') ||
+    url.pathname.startsWith('/telemetry') ||
+    url.pathname.startsWith('/game-stats') ||
     url.pathname.startsWith('/socket.io') ||
     url.protocol === 'ws:' ||
     url.protocol === 'wss:'
@@ -60,7 +63,15 @@ self.addEventListener('fetch', (event) => {
           }
           return response;
         })
-        .catch(() => caches.match('/index.html') || caches.match('/'))
+        .catch(async () => {
+          const cachedIndex = await caches.match('/index.html');
+          if (cachedIndex) return cachedIndex;
+          const cachedRoot = await caches.match('/');
+          if (cachedRoot) return cachedRoot;
+          const fallback = await caches.match(request);
+          if (fallback) return fallback;
+          return new Response('Offline', { status: 503, headers: { 'Content-Type': 'text/plain' } });
+        })
     );
     return;
   }
@@ -73,7 +84,8 @@ self.addEventListener('fetch', (event) => {
         fetch(request)
           .then((networkResponse) => {
             if (networkResponse && networkResponse.status === 200) {
-              caches.open(CACHE_NAME).then((cache) => cache.put(request, networkResponse));
+              const clone = networkResponse.clone();
+              caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
             }
           })
           .catch(() => {});

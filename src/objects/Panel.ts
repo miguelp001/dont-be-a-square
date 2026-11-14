@@ -17,6 +17,8 @@ export default class Panel extends Phaser.GameObjects.Sprite {
   
   /** Kiri's Gear Lock ability state */
   public isLocked: boolean = false;
+  /** Set while actively dragged by touch controller to prevent grid snapping conflict */
+  public isDragged: boolean = false;
   private lockIcon?: Phaser.GameObjects.Image;
   
   private flashTween?: Phaser.Tweens.Tween;
@@ -243,7 +245,17 @@ export default class Panel extends Phaser.GameObjects.Sprite {
   }
 
   public override destroy(fromScene?: boolean): void {
+    if (this.scene?.tweens) {
+      this.scene.tweens.killTweensOf(this);
+    }
+    if (this.flashTween) {
+      this.flashTween.stop();
+      this.flashTween = undefined;
+    }
     if (this.lockIcon) {
+      if (this.scene?.tweens) {
+        this.scene.tweens.killTweensOf(this.lockIcon);
+      }
       this.lockIcon.destroy();
       this.lockIcon = undefined;
     }

@@ -13,6 +13,7 @@ export default class ChallengeMapScene extends Phaser.Scene {
   public defeatedOpponents: string[] = [];
   public difficulty: GameDifficulty = GameDifficulty.ADEPT;
   public challengeScore: number = 0;
+  public challengeElapsedSeconds: number = 0;
 
   private selectedIndex: number = 0;
   private selectableItems: {
@@ -31,6 +32,7 @@ export default class ChallengeMapScene extends Phaser.Scene {
     this.defeatedOpponents = data?.defeatedOpponents || [];
     this.difficulty = data?.difficulty || Settings.difficulty || GameDifficulty.ADEPT;
     this.challengeScore = Number(data?.challengeScore) || 0;
+    this.challengeElapsedSeconds = Number(data?.challengeElapsedSeconds) || 0;
   }
 
   create(): void {
@@ -327,6 +329,13 @@ export default class ChallengeMapScene extends Phaser.Scene {
       SoundFx.playCursor();
       this.scene.start('CharacterSelectScene', { mode: 'challenge' });
     });
+
+    this.events.once('shutdown', () => {
+      this.input.keyboard?.removeAllListeners();
+      this.input.gamepad?.removeAllListeners();
+      this.tweens.killAll();
+      this.time.removeAllEvents();
+    });
   }
 
   public update(_time: number, delta: number): void {
@@ -512,7 +521,8 @@ export default class ChallengeMapScene extends Phaser.Scene {
         opponentCharacterId: char.id,
         defeatedOpponents: this.defeatedOpponents,
         difficulty: this.difficulty,
-        challengeScore: this.challengeScore
+        challengeScore: this.challengeScore,
+        challengeElapsedSeconds: this.challengeElapsedSeconds
       });
     };
 
@@ -740,7 +750,8 @@ export default class ChallengeMapScene extends Phaser.Scene {
         opponentCharacterId: bossId,
         defeatedOpponents: this.defeatedOpponents,
         difficulty: this.difficulty,
-        challengeScore: this.challengeScore
+        challengeScore: this.challengeScore,
+        challengeElapsedSeconds: this.challengeElapsedSeconds
       });
     };
 
@@ -851,7 +862,7 @@ export default class ChallengeMapScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     const diffInfo = getDifficultyInfo(this.difficulty);
-    RecordManager.recordChallengeClear(this.difficulty, playerChar.id, 0, this.challengeScore);
+    RecordManager.recordChallengeClear(this.difficulty, playerChar.id, this.challengeElapsedSeconds, this.challengeScore);
     if (this.challengeScore > 0) {
       LeaderboardClient.submitScore('challenge', this.difficulty, playerChar.id, this.challengeScore, 1).catch(() => {});
     }
@@ -936,7 +947,8 @@ export default class ChallengeMapScene extends Phaser.Scene {
       this.scene.start('ChallengeMapScene', {
         characterId: this.characterId,
         defeatedOpponents: [],
-        challengeScore: 0
+        challengeScore: 0,
+        challengeElapsedSeconds: 0
       });
     }, uiScale, btnW, btnH);
 

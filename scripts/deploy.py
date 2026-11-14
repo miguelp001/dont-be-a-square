@@ -29,7 +29,7 @@ def upload_file_if_changed(sftp, local_file, remote_file, prefix=""):
     local_size = os.path.getsize(local_file)
 
     # Always upload entry points, service worker, web app manifests, and server configs
-    always_upload = fname.endswith('.html') or fname.endswith('.js') or fname.endswith('.webmanifest') or fname == 'sw.js' or fname == '.htaccess'
+    always_upload = fname.endswith('.html') or fname.endswith('.js') or fname.endswith('.webmanifest') or fname == 'manifest.json' or fname == 'sw.js' or fname == '.htaccess'
 
     if not always_upload:
         try:
@@ -84,12 +84,20 @@ def deploy():
                     sftp.stat(cur)
                 except IOError:
                     sftp.mkdir(cur)
+                    try:
+                        sftp.chmod(cur, 0o755)
+                    except Exception:
+                        pass
 
         for file in files:
             local_file = os.path.join(root, file)
             remote_file = f"{remote_root}/{file}"
             if upload_file_if_changed(sftp, local_file, remote_file):
                 upload_count += 1
+                try:
+                    sftp.chmod(remote_file, 0o644)
+                except Exception:
+                    pass
 
     # Upload assets/ directory (audio, character sprites, slime sprites) to remote assets/
     assets_dir = Path(__file__).resolve().parent.parent / 'assets'

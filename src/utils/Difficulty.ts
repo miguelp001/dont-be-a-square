@@ -146,6 +146,7 @@ export const DIFFICULTY_ORDER: GameDifficulty[] = [
   GameDifficulty.GRANDMASTER
 ];
 
-export function getDifficultyInfo(diff: GameDifficulty): DifficultyTierInfo {
-  return DIFFICULTY_TIERS[diff] || DIFFICULTY_TIERS[GameDifficulty.ADEPT];
+export function getDifficultyInfo(diff: GameDifficulty | string): DifficultyTierInfo {
+  const normalized = typeof diff === 'string' ? (diff.toUpperCase() as GameDifficulty) : diff;
+  return DIFFICULTY_TIERS[normalized] || DIFFICULTY_TIERS[GameDifficulty.ADEPT];
 }

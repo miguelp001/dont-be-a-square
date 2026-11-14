@@ -62,7 +62,7 @@ export class RecordManager {
           const parsed = JSON.parse(raw);
           if (parsed && typeof parsed === 'object') {
             for (const diff of DIFFICULTY_ORDER) {
-              if (typeof parsed.endlessHighScores?.[diff] === 'number') {
+              if (typeof parsed.endlessHighScores?.[diff] === 'number' && Number.isFinite(parsed.endlessHighScores[diff])) {
                 defaults.endlessHighScores[diff] = Math.max(0, parsed.endlessHighScores[diff]);
               }
               if (parsed.challengeClears?.[diff]?.cleared) {

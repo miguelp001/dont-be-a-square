@@ -129,7 +129,7 @@ export function computeVsLayout(width: number, height: number): VsLayoutMetrics 
 
   const playerCellH = Math.floor(playerAvailableH / BOARD_VISIBLE_HEIGHT);
   const playerCellW = Math.floor(playerAvailableW / BOARD_WIDTH);
-  const playerCellSize = Math.max(34, Math.min(56, Math.min(playerCellH, playerCellW)));
+  const playerCellSize = Math.max(24, Math.min(56, Math.min(playerCellH, playerCellW)));
   const playerScale = playerCellSize / PANEL_SIZE;
   const playerGridW = playerCellSize * BOARD_WIDTH;
   const playerGridH = playerCellSize * BOARD_VISIBLE_HEIGHT;
@@ -196,6 +196,7 @@ export function animateBallisticGarbageArc(
 
   // Quadratic Bezier Arc Tween
   const path = { t: 0 };
+  let sparkleFrameCounter = 0;
   scene.tweens.add({
     targets: path,
     t: 1,
@@ -210,8 +211,9 @@ export function animateBallisticGarbageArc(
       projectile.setPosition(x, y);
       projectile.setRotation(t * Math.PI * 2);
 
-      // Sparkle trail
-      if (Math.random() < 0.45 && scene.sys && scene.sys.isActive()) {
+      // Throttled sparkle trail to eliminate GC spikes while preserving smooth visual trail
+      sparkleFrameCounter++;
+      if (sparkleFrameCounter % 3 === 0 && scene.sys && scene.sys.isActive()) {
         const spark = scene.add.circle(x + (Math.random() - 0.5) * 8, y + (Math.random() - 0.5) * 8, 2, 0xffffff, 0.85);
         spark.setDepth(49);
         scene.tweens.add({

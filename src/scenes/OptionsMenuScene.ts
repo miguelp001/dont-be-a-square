@@ -12,6 +12,7 @@ export type OptionsTabId = 'gameplay' | 'audio' | 'stats' | 'about';
 
 export default class OptionsMenuScene extends Phaser.Scene {
   private returnScene: string = 'MenuScene';
+  private returnData?: any;
   private currentTab: OptionsTabId = 'gameplay';
 
   // Navigation tabs & containers
@@ -79,6 +80,7 @@ export default class OptionsMenuScene extends Phaser.Scene {
 
   init(data: any): void {
     this.returnScene = data?.returnScene || 'MenuScene';
+    this.returnData = data?.returnData;
     if (data?.defaultTab && ['gameplay', 'audio', 'stats', 'about'].includes(data.defaultTab)) {
       this.currentTab = data.defaultTab;
     } else if (data?.defaultTab === 'controls') {
@@ -161,7 +163,7 @@ export default class OptionsMenuScene extends Phaser.Scene {
     // Listen for window resize to reflow responsive layout
     this.onResizeListener = () => {
       this.cleanUpListeners();
-      this.scene.restart({ returnScene: this.returnScene, defaultTab: this.currentTab });
+      this.scene.restart({ returnScene: this.returnScene, returnData: this.returnData, defaultTab: this.currentTab });
     };
     this.scale.on('resize', this.onResizeListener);
 
@@ -172,7 +174,7 @@ export default class OptionsMenuScene extends Phaser.Scene {
   private goBack(): void {
     SoundFx.playCursor();
     this.cleanUpListeners();
-    this.scene.start(this.returnScene);
+    this.scene.start(this.returnScene, this.returnData);
   }
 
   private cleanUpListeners(): void {
@@ -188,6 +190,8 @@ export default class OptionsMenuScene extends Phaser.Scene {
       this.scale.off('resize', this.onResizeListener);
       this.onResizeListener = undefined;
     }
+    this.input.keyboard?.removeAllListeners();
+    this.input.gamepad?.removeAllListeners();
   }
 
   // =========================================================================
@@ -2046,7 +2050,9 @@ export default class OptionsMenuScene extends Phaser.Scene {
   }
 
   public update(): void {
-    this.updateGamepadStatus();
+    if (this.controlsModalContainer && this.controlsModalContainer.visible) {
+      this.updateGamepadStatus();
+    }
   }
 
   private cycleTab(direction: number): void {
@@ -2293,6 +2299,7 @@ export default class OptionsMenuScene extends Phaser.Scene {
     try {
       const res = await LeaderboardClient.updateDisplayName(trimmed);
       this.isUpdatingName = false;
+      if (!this.scene || !this.scene.isActive()) return;
 
       if (res && res.success) {
         SoundFx.playMatch();
@@ -2304,6 +2311,7 @@ export default class OptionsMenuScene extends Phaser.Scene {
       }
     } catch (e: any) {
       this.isUpdatingName = false;
+      if (!this.scene || !this.scene.isActive()) return;
       this.nameErrorText?.setText('Connection failed. Please try again.').setColor('#ff4757');
       SoundFx.playCancel();
     }

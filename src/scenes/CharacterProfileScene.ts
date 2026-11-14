@@ -154,6 +154,11 @@ export default class CharacterProfileScene extends Phaser.Scene {
     }
 
     // Keyboard navigation
+    this.events.once('shutdown', () => {
+      this.input.keyboard?.removeAllListeners();
+      this.input.gamepad?.removeAllListeners();
+    });
+
     this.input.keyboard?.on('keydown-LEFT', () => this.navigate(-1));
     this.input.keyboard?.on('keydown-A', () => this.navigate(-1));
     this.input.keyboard?.on('keydown-RIGHT', () => this.navigate(1));

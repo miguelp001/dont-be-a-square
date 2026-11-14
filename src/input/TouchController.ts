@@ -38,6 +38,7 @@ export class TouchController {
 
   // Touch Drag State
   public isDragging: boolean = false;
+  private activePointerId: number | null = null;
   public touchRow: number = -1;
   public primaryCol: number = -1;
   public neighborCol: number = -1;
@@ -95,6 +96,14 @@ export class TouchController {
    */
   public handlePointerDown(pointer: Phaser.Input.Pointer): boolean {
     if (this.board.isTopOut) return false;
+    if (this.isDragging) {
+      const now = pointer.time || Date.now();
+      if (now - this.startTime > 2500) {
+        this.handlePointerCancel();
+      } else {
+        return false;
+      }
+    }
 
     const bX = this.board.boardOffsetX;
     const bY = this.board.boardOffsetY;
@@ -121,6 +130,7 @@ export class TouchController {
 
     // Lock strictly to touched row
     this.isDragging = true;
+    this.activePointerId = pointer.id !== undefined ? pointer.id : null;
     this.touchRow = row;
     this.primaryCol = col;
     this.neighborCol = -1;
@@ -163,6 +173,7 @@ export class TouchController {
    */
   public handlePointerMove(pointer: Phaser.Input.Pointer): void {
     if (!this.isDragging || this.touchRow < 0) return;
+    if (this.activePointerId !== null && pointer.id !== undefined && pointer.id !== this.activePointerId) return;
 
     const scale = this.board.scaleFactor;
     const cellWidth = PANEL_SIZE * scale;
@@ -178,6 +189,8 @@ export class TouchController {
     this.releaseVelocity = (Math.abs(pointer.x - this.lastX) / dt) * 1000; // px/sec
     this.lastX = pointer.x;
     this.lastTime = now;
+
+    const prevNeighbor = this.neighborCol;
 
     // 3. Determine Adjacent Neighbor Column & update cursor to encompass swapping pair
     if (this.currentDx > 0) {
@@ -200,6 +213,18 @@ export class TouchController {
       }
     }
 
+    // If neighbor changed (e.g. user reversed drag direction), restore previous neighbor to origin
+    if (prevNeighbor >= 0 && prevNeighbor !== this.neighborCol) {
+      const prevPanel = this.board.panels[this.touchRow]?.[prevNeighbor];
+      if (prevPanel) {
+        prevPanel.isDragged = false;
+        prevPanel.x = prevNeighbor * PANEL_SIZE;
+        if (typeof prevPanel.setScale === 'function') {
+          prevPanel.setScale(1.0);
+        }
+      }
+    }
+
     // Clamp currentDx if at edge of board
     if (this.neighborCol === -1) {
       this.currentDx = 0;
@@ -208,6 +233,7 @@ export class TouchController {
     // 4. Reciprocal Push: 1:1 visual displacement with subtle 1.05x squash & stretch
     const primaryPanel = this.board.panels[this.touchRow]?.[this.primaryCol];
     if (primaryPanel && primaryPanel.state === PanelState.IDLE) {
+      primaryPanel.isDragged = true;
       primaryPanel.x = this.primaryCol * PANEL_SIZE + this.currentDx / scale;
       if (typeof primaryPanel.setScale === 'function') {
         const isMoved = Math.abs(this.currentDx) > 3;
@@ -218,6 +244,7 @@ export class TouchController {
     if (this.neighborCol >= 0) {
       const neighborPanel = this.board.panels[this.touchRow]?.[this.neighborCol];
       if (neighborPanel && neighborPanel.state === PanelState.IDLE) {
+        neighborPanel.isDragged = true;
         neighborPanel.x = this.neighborCol * PANEL_SIZE - this.currentDx / scale;
         if (typeof neighborPanel.setScale === 'function') {
           const isMoved = Math.abs(this.currentDx) > 3;
@@ -242,6 +269,7 @@ export class TouchController {
    */
   public handlePointerUp(pointer: Phaser.Input.Pointer): boolean {
     if (!this.isDragging || this.touchRow < 0) return false;
+    if (this.activePointerId !== null && pointer.id !== undefined && pointer.id !== this.activePointerId) return false;
 
     const scale = this.board.scaleFactor;
     const cellWidth = PANEL_SIZE * scale;
@@ -251,6 +279,7 @@ export class TouchController {
     const absDx = Math.abs(this.currentDx);
 
     this.isDragging = false;
+    this.activePointerId = null;
     this.ghostContainer.setVisible(false);
 
     // Tap detection: minimal movement and short duration
@@ -261,10 +290,12 @@ export class TouchController {
     if (totalDist < 8 * scale && duration < 250) {
       // Clean tap swap at touched position
       const swapCol = Math.min(primaryCol, BOARD_WIDTH - 2);
-      this.snapBackPanels(row, primaryCol, neighborCol);
+      this.resetPanelPositions(row, primaryCol, neighborCol);
       triggerHaptic('tap');
-      this.board.swap(swapCol, row);
-      this.config.onSwapCommit(swapCol, row);
+      const swapped = this.board.swap(swapCol, row);
+      if (swapped) {
+        this.config.onSwapCommit(swapCol, row);
+      }
       return true;
     }
 
@@ -289,9 +320,13 @@ export class TouchController {
       const swapLeftCol = Math.min(primaryCol, neighborCol);
       this.resetPanelPositions(row, primaryCol, neighborCol);
       triggerHaptic('snap');
-      this.board.swap(swapLeftCol, row);
-      this.config.onSwapCommit(swapLeftCol, row);
-      return true;
+      const swapped = this.board.swap(swapLeftCol, row);
+      if (swapped) {
+        this.config.onSwapCommit(swapLeftCol, row);
+      } else {
+        this.snapBackPanels(row, primaryCol, neighborCol);
+      }
+      return swapped;
     } else {
       // Abort: Snap Back to origin with ease-out spring (120ms)
       triggerHaptic('snap');
@@ -299,6 +334,19 @@ export class TouchController {
       this.config.onSnapBack();
       return false;
     }
+  }
+
+  /** Handle Pointer Cancel / Window Blur */
+  public handlePointerCancel(): void {
+    if (!this.isDragging) return;
+    const row = this.touchRow;
+    const primaryCol = this.primaryCol;
+    const neighborCol = this.neighborCol;
+    this.isDragging = false;
+    this.activePointerId = null;
+    this.ghostContainer.setVisible(false);
+    this.snapBackPanels(row, primaryCol, neighborCol);
+    this.touchRow = -1;
   }
 
   /** Snap panels smoothly back to their grid origin */
@@ -327,6 +375,7 @@ export class TouchController {
         ease: 'Back.easeOut',
         onComplete: () => {
           item.panel.x = item.targetX;
+          item.panel.isDragged = false;
         }
       });
     }
@@ -338,6 +387,7 @@ export class TouchController {
       const pA = this.board.panels[row]?.[colA];
       if (pA && pA.state === PanelState.IDLE) {
         pA.x = colA * PANEL_SIZE;
+        pA.isDragged = false;
         if (typeof pA.setScale === 'function') pA.setScale(1.0);
       }
     }
@@ -345,12 +395,27 @@ export class TouchController {
       const pB = this.board.panels[row]?.[colB];
       if (pB && pB.state === PanelState.IDLE) {
         pB.x = colB * PANEL_SIZE;
+        pB.isDragged = false;
         if (typeof pB.setScale === 'function') pB.setScale(1.0);
       }
     }
   }
 
+  public resetDrag(): void {
+    if (this.isDragging && this.touchRow >= 0) {
+      this.resetPanelPositions(this.touchRow, this.primaryCol, this.neighborCol);
+    }
+    this.isDragging = false;
+    this.activePointerId = null;
+    this.touchRow = -1;
+    this.primaryCol = -1;
+    this.neighborCol = -1;
+    this.currentDx = 0;
+    this.ghostContainer.setVisible(false);
+  }
+
   public destroy(): void {
+    this.resetDrag();
     this.ghostContainer.destroy();
   }
 }

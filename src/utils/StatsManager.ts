@@ -115,7 +115,10 @@ function getDefaultStats(): GameStats {
       ember: 0,
       poppy: 0,
       volt: 0,
-      void_slime: 0
+      void_slime: 0,
+      mocha: 0,
+      salty: 0,
+      nano_banana: 0
     },
 
     avgFps: 60
@@ -185,7 +188,10 @@ function getSeededStarterStats(): GameStats {
     ember: 3,
     poppy: 2,
     volt: 2,
-    void_slime: 1
+    void_slime: 1,
+    mocha: 2,
+    salty: 2,
+    nano_banana: 1
   };
 
   stats.avgFps = 60;
@@ -205,9 +211,15 @@ export class StatsManager {
         if (raw) {
           const parsed = JSON.parse(raw);
           if (parsed && typeof parsed === 'object') {
+            const defaults = getDefaultStats();
             this.cachedStats = {
-              ...getDefaultStats(),
-              ...parsed
+              ...defaults,
+              ...parsed,
+              modeMatches: { ...defaults.modeMatches, ...(parsed.modeMatches || {}) },
+              vsCpu: { ...defaults.vsCpu, ...(parsed.vsCpu || {}) },
+              vsOnline: { ...defaults.vsOnline, ...(parsed.vsOnline || {}) },
+              inputUsage: { ...defaults.inputUsage, ...(parsed.inputUsage || {}) },
+              characterPicks: { ...defaults.characterPicks, ...(parsed.characterPicks || {}) }
             };
             return this.cachedStats!;
           }
@@ -217,7 +229,7 @@ export class StatsManager {
       // Storage unavailable
     }
 
-    this.cachedStats = getSeededStarterStats();
+    this.cachedStats = getDefaultStats();
     this.save();
     return this.cachedStats;
   }
@@ -347,5 +359,6 @@ export class StatsManager {
     const avg = Math.round(sum / this.fpsSamples.length);
     const stats = this.load();
     stats.avgFps = avg;
+    this.save();
   }
 }

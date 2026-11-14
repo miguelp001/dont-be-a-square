@@ -136,6 +136,9 @@ export class LeaderboardClient {
       if (response.ok) {
         const res = await response.json();
         return { success: true, displayName: res.displayName || finalName };
+      } else {
+        const errJson = await response.json().catch(() => null);
+        return { success: false, displayName: finalName, error: errJson?.error || 'Server rejected name update' };
       }
     } catch (err) {
       console.warn('HTTP updatePlayerName failed:', err);
@@ -169,10 +172,16 @@ export class LeaderboardClient {
       console.warn('Socket leaderboard fetch failed, falling back to HTTP:', e);
     }
 
-    // 2. HTTP Fallback
+    // 2. HTTP Fallback with timeout
     try {
-      const url = `/api/leaderboard?mode=${mode}&difficulty=${cleanDiff}&playerId=${playerId}&limit=${limit}`;
-      const response = await fetch(url, { headers: { Accept: 'application/json' } });
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 6000);
+      const url = `/api/leaderboard?mode=${encodeURIComponent(mode)}&difficulty=${encodeURIComponent(cleanDiff)}&playerId=${encodeURIComponent(playerId)}&limit=${encodeURIComponent(String(limit))}`;
+      const response = await fetch(url, {
+        headers: { Accept: 'application/json' },
+        signal: controller.signal
+      });
+      clearTimeout(timer);
       if (response.ok) {
         return (await response.json()) as LeaderboardData;
       }

@@ -81,8 +81,8 @@ export function computeOptionsMenuLayout(
 
   let cardScale = isMobile ? 1.0 : Math.min(1.35, uiScale);
   const availableHeight = height - tabBottom - 75;
-  if (!isMobile && cardH * cardScale > availableHeight) {
-    cardScale = Math.max(1.0, availableHeight / (cardH + 30));
+  if (cardH * cardScale > availableHeight) {
+    cardScale = Math.max(0.75, availableHeight / (cardH + 20));
   }
 
   const scaledHalfH = (cardH / 2) * cardScale;

@@ -24,6 +24,7 @@ pnpm-debug.log*
 # Environment, secrets & credentials (Never commit!)
 .env
 .env.*
+!.env.deploy.example
 *.env
 .env.deploy
 .env.local
@@ -48,6 +49,15 @@ id_rsa*
 id_ed25519
 id_ed25519*
 known_hosts
+
+# Python bytecode & virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
 
 # Editor, IDE & OS files
 .DS_Store

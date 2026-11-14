@@ -75,9 +75,10 @@ export default class PreloadScene extends Phaser.Scene {
       this.load.image(char.id, `assets/sprites/characters/${char.id}.webp?v=wbp_v3`);
     });
 
-    // Core BGM for initial menus (subsequent tracks loaded on-demand / background)
+    // Core BGM for initial menus and battle
     this.load.audio('menu', 'assets/audio/bgm/menu.mp3');
     this.load.audio('char_select', 'assets/audio/bgm/char_select.mp3');
+    this.load.audio('battle_cpu', 'assets/audio/bgm/battle_cpu.mp3');
   }
 
   create(): void {

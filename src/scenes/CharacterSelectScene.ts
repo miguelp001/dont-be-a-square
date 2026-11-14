@@ -192,24 +192,31 @@ export default class CharacterSelectScene extends Phaser.Scene {
       this.selectCharacter(row * 5 + col);
     };
 
-    this.input.keyboard!.on('keydown-LEFT', () => moveSelection(-1, 0));
-    this.input.keyboard!.on('keydown-A', () => moveSelection(-1, 0));
-    this.input.keyboard!.on('keydown-RIGHT', () => moveSelection(1, 0));
-    this.input.keyboard!.on('keydown-D', () => moveSelection(1, 0));
-    this.input.keyboard!.on('keydown-UP', () => moveSelection(0, -1));
-    this.input.keyboard!.on('keydown-W', () => moveSelection(0, -1));
-    this.input.keyboard!.on('keydown-DOWN', () => moveSelection(0, 1));
-    this.input.keyboard!.on('keydown-S', () => moveSelection(0, 1));
+    if (this.input.keyboard) {
+      this.input.keyboard.on('keydown-LEFT', () => moveSelection(-1, 0));
+      this.input.keyboard.on('keydown-A', () => moveSelection(-1, 0));
+      this.input.keyboard.on('keydown-RIGHT', () => moveSelection(1, 0));
+      this.input.keyboard.on('keydown-D', () => moveSelection(1, 0));
+      this.input.keyboard.on('keydown-UP', () => moveSelection(0, -1));
+      this.input.keyboard.on('keydown-W', () => moveSelection(0, -1));
+      this.input.keyboard.on('keydown-DOWN', () => moveSelection(0, 1));
+      this.input.keyboard.on('keydown-S', () => moveSelection(0, 1));
 
-    // Difficulty shortcuts
-    this.input.keyboard!.on('keydown-Q', () => this.cycleDifficulty(-1));
-    this.input.keyboard!.on('keydown-E', () => this.cycleDifficulty(1));
+      // Difficulty shortcuts
+      this.input.keyboard.on('keydown-Q', () => this.cycleDifficulty(-1));
+      this.input.keyboard.on('keydown-E', () => this.cycleDifficulty(1));
 
-    this.input.keyboard!.on('keydown-ENTER', () => this.startGame());
-    this.input.keyboard!.on('keydown-SPACE', () => this.startGame());
-    this.input.keyboard!.on('keydown-ESC', () => {
-      SoundFx.playCursor();
-      this.scene.start('MenuScene');
+      this.input.keyboard.on('keydown-ENTER', () => this.startGame());
+      this.input.keyboard.on('keydown-SPACE', () => this.startGame());
+      this.input.keyboard.on('keydown-ESC', () => {
+        SoundFx.playCursor();
+        this.scene.start('MenuScene');
+      });
+    }
+
+    this.events.once('shutdown', () => {
+      this.input.keyboard?.removeAllListeners();
+      this.input.gamepad?.removeAllListeners();
     });
   }
 

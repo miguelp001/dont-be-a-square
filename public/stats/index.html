@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Don't Be A Square — Global Telemetry & Game Balance</title>
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <meta name="robots" content="noindex, nofollow">
+  <style>
+    :root {
+      --bg: #0b0716;
+      --card-bg: rgba(23, 15, 41, 0.85);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --card-hover: rgba(35, 22, 64, 0.95);
+      --text: #f1f2f6;
+      --text-muted: #a4b0be;
+      --pink: #ff69b4;
+      --pink-glow: rgba(255, 105, 180, 0.35);
+      --blue: #54a0ff;
+      --green: #2ed573;
+      --yellow: #feca57;
+      --purple: #a55eea;
+      --red: #ff4757;
+      --cyan: #00d2d3;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      background-image: 
+        radial-gradient(circle at 15% 20%, rgba(255, 105, 180, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 85% 80%, rgba(84, 160, 255, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 50% 50%, rgba(165, 94, 234, 0.05) 0%, transparent 50%);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      min-height: 100vh;
+      padding: 24px 16px 60px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 28px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    .title-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .title-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 105, 180, 0.15);
+      color: var(--pink);
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      width: fit-content;
+      border: 1px solid rgba(255, 105, 180, 0.3);
+    }
+
+    .live-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+
+    h1 {
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #ffffff 0%, var(--pink) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      color: var(--text);
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      text-decoration: none;
+    }
+
+    .btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.2);
+      transform: translateY(-1px);
+    }
+
+    .btn-pink {
+      background: linear-gradient(135deg, rgba(255, 105, 180, 0.25), rgba(165, 94, 234, 0.25));
+      border-color: var(--pink);
+      color: #fff;
+    }
+
+    .btn-pink:hover {
+      background: linear-gradient(135deg, rgba(255, 105, 180, 0.4), rgba(165, 94, 234, 0.4));
+      box-shadow: 0 0 12px var(--pink-glow);
+    }
+
+    .auto-refresh-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+    }
+
+    /* KPI Grid */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+
+    .kpi-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 18px 16px;
+      backdrop-filter: blur(8px);
+      transition: transform 0.2s ease, border-color 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .kpi-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .kpi-icon {
+      font-size: 22px;
+      margin-bottom: 8px;
+    }
+
+    .kpi-value {
+      font-size: 26px;
+      font-weight: 800;
+      color: #ffffff;
+      line-height: 1.1;
+      margin-bottom: 4px;
+      font-feature-settings: "tnum";
+    }
+
+    .kpi-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 600;
+    }
+
+    /* Section Styling */
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .section-title {
+      font-size: 18px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-hint {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* Balance Diagnostic Alerts */
+    .diagnostic-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+
+    .diag-card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 14px 16px;
+      border: 1px solid var(--card-border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .diag-icon {
+      font-size: 24px;
+      padding: 8px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .diag-info {
+      flex: 1;
+    }
+
+    .diag-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 0.6px;
+      margin-bottom: 2px;
+    }
+
+    .diag-hero {
+      font-size: 15px;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    .diag-desc {
+      font-size: 11.5px;
+      color: var(--text-muted);
+    }
+
+    /* Character Table Card */
+    .table-container {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      overflow: hidden;
+      margin-bottom: 28px;
+      backdrop-filter: blur(10px);
+    }
+
+    .char-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    .char-table th {
+      background: rgba(11, 7, 22, 0.7);
+      padding: 14px 16px;
+      font-size: 11.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+      font-weight: 700;
+      border-bottom: 1px solid var(--card-border);
+      cursor: pointer;
+      user-select: none;
+      transition: color 0.15s;
+    }
+
+    .char-table th:hover {
+      color: #ffffff;
+    }
+
+    .char-table td {
+      padding: 14px 16px;
+      font-size: 13.5px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      vertical-align: middle;
+    }
+
+    .char-table tr:hover td {
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .char-cell {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .char-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1.5px solid transparent;
+      flex-shrink: 0;
+    }
+
+    .char-meta {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .char-name {
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .char-secret-tag {
+      font-size: 9px;
+      padding: 2px 5px;
+      border-radius: 4px;
+      background: rgba(165, 94, 234, 0.3);
+      color: var(--purple);
+      border: 1px solid var(--purple);
+      font-weight: 700;
+    }
+
+    .char-power-title {
+      font-size: 11.5px;
+      color: var(--text-muted);
+    }
+
+    .stat-bar-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 110px;
+    }
+
+    .stat-bar-text {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .stat-bar-bg {
+      height: 6px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .stat-bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .win-rate-badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 12px;
+    }
+
+    .win-high {
+      background: rgba(46, 213, 115, 0.18);
+      color: var(--green);
+      border: 1px solid rgba(46, 213, 115, 0.35);
+    }
+
+    .win-mid {
+      background: rgba(254, 202, 87, 0.18);
+      color: var(--yellow);
+      border: 1px solid rgba(254, 202, 87, 0.35);
+    }
+
+    .win-low {
+      background: rgba(255, 71, 87, 0.18);
+      color: var(--red);
+      border: 1px solid rgba(255, 71, 87, 0.35);
+    }
+
+    /* Analytics Breakdown Grids */
+    .breakdown-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .breakdown-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 18px 20px;
+      backdrop-filter: blur(8px);
+    }
+
+    .breakdown-card h3 {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .dist-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      font-size: 13px;
+    }
+
+    .dist-row:last-child {
+      border-bottom: none;
+    }
+
+    .dist-label {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .dist-val {
+      font-weight: 700;
+      color: #fff;
+    }
+
+    /* Footer */
+    footer {
+      text-align: center;
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid var(--card-border);
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* Loading Overlay */
+    #loadingState {
+      text-align: center;
+      padding: 60px 0;
+      font-size: 16px;
+      color: var(--text-muted);
+    }
+
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid rgba(255, 105, 180, 0.15);
+      border-top-color: var(--pink);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 14px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @media (max-width: 768px) {
+      .char-table {
+        display: block;
+        overflow-x: auto;
+      }
+      h1 {
+        font-size: 22px;
+      }
+      .kpi-value {
+        font-size: 22px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header>
+      <div class="title-group">
+        <div class="title-badge">
+          <span class="live-dot"></span>
+          CONFIDENTIAL TELEMETRY
+        </div>
+        <h1>DON'T BE A SQUARE</h1>
+        <div class="subtitle">Global Community Analytics & Game Balance Dashboard</div>
+      </div>
+
+      <div class="controls">
+        <label class="auto-refresh-label">
+          <input type="checkbox" id="autoRefreshToggle" checked>
+          Auto-refresh (30s)
+        </label>
+        <button class="btn btn-pink" id="refreshBtn" onclick="loadTelemetry()">
+          🔄 Refresh
+        </button>
+        <a href="/" class="btn">
+          🎮 Launch Game
+        </a>
+      </div>
+    </header>
+
+    <!-- Loading Placeholder -->
+    <div id="loadingState">
+      <div class="spinner"></div>
+      <div>Connecting to telemetry server...</div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div id="mainDashboard" style="display: none;">
+      <!-- Global KPI Metrics -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-icon">🌐</div>
+          <div class="kpi-value" id="kpiPanels">-</div>
+          <div class="kpi-label">Panels Cleared</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon">🗑️</div>
+          <div class="kpi-value" id="kpiGarbage">-</div>
+          <div class="kpi-label">Garbage Slabs Broken</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon">🎮</div>
+          <div class="kpi-value" id="kpiMatches">-</div>
+          <div class="kpi-label">Matches Logged</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon">⚡</div>
+          <div class="kpi-value" id="kpiPowers">-</div>
+          <div class="kpi-label">Powers Unleashed</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon">⏱️</div>
+          <div class="kpi-value" id="kpiPlaytime">-</div>
+          <div class="kpi-label">Cumulative Playtime</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon">🔀</div>
+          <div class="kpi-value" id="kpiSwaps">-</div>
+          <div class="kpi-label">Swaps Executed</div>
+        </div>
+      </div>
+
+      <!-- Balance Diagnostics Insights -->
+      <div class="section-header">
+        <div class="section-title">⚖️ Game Balance Health Indicators</div>
+        <div class="section-hint">Automated balance outlier detection across all player matches</div>
+      </div>
+
+      <div class="diagnostic-grid">
+        <div class="diag-card">
+          <div class="diag-icon" style="color: var(--green);">🏆</div>
+          <div class="diag-info">
+            <div class="diag-title" style="color: var(--green);">Highest Win Rate</div>
+            <div class="diag-hero" id="diagTopWin">-</div>
+            <div class="diag-desc" id="diagTopWinDesc">Evaluating balance...</div>
+          </div>
+        </div>
+        <div class="diag-card">
+          <div class="diag-icon" style="color: var(--red);">⚠️</div>
+          <div class="diag-info">
+            <div class="diag-title" style="color: var(--red);">Lowest Win Rate</div>
+            <div class="diag-hero" id="diagLowWin">-</div>
+            <div class="diag-desc" id="diagLowWinDesc">Evaluating balance...</div>
+          </div>
+        </div>
+        <div class="diag-card">
+          <div class="diag-icon" style="color: var(--yellow);">⭐</div>
+          <div class="diag-info">
+            <div class="diag-title" style="color: var(--yellow);">Community Favorite</div>
+            <div class="diag-hero" id="diagTopPick">-</div>
+            <div class="diag-desc" id="diagTopPickDesc">Evaluating balance...</div>
+          </div>
+        </div>
+        <div class="diag-card">
+          <div class="diag-icon" style="color: var(--cyan);">⚡</div>
+          <div class="diag-info">
+            <div class="diag-title" style="color: var(--cyan);">Power Frequency Leader</div>
+            <div class="diag-hero" id="diagTopPower">-</div>
+            <div class="diag-desc" id="diagTopPowerDesc">Evaluating balance...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Character Balance Table -->
+      <div class="section-header">
+        <div class="section-title">👥 Character Popularity & Balance Matrix</div>
+        <div class="section-hint">Click column headers to sort by Pick Rate, Win Rate, or Power Usage</div>
+      </div>
+
+      <div class="table-container">
+        <table class="char-table">
+          <thead>
+            <tr>
+              <th onclick="sortTable('name')">Character</th>
+              <th onclick="sortTable('pickRate')">Pick Popularity</th>
+              <th onclick="sortTable('winRate')">Win Rate (W - L)</th>
+              <th onclick="sortTable('powerActivations')">Superpower Uses</th>
+              <th onclick="sortTable('powerPerMatch')">Avg Power / Match</th>
+              <th onclick="sortTable('maxChain')">Max Chain</th>
+              <th onclick="sortTable('avgScore')">Avg Score</th>
+            </tr>
+          </thead>
+          <tbody id="charTableBody">
+            <!-- Populated dynamically -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Secondary Breakdowns -->
+      <div class="breakdown-row">
+        <!-- Game Mode Share -->
+        <div class="breakdown-card">
+          <h3>🕹️ Game Mode Distribution</h3>
+          <div id="modeDist"></div>
+        </div>
+
+        <!-- Difficulty Popularity -->
+        <div class="breakdown-card">
+          <h3>🎯 Difficulty Tier Share</h3>
+          <div id="diffDist"></div>
+        </div>
+
+        <!-- Input Device Distribution -->
+        <div class="breakdown-card">
+          <h3>🎮 Control Method Share</h3>
+          <div id="inputDist"></div>
+        </div>
+      </div>
+
+      <div class="breakdown-row">
+        <!-- Combo Breakdown -->
+        <div class="breakdown-card">
+          <h3>💥 Combo Magnitude</h3>
+          <div id="comboDist"></div>
+        </div>
+
+        <!-- Chain Breakdown -->
+        <div class="breakdown-card">
+          <h3>⚡ Chain Multipliers</h3>
+          <div id="chainDist"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+      <div>Don't Be A Square Telemetry Engine • dbas.aredpanic.com</div>
+      <div style="margin-top: 4px;" id="lastUpdatedText">Last updated: -</div>
+    </footer>
+  </div>
+
+  <script>
+    const CHAR_META = {
+      kiri: { name: 'Kiri', species: 'Tanuki Tinkerer', power: 'Gear Lock', emoji: '🔧', color: '#f39c12' },
+      mizu: { name: 'Mizu', species: 'Axolotl Mystic', power: 'Tidal Flow', emoji: '🌊', color: '#00d2d3' },
+      riff: { name: 'Riff', species: 'Shiba Punk', power: 'Groove Extension', emoji: '🎸', color: '#ff6b6b' },
+      mocha: { name: 'Mocha', species: 'Cat Alchemist', power: 'Potion Transmute', emoji: '🧪', color: '#9b59b6' },
+      ember: { name: 'Ember', species: 'Fox Pyromancer', power: 'Wildfire', emoji: '🔥', color: '#e67e22' },
+      volt: { name: 'Volt', species: 'Bunny Techie', power: 'Overcharge', emoji: '⚡', color: '#f1c40f' },
+      salty: { name: 'Salty', species: 'Otter Swashbuckler', power: 'Flash Freeze', emoji: '❄️', color: '#3498db' },
+      poppy: { name: 'Poppy', species: 'Red Panda Idol', power: 'Sub-Floor Blast', emoji: '🎤', color: '#e84393' },
+      void_slime: { name: 'Void Slime', species: 'Cosmic Void Champion', power: 'Aether Drain', emoji: '👑', color: '#6c5ce7', isSecret: true },
+      nano_banana: { name: 'Nano Banana', species: 'Glitch Nanite Overlord', power: 'Pure Skill', emoji: '🍌', color: '#fdcb6e', isSecret: true }
+    };
+
+    let telemetryData = null;
+    let currentSort = { column: 'pickRate', ascending: false };
+    let refreshInterval = null;
+
+    function formatTime(totalSeconds) {
+      if (!totalSeconds || totalSeconds < 1) return '0s';
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+      if (hours > 0) return `${hours.toLocaleString()}h ${minutes}m`;
+      if (minutes > 0) return `${minutes}m ${seconds}s`;
+      return `${seconds}s`;
+    }
+
+    async function loadTelemetry() {
+      const refreshBtn = document.getElementById('refreshBtn');
+      if (refreshBtn) refreshBtn.textContent = '⏳ Loading...';
+
+      try {
+        const res = await fetch('/api/telemetry');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        telemetryData = await res.json();
+        renderDashboard(telemetryData);
+      } catch (err) {
+        console.error('Failed to load telemetry:', err);
+        document.getElementById('loadingState').innerHTML = 
+          `<div style="color: var(--red);">⚠️ Could not retrieve telemetry from server.<br><small style="color: var(--text-muted);">${err.message}</small></div>`;
+      } finally {
+        if (refreshBtn) refreshBtn.textContent = '🔄 Refresh';
+      }
+    }
+
+    function renderDashboard(data) {
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('mainDashboard').style.display = 'block';
+
+      // KPI Numbers
+      document.getElementById('kpiPanels').textContent = (data.totalPanelsCleared || 0).toLocaleString();
+      document.getElementById('kpiGarbage').textContent = (data.totalGarbageCleared || 0).toLocaleString();
+      document.getElementById('kpiMatches').textContent = (data.totalMatches || 0).toLocaleString();
+      document.getElementById('kpiPowers').textContent = (data.totalPowersActivated || 0).toLocaleString();
+      document.getElementById('kpiPlaytime').textContent = formatTime(data.totalPlayTimeSeconds);
+      document.getElementById('kpiSwaps').textContent = (data.totalSwaps || 0).toLocaleString();
+
+      if (data.lastUpdated) {
+        const d = new Date(data.lastUpdated);
+        document.getElementById('lastUpdatedText').textContent = 'Last updated: ' + d.toLocaleString();
+      }
+
+      renderDiagnostics(data);
+      renderCharacterTable(data);
+      renderBreakdowns(data);
+    }
+
+    function renderDiagnostics(data) {
+      const chars = Object.values(data.characters || {});
+      if (chars.length === 0) return;
+
+      // Highest Win Rate
+      const sortedByWin = [...chars].filter(c => (c.wins + c.losses) > 0).sort((a, b) => b.winRate - a.winRate);
+      if (sortedByWin.length > 0) {
+        const topWin = sortedByWin[0];
+        const meta = CHAR_META[topWin.id] || { name: topWin.id };
+        document.getElementById('diagTopWin').textContent = `${meta.name} (${topWin.winRate}%)`;
+        document.getElementById('diagTopWinDesc').textContent = `${topWin.wins}W - ${topWin.losses}L across all matches`;
+      } else {
+        document.getElementById('diagTopWin').textContent = 'No data yet';
+        document.getElementById('diagTopWinDesc').textContent = 'Awaiting match records';
+      }
+
+      // Lowest Win Rate
+      if (sortedByWin.length > 0) {
+        const lowWin = sortedByWin[sortedByWin.length - 1];
+        const meta = CHAR_META[lowWin.id] || { name: lowWin.id };
+        document.getElementById('diagLowWin').textContent = `${meta.name} (${lowWin.winRate}%)`;
+        document.getElementById('diagLowWinDesc').textContent = `${lowWin.wins}W - ${lowWin.losses}L across all matches`;
+      } else {
+        document.getElementById('diagLowWin').textContent = 'No data yet';
+        document.getElementById('diagLowWinDesc').textContent = 'Awaiting match records';
+      }
+
+      // Most Picked
+      const sortedByPick = [...chars].sort((a, b) => b.picks - a.picks);
+      if (sortedByPick.length > 0 && sortedByPick[0].picks > 0) {
+        const topPick = sortedByPick[0];
+        const meta = CHAR_META[topPick.id] || { name: topPick.id };
+        document.getElementById('diagTopPick').textContent = `${meta.name} (${topPick.pickRate}%)`;
+        document.getElementById('diagTopPickDesc').textContent = `Chosen in ${topPick.picks.toLocaleString()} matches`;
+      } else {
+        document.getElementById('diagTopPick').textContent = 'Even Distribution';
+        document.getElementById('diagTopPickDesc').textContent = 'Awaiting pick submissions';
+      }
+
+      // Highest Power Frequency
+      const sortedByPower = [...chars].filter(c => c.picks > 0).sort((a, b) => b.powerPerMatch - a.powerPerMatch);
+      if (sortedByPower.length > 0 && sortedByPower[0].powerActivations > 0) {
+        const topPower = sortedByPower[0];
+        const meta = CHAR_META[topPower.id] || { name: topPower.id, power: 'Special' };
+        document.getElementById('diagTopPower').textContent = `${meta.name} (${topPower.powerPerMatch}/game)`;
+        document.getElementById('diagTopPowerDesc').textContent = `${meta.power} triggered ${topPower.powerActivations.toLocaleString()} times`;
+      } else {
+        document.getElementById('diagTopPower').textContent = 'None yet';
+        document.getElementById('diagTopPowerDesc').textContent = 'No superpowers unleashed yet';
+      }
+    }
+
+    function renderCharacterTable(data) {
+      const tbody = document.getElementById('charTableBody');
+      const chars = Object.values(data.characters || {});
+
+      chars.sort((a, b) => {
+        let valA = a[currentSort.column];
+        let valB = b[currentSort.column];
+        if (currentSort.column === 'name') {
+          valA = (CHAR_META[a.id]?.name || a.id).toLowerCase();
+          valB = (CHAR_META[b.id]?.name || b.id).toLowerCase();
+        }
+        if (valA < valB) return currentSort.ascending ? -1 : 1;
+        if (valA > valB) return currentSort.ascending ? 1 : -1;
+        return 0;
+      });
+
+      tbody.innerHTML = chars.map((c) => {
+        const meta = CHAR_META[c.id] || { name: c.id, emoji: '🎮', color: '#ff69b4', power: 'Super' };
+        const winDecisions = c.wins + c.losses;
+        const winBadgeClass = winDecisions === 0 ? 'win-mid' : c.winRate >= 52 ? 'win-high' : c.winRate <= 47 ? 'win-low' : 'win-mid';
+        const winDisplay = winDecisions > 0 ? `${c.winRate}%` : 'N/A';
+
+        return `
+          <tr>
+            <td>
+              <div class="char-cell">
+                <div class="char-avatar" style="border-color: ${meta.color}; background: ${meta.color}22;">
+                  ${meta.emoji}
+                </div>
+                <div class="char-meta">
+                  <div class="char-name">
+                    ${meta.name}
+                    ${meta.isSecret ? '<span class="char-secret-tag">SECRET</span>' : ''}
+                  </div>
+                  <div class="char-power-title">⚡ ${meta.power}</div>
+                </div>
+              </div>
+            </td>
+            <td>
+              <div class="stat-bar-wrapper">
+                <div class="stat-bar-text">
+                  <span>${c.pickRate}%</span>
+                  <span style="color: var(--text-muted); font-weight: normal;">${c.picks.toLocaleString()}</span>
+                </div>
+                <div class="stat-bar-bg">
+                  <div class="stat-bar-fill" style="width: ${c.pickRate}%; background: ${meta.color};"></div>
+                </div>
+              </div>
+            </td>
+            <td>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="win-rate-badge ${winBadgeClass}">${winDisplay}</span>
+                <span style="color: var(--text-muted); font-size: 12px;">${c.wins}W - ${c.losses}L</span>
+              </div>
+            </td>
+            <td>
+              <strong>${c.powerActivations.toLocaleString()}</strong>
+            </td>
+            <td>
+              <span style="color: var(--cyan); font-weight: 700;">${c.powerPerMatch}</span>
+            </td>
+            <td>
+              <span style="color: var(--yellow); font-weight: 700;">x${c.maxChain}</span>
+            </td>
+            <td>
+              ${c.avgScore.toLocaleString()} pts
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function sortTable(column) {
+      if (currentSort.column === column) {
+        currentSort.ascending = !currentSort.ascending;
+      } else {
+        currentSort.column = column;
+        currentSort.ascending = false;
+      }
+      if (telemetryData) {
+        renderCharacterTable(telemetryData);
+      }
+    }
+
+    function renderBreakdowns(data) {
+      // Game Mode Dist
+      const modeLabels = {
+        endless: 'Endless Marathon',
+        challenge: 'Challenge Arcade',
+        vs_cpu: 'Versus CPU',
+        vs_online: 'Online Multiplayer',
+        time_attack: 'Time Attack',
+        score_attack: 'Score Attack'
+      };
+      const modeContainer = document.getElementById('modeDist');
+      modeContainer.innerHTML = Object.entries(data.modes || {}).map(([mode, count]) => `
+        <div class="dist-row">
+          <span class="dist-label">${modeLabels[mode] || mode}</span>
+          <span class="dist-val">${count.toLocaleString()}</span>
+        </div>
+      `).join('');
+
+      // Difficulty Dist
+      const diffLabels = {
+        novice: '🟢 Novice',
+        adept: '🔵 Adept',
+        expert: '🟡 Expert',
+        master: '🟠 Master',
+        grandmaster: '🔴 Grandmaster'
+      };
+      const diffContainer = document.getElementById('diffDist');
+      diffContainer.innerHTML = Object.entries(data.difficulties || {}).map(([diff, count]) => `
+        <div class="dist-row">
+          <span class="dist-label">${diffLabels[diff] || diff.toUpperCase()}</span>
+          <span class="dist-val">${count.toLocaleString()}</span>
+        </div>
+      `).join('');
+
+      // Input Dist
+      const inputLabels = {
+        touch: '📱 Mobile Touch',
+        keyboard: '⌨️ Desktop Keyboard',
+        gamepad: '🎮 Gamepad Controller'
+      };
+      const inputContainer = document.getElementById('inputDist');
+      inputContainer.innerHTML = Object.entries(data.inputDevices || {}).map(([dev, count]) => `
+        <div class="dist-row">
+          <span class="dist-label">${inputLabels[dev] || dev}</span>
+          <span class="dist-val">${count.toLocaleString()}</span>
+        </div>
+      `).join('');
+
+      // Combos Dist
+      const comboContainer = document.getElementById('comboDist');
+      comboContainer.innerHTML = `
+        <div class="dist-row"><span class="dist-label">4-of-a-Kind</span><span class="dist-val">${(data.combos?.combos4 || 0).toLocaleString()}</span></div>
+        <div class="dist-row"><span class="dist-label">5-of-a-Kind</span><span class="dist-val">${(data.combos?.combos5 || 0).toLocaleString()}</span></div>
+        <div class="dist-row"><span class="dist-label">6+ Mega Combos</span><span class="dist-val">${(data.combos?.combos6Plus || 0).toLocaleString()}</span></div>
+      `;
+
+      // Chains Dist
+      const chainContainer = document.getElementById('chainDist');
+      chainContainer.innerHTML = `
+        <div class="dist-row"><span class="dist-label">2-Chains (x2)</span><span class="dist-val">${(data.chains?.chains2 || 0).toLocaleString()}</span></div>
+        <div class="dist-row"><span class="dist-label">3-Chains (x3)</span><span class="dist-val">${(data.chains?.chains3 || 0).toLocaleString()}</span></div>
+        <div class="dist-row"><span class="dist-label">4-Chains (x4)</span><span class="dist-val">${(data.chains?.chains4 || 0).toLocaleString()}</span></div>
+        <div class="dist-row"><span class="dist-label">5+ Infinite Chains</span><span class="dist-val">${(data.chains?.chains5Plus || 0).toLocaleString()}</span></div>
+      `;
+    }
+
+    // Auto Refresh Controller
+    function setupAutoRefresh() {
+      const toggle = document.getElementById('autoRefreshToggle');
+      const startInterval = () => {
+        if (refreshInterval) clearInterval(refreshInterval);
+        refreshInterval = setInterval(() => {
+          if (toggle && toggle.checked) {
+            loadTelemetry();
+          }
+        }, 30000);
+      };
+
+      if (toggle) {
+        toggle.addEventListener('change', () => {
+          if (toggle.checked) startInterval();
+          else if (refreshInterval) clearInterval(refreshInterval);
+        });
+      }
+
+      startInterval();
+    }
+
+    // Initial load
+    loadTelemetry();
+    setupAutoRefresh();
+  </script>
+</body>
+</html>

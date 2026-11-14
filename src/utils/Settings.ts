@@ -36,10 +36,10 @@ export class Settings {
       const saved = localStorage.getItem(this.STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (typeof parsed.musicVolume === 'number') {
+        if (typeof parsed.musicVolume === 'number' && Number.isFinite(parsed.musicVolume)) {
           this.musicVolume = Math.max(0, Math.min(1, parsed.musicVolume));
         }
-        if (typeof parsed.sfxVolume === 'number') {
+        if (typeof parsed.sfxVolume === 'number' && Number.isFinite(parsed.sfxVolume)) {
           this.sfxVolume = Math.max(0, Math.min(1, parsed.sfxVolume));
         }
         if (parsed.keyBindings && typeof parsed.keyBindings === 'object') {

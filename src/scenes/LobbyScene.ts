@@ -58,6 +58,7 @@ export default class LobbyScene extends Phaser.Scene {
     this.characterIndex = foundIndex;
     this.currentRoomId = '';
     this.inputCode = '';
+    (this as any).isStartingGame = false;
   }
 
   create(): void {
@@ -598,10 +599,9 @@ export default class LobbyScene extends Phaser.Scene {
 
   private cancelWaitingRoom(): void {
     SoundFx.playCursor();
-    if (this.currentRoomId) {
-      this.socketMgr.leaveRoom(this.currentRoomId);
-      this.currentRoomId = '';
-    }
+    (this as any).isStartingGame = false;
+    this.socketMgr.leaveRoom(this.currentRoomId || undefined);
+    this.currentRoomId = '';
     this.waitingRoomContainer.setVisible(false);
     this.mainButtonsContainer.setVisible(true);
   }
@@ -642,6 +642,9 @@ export default class LobbyScene extends Phaser.Scene {
     });
 
     this.socketMgr.onGameStart((data: GameStartPayload) => {
+      if ((this as any).isStartingGame) return;
+      (this as any).isStartingGame = true;
+
       if (this.keydownHandler) {
         window.removeEventListener('keydown', this.keydownHandler);
         this.keydownHandler = undefined;
@@ -788,9 +791,14 @@ export default class LobbyScene extends Phaser.Scene {
     window.addEventListener('keydown', this.globalKeydownHandler);
 
     this.events.once('shutdown', () => {
+      (this as any).isStartingGame = false;
       if (this.globalKeydownHandler) {
         window.removeEventListener('keydown', this.globalKeydownHandler);
       }
+      if (this.keydownHandler) {
+        window.removeEventListener('keydown', this.keydownHandler);
+      }
+      this.socketMgr.removeLobbyListeners();
     });
   }
 

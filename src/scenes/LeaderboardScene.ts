@@ -34,11 +34,13 @@ export default class LeaderboardScene extends Phaser.Scene {
 
   init(data: any): void {
     this.returnScene = data?.returnScene || 'MenuScene';
-    if (data?.mode === 'endless' || data?.mode === 'challenge') {
-      this.selectedMode = data.mode;
+    const mode = data?.initialMode || data?.mode;
+    if (mode === 'endless' || mode === 'challenge') {
+      this.selectedMode = mode;
     }
-    if (data?.difficulty && DIFFICULTY_ORDER.includes(data.difficulty)) {
-      this.selectedDifficulty = data.difficulty;
+    const diff = data?.initialDifficulty || data?.difficulty;
+    if (diff && DIFFICULTY_ORDER.includes(diff)) {
+      this.selectedDifficulty = diff;
     }
   }
 
@@ -183,6 +185,8 @@ export default class LeaderboardScene extends Phaser.Scene {
         window.removeEventListener('keydown', this.keydownHandler);
         this.keydownHandler = undefined;
       }
+      this.input.keyboard?.removeAllListeners();
+      this.input.gamepad?.removeAllListeners();
     });
 
     // Create In-Game Handle Modal UI
@@ -257,6 +261,7 @@ export default class LeaderboardScene extends Phaser.Scene {
     }
 
     const data = await LeaderboardClient.fetchLeaderboard(this.selectedMode, this.selectedDifficulty, 10);
+    if (!this.scene || !this.scene.isActive()) return;
     if (this.loadingText) {
       this.loadingText.setVisible(false);
     }
@@ -386,9 +391,7 @@ export default class LeaderboardScene extends Phaser.Scene {
     let pinMsg = '';
     const myName = LeaderboardClient.getDisplayName();
     if (data.playerRank) {
-      const myScore = this.selectedMode === 'endless'
-        ? `${data.playerRank.entry.score.toLocaleString()} pts`
-        : `${Math.floor(data.playerRank.entry.score / 60)}m ${String(Math.floor(data.playerRank.entry.score % 60)).padStart(2, '0')}s`;
+      const myScore = `${data.playerRank.entry.score.toLocaleString()} pts`;
       pinMsg = `⭐ YOUR BEST: #${data.playerRank.rank} • ${data.playerRank.entry.displayName} • ${myScore}  [✏️ EDIT]`;
     } else {
       pinMsg = `⭐ YOUR BEST: Unranked in this tier (${myName})  [✏️ EDIT]`;
@@ -629,6 +632,7 @@ export default class LeaderboardScene extends Phaser.Scene {
     try {
       const res = await LeaderboardClient.updateDisplayName(trimmed);
       this.isUpdatingName = false;
+      if (!this.scene || !this.scene.isActive()) return;
 
       if (res && res.success) {
         SoundFx.playMatch();

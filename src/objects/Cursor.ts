@@ -11,6 +11,7 @@ export default class Cursor extends Phaser.GameObjects.Rectangle {
   public boardOffsetY: number = 64;
   public stackOffsetPixels: number = 0;
   public scaleFactor: number = 1.0;
+  private pulseTween?: Phaser.Tweens.Tween;
 
   constructor(scene: Phaser.Scene, boardOrOffsetX: Board | number = 64, offsetY: number = 64) {
     let ox = 64;
@@ -50,7 +51,7 @@ export default class Cursor extends Phaser.GameObjects.Rectangle {
     scene.add.existing(this);
 
     // Subtle pulsing animation for retro arcade feel
-    scene.tweens.add({
+    this.pulseTween = scene.tweens.add({
       targets: this,
       scaleX: 1.05,
       scaleY: 1.05,
@@ -131,5 +132,13 @@ export default class Cursor extends Phaser.GameObjects.Rectangle {
     }
     this.x = this.boardOffsetX + (this.gridX * PANEL_SIZE + PANEL_SIZE) * this.scaleFactor;
     this.y = this.boardOffsetY + (this.gridY * PANEL_SIZE + PANEL_SIZE / 2 - this.stackOffsetPixels) * this.scaleFactor;
+  }
+
+  public override destroy(fromScene?: boolean): void {
+    if (this.pulseTween) {
+      this.pulseTween.stop();
+      this.pulseTween = undefined;
+    }
+    super.destroy(fromScene);
   }
 }

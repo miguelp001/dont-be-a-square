@@ -233,6 +233,9 @@ export default class AIBot {
   private currentBurstCount: number = 0;
   private isBurstCooling: boolean = false;
   private burstCooldownTimer: number = 0;
+  private liftDurationTimer: number = 0;
+  private isOffensiveLifting: boolean = false;
+  private onRowShiftHandler: () => void;
 
   constructor(
     board: Board,
@@ -248,6 +251,16 @@ export default class AIBot {
 
     this.personality = AI_PERSONALITIES[characterId] || AI_PERSONALITIES['mizu'];
     this.recomputeActionInterval();
+
+    this.onRowShiftHandler = () => {
+      if (this.targetMove) {
+        this.targetMove.y--;
+        if (this.targetMove.y < 0) {
+          this.targetMove = null;
+        }
+      }
+    };
+    this.board.on('rowShift', this.onRowShiftHandler);
   }
 
   private recomputeActionInterval(): void {
@@ -266,6 +279,9 @@ export default class AIBot {
 
     this.recomputeActionInterval();
 
+    // Offensive lift timer based on personality (always update so danger clears lift)
+    this.updateOffensiveLift(delta);
+
     // Handle Volt/Poppy/Mocha burst cooldown pause
     if (this.isBurstCooling) {
       this.burstCooldownTimer -= delta;
@@ -283,14 +299,19 @@ export default class AIBot {
 
       // AI Super Power Activation: Strategic decision based on character archetype
       if (this.board.canActivatePower()) {
-        const isDefensive = this.board.characterId === 'poppy' || this.board.characterId === 'mizu';
+        const char = this.personality.id || this.board.characterId;
+        const isDefensive = char === 'poppy' || char === 'mizu' || char === 'ember';
         if (isDefensive) {
           if (this.board.isDanger || this.board.getStackHeight() >= 7) {
             this.board.activatePower(this.opponentBoard);
           }
+        } else if (char === 'void_slime') {
+          if (this.opponentBoard && this.opponentBoard.powerMeter >= 35 && Math.random() < 0.3) {
+            this.board.activatePower(this.opponentBoard);
+          }
         } else {
           // Offensive / Disruption characters fire when charged
-          if (Math.random() < 0.25) {
+          if (this.opponentBoard && Math.random() < 0.25) {
             this.board.activatePower(this.opponentBoard);
           }
         }
@@ -304,12 +325,19 @@ export default class AIBot {
         }
       }
     }
-
-    // Offensive lift timer based on personality
-    this.updateOffensiveLift(delta);
   }
 
   private updateOffensiveLift(delta: number): void {
+    if (this.isOffensiveLifting) {
+      this.liftDurationTimer -= delta;
+      if (this.liftDurationTimer <= 0 || this.board.isDanger || this.board.isTopOut) {
+        this.board.setLifting(false);
+        this.isOffensiveLifting = false;
+        this.liftDurationTimer = 0;
+      }
+      return;
+    }
+
     const diffInfo = getDifficultyInfo(this.difficulty);
     let freq = this.personality.liftFrequency * diffInfo.aiLiftFrequencyMultiplier;
 
@@ -323,39 +351,47 @@ export default class AIBot {
       this.attackTimer = 0;
       if (!this.board.isDanger && !this.board.isTopOut) {
         this.board.setLifting(true);
-        setTimeout(() => {
-          if (!this.board.isDanger) {
-            this.board.setLifting(false);
-          }
-        }, this.personality.liftDuration);
+        this.isOffensiveLifting = true;
+        this.liftDurationTimer = this.personality.liftDuration;
       }
     }
   }
 
+  public destroy(): void {
+    if (this.board) {
+      this.board.off('rowShift', this.onRowShiftHandler);
+      if (this.isOffensiveLifting) {
+        this.board.setLifting(false);
+      }
+    }
+    this.isOffensiveLifting = false;
+    this.liftDurationTimer = 0;
+    this.targetMove = null;
+  }
+
   private step(): void {
     const diffInfo = getDifficultyInfo(this.difficulty);
-    const effectiveIndecisiveness = this.personality.indecisiveness * (diffInfo.aiIndecisiveness / 0.08);
-    const effectiveJitter = this.personality.jitterChance * (diffInfo.aiJitterChance / 0.08);
+    const effectiveIndecisiveness = Math.min(0.5, this.personality.indecisiveness * (diffInfo.aiIndecisiveness / 0.08));
+    const effectiveJitter = Math.min(0.4, this.personality.jitterChance * (diffInfo.aiJitterChance / 0.08));
 
     // 1. Stack Management
     if (this.board.isDanger) {
       this.board.setLifting(false);
+      this.isOffensiveLifting = false;
+      this.liftDurationTimer = 0;
     } else {
       let highestPanelRow = BOARD_VISIBLE_HEIGHT;
       for (let r = 0; r < BOARD_VISIBLE_HEIGHT; r++) {
         for (let c = 0; c < BOARD_WIDTH; c++) {
-          if (this.board.getPanelAt(c, r) !== null) {
+          if (this.board.getPanelAt(c, r) !== null || this.board.isCellOccupiedByGarbage(c, r)) {
             highestPanelRow = Math.min(highestPanelRow, r);
             break;
           }
         }
       }
 
-      if (highestPanelRow > this.personality.liftThreshold && !this.board.isChainActive) {
-        this.board.setLifting(true);
-      } else {
-        this.board.setLifting(false);
-      }
+      const shouldAutoLift = highestPanelRow > this.personality.liftThreshold && !this.board.isChainActive;
+      this.board.setLifting(this.isOffensiveLifting || shouldAutoLift);
     }
 
     // 2. Indecisiveness mechanic: Chance to abandon current target and change mind
@@ -401,9 +437,15 @@ export default class AIBot {
   }
 
   private isMoveStillValid(move: Move): boolean {
+    if (this.board.isCellOccupiedByGarbage(move.x, move.y) || this.board.isCellOccupiedByGarbage(move.x + 1, move.y)) {
+      return false;
+    }
     const left = this.board.getPanelAt(move.x, move.y);
     const right = this.board.getPanelAt(move.x + 1, move.y);
-    return (left !== null || right !== null) && !this.board.isCellOccupiedByGarbage(move.x, move.y);
+    if (!left && !right) return false;
+    if (left && (!left.canSwap() || left.isLocked)) return false;
+    if (right && (!right.canSwap() || right.isLocked)) return false;
+    return true;
   }
 
   private findBestMove(): Move | null {
@@ -420,6 +462,8 @@ export default class AIBot {
         const right = this.board.getPanelAt(x + 1, y);
 
         if (!left && !right) continue;
+        if (left && (!left.canSwap() || left.isLocked)) continue;
+        if (right && (!right.canSwap() || right.isLocked)) continue;
         if (left && right && left.color === right.color) continue; // Same color swap is useless
 
         const score = this.evaluateSwap(x, y, left?.color ?? -1, right?.color ?? -1);
@@ -439,9 +483,9 @@ export default class AIBot {
 
     // Simulate placing rightColor at (x, y) and leftColor at (x+1, y)
     if (rightColor !== -1) {
-      const matchCount = this.countSimulatedMatches(x, y, rightColor);
+      const matchCount = this.countSimulatedMatches(x, y, rightColor, x, rightColor, leftColor);
       if (matchCount >= 3) {
-        score += matchCount * 120 + y * 10;
+        score += matchCount * 120 + (this.board.isDanger ? (BOARD_VISIBLE_HEIGHT - y) * 50 : y * 10);
         if (matchCount >= 4) {
           // Weighted by personality comboBias (Ember, Riff, etc.)
           const comboBase = 700 + (matchCount - 4) * 450;
@@ -451,9 +495,9 @@ export default class AIBot {
     }
 
     if (leftColor !== -1) {
-      const matchCount = this.countSimulatedMatches(x + 1, y, leftColor);
+      const matchCount = this.countSimulatedMatches(x + 1, y, leftColor, x, rightColor, leftColor);
       if (matchCount >= 3) {
-        score += matchCount * 120 + y * 10;
+        score += matchCount * 120 + (this.board.isDanger ? (BOARD_VISIBLE_HEIGHT - y) * 50 : y * 10);
         if (matchCount >= 4) {
           const comboBase = 700 + (matchCount - 4) * 450;
           score += comboBase * this.personality.comboBias;
@@ -488,20 +532,34 @@ export default class AIBot {
     return score;
   }
 
-  private countSimulatedMatches(targetX: number, targetY: number, color: number): number {
+  private countSimulatedMatches(
+    targetX: number,
+    targetY: number,
+    color: number,
+    swapX: number,
+    postLeftColor: number,
+    postRightColor: number
+  ): number {
+    const getColor = (cx: number, cy: number): number => {
+      if (cy === targetY) {
+        if (cx === swapX) return postLeftColor;
+        if (cx === swapX + 1) return postRightColor;
+      }
+      const p = this.board.getPanelAt(cx, cy);
+      return p ? p.color : -1;
+    };
+
     let horizontal = 1;
     let nx = targetX - 1;
     while (nx >= 0) {
-      const p = this.board.getPanelAt(nx, targetY);
-      if (p && p.color === color) {
+      if (getColor(nx, targetY) === color) {
         horizontal++;
         nx--;
       } else break;
     }
     nx = targetX + 1;
     while (nx < BOARD_WIDTH) {
-      const p = this.board.getPanelAt(nx, targetY);
-      if (p && p.color === color) {
+      if (getColor(nx, targetY) === color) {
         horizontal++;
         nx++;
       } else break;
@@ -510,16 +568,14 @@ export default class AIBot {
     let vertical = 1;
     let ny = targetY - 1;
     while (ny >= 0) {
-      const p = this.board.getPanelAt(targetX, ny);
-      if (p && p.color === color) {
+      if (getColor(targetX, ny) === color) {
         vertical++;
         ny--;
       } else break;
     }
     ny = targetY + 1;
     while (ny < BOARD_VISIBLE_HEIGHT) {
-      const p = this.board.getPanelAt(targetX, ny);
-      if (p && p.color === color) {
+      if (getColor(targetX, ny) === color) {
         vertical++;
         ny++;
       } else break;

@@ -8,6 +8,8 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout Code
@@ -27,16 +29,24 @@ jobs:
       - name: Install Node Dependencies
         run: npm ci
 
+      - name: Type Check
+        run: npx tsc --noEmit
+
+      - name: Run Test Suite
+        run: npm run test
+
       - name: Build Production Client
         run: npm run build
 
       - name: Install Python Paramiko
-        run: pip install paramiko
+        run: pip install paramiko==3.4.0
 
       - name: Deploy to DreamHost via SFTP
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER }}
           SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+          SSH_PORT: ${{ secrets.SSH_PORT || '22' }}
           SSH_TARGET: ${{ secrets.SSH_TARGET }}
+          SSH_SERVER_DIR: ${{ secrets.SSH_SERVER_DIR || '' }}
         run: python scripts/deploy.py

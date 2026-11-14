@@ -63,9 +63,9 @@ export class LeaderboardManager {
     return crypto.createHash('sha256').update(secret || '').digest('hex');
   }
 
-  private sanitizeName(raw: string): string {
-    if (!raw) return 'PLAYER';
-    // Allow uppercase letters, numbers, underscore, space, dash (2 to 10 chars)
+  private sanitizeName(raw: any): string {
+    if (!raw || typeof raw !== 'string') return 'PLAYER';
+    // Allow uppercase letters, numbers, underscore, dash (2 to 10 chars, spaces stripped)
     const cleaned = raw.toUpperCase().replace(/[^A-Z0-9_\-]/g, '').trim();
     if (cleaned.length < 2) return 'PLAYER';
     return cleaned.slice(0, 10);
@@ -98,6 +98,30 @@ export class LeaderboardManager {
     this.saveToDiskSync();
   }
 
+  public async saveToDiskAsync(): Promise<void> {
+    try {
+      const dir = path.dirname(this.filePath);
+      await fs.promises.mkdir(dir, { recursive: true });
+
+      const tmpPath = `${this.filePath}.tmp.${Date.now()}`;
+      const data: StoredData = {
+        entries: this.entries,
+        playerSecrets: this.playerSecrets
+      };
+
+      await fs.promises.writeFile(tmpPath, JSON.stringify(data), 'utf-8');
+      try {
+        await fs.promises.rename(tmpPath, this.filePath);
+      } catch (renameErr) {
+        // Fallback for Windows file replace locks
+        await fs.promises.copyFile(tmpPath, this.filePath);
+        await fs.promises.unlink(tmpPath);
+      }
+    } catch (err) {
+      console.error('Failed to save leaderboards to disk asynchronously:', err);
+    }
+  }
+
   public saveToDiskSync(): void {
     try {
       const dir = path.dirname(this.filePath);
@@ -111,18 +135,33 @@ export class LeaderboardManager {
         playerSecrets: this.playerSecrets
       };
 
-      fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2), 'utf-8');
-      fs.renameSync(tmpPath, this.filePath);
+      fs.writeFileSync(tmpPath, JSON.stringify(data), 'utf-8');
+      try {
+        fs.renameSync(tmpPath, this.filePath);
+      } catch (renameErr) {
+        fs.copyFileSync(tmpPath, this.filePath);
+        fs.unlinkSync(tmpPath);
+      }
     } catch (err) {
       console.error('Failed to save leaderboards to disk:', err);
     }
+  }
+
+  public flushPendingSave(): void {
+    if (this.saveTimeout) {
+      clearTimeout(this.saveTimeout);
+      this.saveTimeout = null;
+    }
+    this.saveToDiskSync();
   }
 
   private queueSave(): void {
     if (this.saveTimeout) return;
     this.saveTimeout = setTimeout(() => {
       this.saveTimeout = null;
-      this.saveToDiskSync();
+      this.saveToDiskAsync().catch((err) => {
+        console.error('Async save error:', err);
+      });
     }, 1000);
   }
 
@@ -133,6 +172,10 @@ export class LeaderboardManager {
     rank: number;
     entry?: LeaderboardEntry;
   } {
+    if (!payload || typeof payload !== 'object') {
+      return { success: false, error: 'Invalid payload', isNewBest: false, rank: -1 };
+    }
+
     const { playerId, playerSecret, characterId, mode, difficulty, score, maxChain } = payload;
 
     if (!playerId || typeof playerId !== 'string' || playerId.length > 64) {
@@ -144,13 +187,25 @@ export class LeaderboardManager {
     if (mode !== 'endless' && mode !== 'challenge') {
       return { success: false, error: 'Invalid mode', isNewBest: false, rank: -1 };
     }
-    if (typeof score !== 'number' || isNaN(score) || score <= 0) {
+    if (typeof score !== 'number' || !Number.isFinite(score) || isNaN(score) || score <= 0) {
       return { success: false, error: 'Invalid score', isNewBest: false, rank: -1 };
     }
 
     // Plausibility limits (both endless and challenge mode high score points)
     if (score > 50000000) {
       return { success: false, error: 'Score exceeds maximum threshold', isNewBest: false, rank: -1 };
+    }
+
+    const cleanDiff = (difficulty || 'adept').toLowerCase();
+    const allowedDiffs = ['novice', 'adept', 'expert', 'master', 'grandmaster'];
+    if (!allowedDiffs.includes(cleanDiff)) {
+      return { success: false, error: 'Invalid difficulty', isNewBest: false, rank: -1 };
+    }
+
+    const cleanChar = (characterId || 'kiri').toLowerCase();
+    const allowedChars = ['kiri', 'mizu', 'ember', 'poppy', 'gale', 'terra', 'volt', 'mocha', 'salty', 'void_slime', 'nano_banana'];
+    if (!allowedChars.includes(cleanChar)) {
+      return { success: false, error: 'Invalid characterId', isNewBest: false, rank: -1 };
     }
 
     // Authenticate playerSecret
@@ -164,8 +219,6 @@ export class LeaderboardManager {
     }
 
     const cleanName = this.sanitizeName(payload.displayName);
-    const cleanDiff = (difficulty || 'adept').toLowerCase();
-    const cleanChar = characterId || 'kiri';
     const chain = Math.max(1, Math.min(99, Number(maxChain) || 1));
 
     // Find existing entry for this player in this mode & difficulty
@@ -263,16 +316,16 @@ export class LeaderboardManager {
     return { success: true, displayName: cleanName, updatedCount };
   }
 
-  private getSortedEntries(mode: string, difficulty: string): LeaderboardEntry[] {
-    const cleanDiff = difficulty.toLowerCase();
+  private getSortedEntries(mode: string, difficulty?: string): LeaderboardEntry[] {
+    const cleanDiff = (difficulty || 'adept').toLowerCase();
     const filtered = this.entries.filter(
-      (e) => e.mode === mode && e.difficulty.toLowerCase() === cleanDiff
+      (e) => e.mode === mode && (e.difficulty || 'adept').toLowerCase() === cleanDiff
     );
 
     filtered.sort((a, b) => {
       // Descending points (highest score first)
       if (b.score !== a.score) return b.score - a.score;
-      return new Date(a.submittedAt).getTime() - new Date(b.submittedAt).getTime();
+      return a.submittedAt < b.submittedAt ? -1 : a.submittedAt > b.submittedAt ? 1 : 0;
     });
 
     return filtered;
@@ -280,11 +333,12 @@ export class LeaderboardManager {
 
   public getLeaderboard(
     mode: string,
-    difficulty: string,
+    difficulty: string = 'adept',
     playerId?: string,
     limit: number = 20
   ): LeaderboardResponse {
-    const sorted = this.getSortedEntries(mode, difficulty);
+    const safeDiff = (difficulty || 'adept').toLowerCase();
+    const sorted = this.getSortedEntries(mode, safeDiff);
     const top = sorted.slice(0, Math.max(1, Math.min(100, limit))).map((entry, idx) => ({
       ...entry,
       rank: idx + 1
@@ -303,7 +357,7 @@ export class LeaderboardManager {
 
     return {
       mode,
-      difficulty: difficulty.toLowerCase(),
+      difficulty: safeDiff,
       top,
       playerRank,
       totalCount: sorted.length

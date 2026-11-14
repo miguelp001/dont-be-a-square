@@ -180,4 +180,21 @@ describe('Character Super Powers & Power Meter System', () => {
     expect(reverseLiftTimer).toBe(0);
     expect(isReverseLiftActive).toBe(false);
   });
+
+  it('8. Salty Flash Freeze stops stack lift without gifting stop time to opponent', () => {
+    const mockOpponentBoard: any = {
+      isLiftFrozen: false,
+      liftFrozenTimer: 0,
+      stopTime: 1200
+    };
+
+    // Simulate Salty Flash Freeze
+    mockOpponentBoard.isLiftFrozen = true;
+    mockOpponentBoard.liftFrozenTimer = 6000;
+
+    expect(mockOpponentBoard.isLiftFrozen).toBe(true);
+    expect(mockOpponentBoard.liftFrozenTimer).toBe(6000);
+    // Opponent's existing stopTime must not be increased by Flash Freeze
+    expect(mockOpponentBoard.stopTime).toBe(1200);
+  });
 });

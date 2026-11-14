@@ -246,4 +246,15 @@ describe('Server-Side Accountless Leaderboard System', () => {
     expect(sanitized3).toBe('PLAYER');
     expect(LeaderboardClient.getDisplayName()).toBe('PLAYER');
   });
+
+  it('9. Rejects null, undefined, and non-object payloads safely without exceptions', () => {
+    expect(() => mgr.submitScore(null as any)).not.toThrow();
+    expect(mgr.submitScore(null as any).success).toBe(false);
+
+    expect(() => mgr.submitScore(undefined as any)).not.toThrow();
+    expect(mgr.submitScore(undefined as any).success).toBe(false);
+
+    expect(() => mgr.submitScore('malicious_string' as any)).not.toThrow();
+    expect(mgr.submitScore('malicious_string' as any).success).toBe(false);
+  });
 });

@@ -1,5 +1,15 @@
 RewriteEngine On
 
+<IfModule mod_headers.c>
+  Header set X-Content-Type-Options "nosniff"
+  Header set X-Frame-Options "SAMEORIGIN"
+  Header set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+<IfModule mod_mime.c>
+  AddType application/manifest+json .webmanifest .json
+</IfModule>
+
 # Upgrade WebSocket connections to Socket.IO backend on port 3001
 RewriteCond %{HTTP:Upgrade} =websocket [NC]
 RewriteRule ^socket\.io/(.*) ws://127.0.0.1:3001/socket.io/$1 [P,L]

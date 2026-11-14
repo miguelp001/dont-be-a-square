@@ -91,12 +91,19 @@ export class GameEngine {
     const isBSwappable = tileB.state === TileState.IDLE || tileB.state === TileState.EMPTY;
     if (!isASwappable || !isBSwappable) return false;
 
-    // A tile cannot swap if a tile directly above is falling into it or clearing
+    // A tile cannot swap if a tile directly above is falling into it, hovering, or clearing
     if (row < ROWS - 1) {
       const aboveA = this.grid[col][row + 1];
       const aboveB = this.grid[col + 1][row + 1];
-      if (aboveA && (aboveA.state === TileState.FALLING || aboveA.state === TileState.SWAPPING)) return false;
-      if (aboveB && (aboveB.state === TileState.FALLING || aboveB.state === TileState.SWAPPING)) return false;
+      const isAboveBusy = (t: Tile) =>
+        t.state === TileState.FALLING ||
+        t.state === TileState.SWAPPING ||
+        t.state === TileState.HOVER ||
+        t.state === TileState.MATCH_FLASH ||
+        t.state === TileState.POP;
+
+      if (aboveA && isAboveBusy(aboveA)) return false;
+      if (aboveB && isAboveBusy(aboveB)) return false;
     }
 
     return true;
@@ -199,13 +206,13 @@ export class GameEngine {
       tileA.chainEligible = tileB.chainEligible;
       tileA.state = tileA.color === -1 ? TileState.EMPTY : TileState.IDLE;
       tileA.timer = 0;
-      delete tileA.swapTargetCol;
+      tileA.swapTargetCol = undefined;
 
       tileB.color = tempColor;
       tileB.chainEligible = tempChain;
       tileB.state = tileB.color === -1 ? TileState.EMPTY : TileState.IDLE;
       tileB.timer = 0;
-      delete tileB.swapTargetCol;
+      tileB.swapTargetCol = undefined;
 
       // Active Interception check:
       // If a tile was swapped into a column where a tile above is FALLING or HOVERING,
@@ -235,9 +242,9 @@ export class GameEngine {
         const tile = this.grid[c][r];
         if (tile.state === TileState.IDLE && tile.color !== -1) {
           const below = this.grid[c][r - 1];
-          if (below.state === TileState.EMPTY) {
+          if (below.state === TileState.EMPTY || below.state === TileState.HOVER || below.state === TileState.FALLING) {
             tile.state = TileState.HOVER;
-            tile.timer = HOVER_DELAY;
+            tile.timer = below.state === TileState.HOVER ? below.timer : HOVER_DELAY;
           }
         }
       }
@@ -333,10 +340,17 @@ export class GameEngine {
               this.events.onPop(c, r, poppedColor);
             }
 
-            // Any tiles directly above this popped cell become unsupported and chain eligible!
+            // Any tiles directly above this popped cell become unsupported and chain eligible
+            // but if a tile above is still popping/flashing, do not start hover early
             for (let aboveR = r + 1; aboveR < ROWS; aboveR++) {
               const aboveTile = this.grid[c][aboveR];
-              if (aboveTile.color !== -1 && aboveTile.state === TileState.IDLE) {
+              if (aboveTile.color === -1 || aboveTile.state === TileState.EMPTY) {
+                continue;
+              }
+              if (aboveTile.state === TileState.POP || aboveTile.state === TileState.MATCH_FLASH) {
+                break;
+              }
+              if (aboveTile.state === TileState.IDLE) {
                 aboveTile.chainEligible = true;
                 aboveTile.state = TileState.HOVER;
                 aboveTile.timer = HOVER_DELAY;
@@ -352,7 +366,7 @@ export class GameEngine {
    * Search for horizontal and vertical matches of 3+ identical colors among IDLE tiles.
    */
   public checkMatches(): void {
-    const matchedCoords = new Set<string>();
+    const matchedCoords = new Set<number>();
 
     // Horizontal check
     for (let r = 0; r < ROWS; r++) {
@@ -377,7 +391,7 @@ export class GameEngine {
         const runLength = runEnd - runStart;
         if (runLength >= 3) {
           for (let c = runStart; c < runEnd; c++) {
-            matchedCoords.add(`${c},${r}`);
+            matchedCoords.add(c * ROWS + r);
           }
         }
         runStart = runEnd;
@@ -407,12 +421,15 @@ export class GameEngine {
         const runLength = runEnd - runStart;
         if (runLength >= 3) {
           for (let r = runStart; r < runEnd; r++) {
-            matchedCoords.add(`${c},${r}`);
+            matchedCoords.add(c * ROWS + r);
           }
         }
         runStart = runEnd;
       }
     }
+
+    // Clear chainEligible for resting IDLE tiles that have fully settled on solid ground and did not match
+    this.clearSettledChainEligibility(matchedCoords);
 
     if (matchedCoords.size === 0) return;
 
@@ -422,10 +439,10 @@ export class GameEngine {
 
     // Sort matched tiles left-to-right, bottom-to-top for sequential pop delay
     const sortedCoords = Array.from(matchedCoords)
-      .map((str) => {
-        const [c, r] = str.split(',').map(Number);
-        return { col: c, row: r };
-      })
+      .map((key) => ({
+        col: Math.floor(key / ROWS),
+        row: key % ROWS
+      }))
       .sort((a, b) => a.row !== b.row ? a.row - b.row : a.col - b.col);
 
     for (const pos of sortedCoords) {
@@ -474,11 +491,13 @@ export class GameEngine {
       tile.popIndex = idx;
     });
 
-    // Clear chainEligible for resting IDLE tiles that have fully settled on solid ground and did not match
+  }
+
+  private clearSettledChainEligibility(matchedCoords: Set<number>): void {
     for (let c = 0; c < COLS; c++) {
       for (let r = 0; r < ROWS; r++) {
         const tile = this.grid[c][r];
-        if (tile.state === TileState.IDLE && !matchedCoords.has(`${c},${r}`)) {
+        if (tile.state === TileState.IDLE && !matchedCoords.has(c * ROWS + r)) {
           if (!this.hasClearingBelow(c, r)) {
             tile.chainEligible = false;
           }

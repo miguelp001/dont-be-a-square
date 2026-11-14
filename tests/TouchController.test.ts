@@ -177,4 +177,23 @@ describe('TouchController - Phase 2 Mobile Touch Interaction & Zero-Latency Drag
     // Cursor must frame the swapping pair (cols 3 and 4 at row 5)
     expect(mockCursor.setGridPosition).toHaveBeenCalledWith(3, 5);
   });
+
+  it('8. Multi-Touch Guard: Secondary pointer downs are rejected while dragging', () => {
+    // Primary touch with id 1 at (2, 4)
+    const primaryDown = touchController.handlePointerDown({ id: 1, x: 144, y: 208, time: 1000 } as any);
+    expect(primaryDown).toBe(true);
+    expect(touchController.isDragging).toBe(true);
+
+    // Secondary touch with id 2 at different cell (4, 4)
+    const secondaryDown = touchController.handlePointerDown({ id: 2, x: 64 + 4 * 32 + 16, y: 208, time: 1020 } as any);
+    expect(secondaryDown).toBe(false);
+
+    // Verify state was not corrupted by the secondary pointer
+    expect(touchController.primaryCol).toBe(2);
+    expect(touchController.touchRow).toBe(4);
+
+    // Primary pointer up cleans up drag
+    touchController.handlePointerUp({ id: 1, x: 144, y: 208, time: 1050 } as any);
+    expect(touchController.isDragging).toBe(false);
+  });
 });

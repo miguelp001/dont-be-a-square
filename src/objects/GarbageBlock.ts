@@ -19,6 +19,8 @@ export default class GarbageBlock {
   public state: GarbageState = GarbageState.FALLING;
   public startFallGridY: number = 0;
   public sprites: Phaser.GameObjects.Sprite[][] = [];
+  private transformTimer?: Phaser.Time.TimerEvent;
+  private isDestroyed: boolean = false;
 
   constructor(
     scene: Phaser.Scene,
@@ -61,15 +63,8 @@ export default class GarbageBlock {
   /** Check if this garbage block occupies a specific cell */
   public occupies(x: number, y: number): boolean {
     if (typeof x !== 'number' || typeof y !== 'number' || !Number.isFinite(x) || !Number.isFinite(y)) return false;
-    if (this.state === GarbageState.CLEARED) return false;
+    if (this.state === GarbageState.CLEARED || this.isDestroyed) return false;
     if (x < this.gridX || x >= this.gridX + this.width) return false;
-
-    // While falling, reserve the entire vertical corridor traversed so panels cannot swap or drop into the path
-    if (this.state === GarbageState.FALLING) {
-      const minY = Math.min(this.startFallGridY, this.gridY);
-      const maxY = Math.max(this.startFallGridY, this.gridY) + this.height - 1;
-      return y >= minY && y <= maxY;
-    }
 
     return y >= this.gridY && y < this.gridY + this.height;
   }
@@ -103,6 +98,7 @@ export default class GarbageBlock {
       }
 
       Promise.all(promises).then(() => {
+        if (this.isDestroyed || this.state === GarbageState.CLEARED || !this.scene) return;
         this.state = GarbageState.RESTING;
         SoundFx.playGarbageLand();
         resolve();
@@ -113,11 +109,18 @@ export default class GarbageBlock {
   /** Shift up with the stack */
   public shiftUp(): void {
     this.gridY--;
+    if (this.state === GarbageState.FALLING) {
+      this.startFallGridY--;
+    }
     for (let r = 0; r < this.height; r++) {
       for (let c = 0; c < this.width; c++) {
         const sprite = this.sprites[r] ? this.sprites[r][c] : null;
         if (sprite && sprite.active) {
-          sprite.y = (this.gridY + r) * PANEL_SIZE;
+          if (this.state === GarbageState.FALLING) {
+            sprite.y -= PANEL_SIZE;
+          } else {
+            sprite.y = (this.gridY + r) * PANEL_SIZE;
+          }
         }
       }
     }
@@ -173,7 +176,10 @@ export default class GarbageBlock {
         }
       }
 
-      this.scene.time.delayedCall(420, () => {
+      this.transformTimer = this.scene.time.delayedCall(420, () => {
+        this.transformTimer = undefined;
+        if (this.isDestroyed || this.state === GarbageState.CLEARED || !this.scene) return;
+
         // Explicitly guarantee all bottom row garbage sprites are destroyed
         // so no residual or flashing graphics linger over newly spawned slime panels
         for (const sprite of rowSprites) {
@@ -204,12 +210,18 @@ export default class GarbageBlock {
   }
 
   public destroy(): void {
+    this.isDestroyed = true;
     this.state = GarbageState.CLEARED;
+    if (this.transformTimer) {
+      this.transformTimer.remove(false);
+      this.transformTimer = undefined;
+    }
     for (let r = 0; r < this.sprites.length; r++) {
       if (!this.sprites[r]) continue;
       for (let c = 0; c < this.sprites[r].length; c++) {
         const sprite = this.sprites[r][c];
         if (sprite && sprite.active) {
+          this.scene?.tweens.killTweensOf(sprite);
           sprite.destroy();
         }
       }

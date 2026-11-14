@@ -22,9 +22,13 @@ export default class SocketManager {
   }
 
   private constructor() {
+    const envUrl = typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_SERVER_URL;
     const isLocal =
       typeof window !== 'undefined' &&
-      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+      (window.location.hostname === 'localhost' ||
+        window.location.hostname === '127.0.0.1' ||
+        window.location.hostname.startsWith('192.168.') ||
+        window.location.hostname.startsWith('10.'));
 
     const options = {
       autoConnect: true,
@@ -34,7 +38,9 @@ export default class SocketManager {
       transports: ['websocket', 'polling']
     };
 
-    this.socket = isLocal ? io('http://localhost:3001', options) : io(options);
+    const targetUrl =
+      envUrl || (isLocal && window.location.port !== '3001' ? `http://${window.location.hostname}:3001` : undefined);
+    this.socket = targetUrl ? io(targetUrl, options) : io(options);
 
     this.socket.on('connect', () => {
       console.log('Connected to multiplayer server:', this.socket.id);
@@ -124,12 +130,56 @@ export default class SocketManager {
     this.socket.on('room_error', callback);
   }
 
-  public getLeaderboard(data: { mode: string; difficulty: string; playerId?: string; limit?: number }): Promise<any> {
+  public removeGameListeners(): void {
+    this.socket.off('opponent_action');
+    this.socket.off('opponent_rematch_requested');
+    this.socket.off('game_restart');
+    this.socket.off('opponent_disconnected');
+  }
+
+  public removeLobbyListeners(): void {
+    this.socket.off('room_created');
+    this.socket.off('room_joined');
+    this.socket.off('game_start');
+    this.socket.off('room_error');
+  }
+
+  public removeAllListeners(): void {
+    this.removeGameListeners();
+    this.removeLobbyListeners();
+  }
+
+  private ensureConnection(): Promise<boolean> {
+    if (this.socket.connected) return Promise.resolve(true);
     return new Promise((resolve) => {
-      if (!this.socket.connected) {
-        this.socket.connect();
-      }
-      this.socket.timeout(4000).emit('get_leaderboard', data, (err: any, response: any) => {
+      this.socket.connect();
+      const onConnect = () => {
+        cleanup();
+        resolve(true);
+      };
+      const onError = () => {
+        cleanup();
+        resolve(false);
+      };
+      const timer = setTimeout(() => {
+        cleanup();
+        resolve(false);
+      }, 2000);
+      const cleanup = () => {
+        clearTimeout(timer);
+        this.socket.off('connect', onConnect);
+        this.socket.off('connect_error', onError);
+      };
+      this.socket.once('connect', onConnect);
+      this.socket.once('connect_error', onError);
+    });
+  }
+
+  public async getLeaderboard(data: { mode: string; difficulty: string; playerId?: string; limit?: number }): Promise<any> {
+    const connected = await this.ensureConnection();
+    if (!connected && !this.socket.connected) return null;
+    return new Promise((resolve) => {
+      this.socket.timeout(3000).emit('get_leaderboard', data, (err: any, response: any) => {
         if (err) {
           resolve(null);
         } else {
@@ -139,12 +189,11 @@ export default class SocketManager {
     });
   }
 
-  public submitLeaderboardScore(data: any): Promise<any> {
+  public async submitLeaderboardScore(data: any): Promise<any> {
+    const connected = await this.ensureConnection();
+    if (!connected && !this.socket.connected) return { success: false, error: 'Network unavailable' };
     return new Promise((resolve) => {
-      if (!this.socket.connected) {
-        this.socket.connect();
-      }
-      this.socket.timeout(4000).emit('submit_score', data, (err: any, response: any) => {
+      this.socket.timeout(3000).emit('submit_score', data, (err: any, response: any) => {
         if (err) {
           resolve({ success: false, error: 'Network timeout' });
         } else {
@@ -154,12 +203,11 @@ export default class SocketManager {
     });
   }
 
-  public updatePlayerName(data: { playerId: string; playerSecret: string; displayName: string }): Promise<any> {
+  public async updatePlayerName(data: { playerId: string; playerSecret: string; displayName: string }): Promise<any> {
+    const connected = await this.ensureConnection();
+    if (!connected && !this.socket.connected) return { success: false, error: 'Network unavailable' };
     return new Promise((resolve) => {
-      if (!this.socket.connected) {
-        this.socket.connect();
-      }
-      this.socket.timeout(4000).emit('update_player_name', data, (err: any, response: any) => {
+      this.socket.timeout(3000).emit('update_player_name', data, (err: any, response: any) => {
         if (err) {
           resolve({ success: false, error: 'Network timeout' });
         } else {

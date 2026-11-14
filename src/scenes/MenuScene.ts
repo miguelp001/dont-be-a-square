@@ -21,6 +21,7 @@ export default class MenuScene extends Phaser.Scene {
   create(): void {
     this.prevPadButtons.clear();
 
+    SoundFx.stopAll();
     if (this.cache.audio.exists('menu') && !this.sound.get('menu')?.isPlaying) {
       this.sound.stopAll();
       this.sound.play('menu', { loop: true, volume: Settings.musicVolume });
@@ -367,6 +368,11 @@ export default class MenuScene extends Phaser.Scene {
   }
 
   private setupKeyboardNavigation(): void {
+    this.events.once('shutdown', () => {
+      this.input.keyboard?.removeAllListeners();
+      this.input.gamepad?.removeAllListeners();
+    });
+
     this.input.keyboard?.on('keydown-UP', () => this.navigateMenu(-1));
     this.input.keyboard?.on('keydown-W', () => this.navigateMenu(-1));
     this.input.keyboard?.on('keydown-DOWN', () => this.navigateMenu(1));

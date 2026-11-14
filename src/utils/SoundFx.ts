@@ -7,9 +7,51 @@ export class SoundFx {
   public static enabled: boolean = true;
   public static volume: number = 0.35;
 
+  private static activeOscillators: Set<OscillatorNode> = new Set();
+
+  public static setContext(context: AudioContext | null): void {
+    if (this.ctx && this.ctx !== context && this.ctx.state !== 'closed') {
+      try {
+        this.ctx.close().catch(() => {});
+      } catch {}
+    }
+    this.ctx = context;
+  }
+
+  public static stopAll(): void {
+    for (const osc of this.activeOscillators) {
+      try {
+        osc.stop();
+        osc.disconnect();
+      } catch {}
+    }
+    this.activeOscillators.clear();
+  }
+
+  public static trackNode(osc: OscillatorNode, gain?: GainNode): void {
+    this.activeOscillators.add(osc);
+    osc.onended = () => {
+      this.activeOscillators.delete(osc);
+      try {
+        osc.disconnect();
+        if (gain) gain.disconnect();
+      } catch {}
+    };
+  }
+
+  public static close(): void {
+    this.stopAll();
+    if (this.ctx && this.ctx.state !== 'closed') {
+      try {
+        this.ctx.close().catch(() => {});
+      } catch {}
+    }
+    this.ctx = null;
+  }
+
   private static getContext(): AudioContext | null {
     if (!this.enabled) return null;
-    if (!this.ctx && typeof window !== 'undefined') {
+    if ((!this.ctx || this.ctx.state === 'closed') && typeof window !== 'undefined') {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       if (AudioCtx) {
         this.ctx = new AudioCtx();

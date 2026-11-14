@@ -94,6 +94,8 @@ export default class Board extends Phaser.Events.EventEmitter {
 
   public isOverchargeActive: boolean = false; // Volt's Overcharge
   public overchargeTimer: number = 0;
+  private poppingPanels: Set<Panel> = new Set<Panel>();
+  private maskGraphics?: Phaser.GameObjects.Graphics;
 
   constructor(scene: Phaser.Scene, offsetX: number = 64, offsetY: number = 64, scale: number = 1.0) {
     super();
@@ -107,15 +109,15 @@ export default class Board extends Phaser.Events.EventEmitter {
     this.container.setDepth(10); // Ensure panels render above backdrop (depth 1) and below frame (depth 22)
 
     // Geometry mask to clip the rising stack cleanly within the visible board frame
-    const maskGraphics = scene.make.graphics();
-    maskGraphics.fillStyle(0xffffff);
-    maskGraphics.fillRect(
+    this.maskGraphics = scene.make.graphics();
+    this.maskGraphics.fillStyle(0xffffff);
+    this.maskGraphics.fillRect(
       offsetX,
       offsetY,
       BOARD_WIDTH * PANEL_SIZE * scale,
       BOARD_VISIBLE_HEIGHT * PANEL_SIZE * scale
     );
-    const mask = maskGraphics.createGeometryMask();
+    const mask = this.maskGraphics.createGeometryMask();
     this.container.setMask(mask);
 
     this.initializeBoard();
@@ -226,8 +228,18 @@ export default class Board extends Phaser.Events.EventEmitter {
 
   /** Check if a cell is covered by any resting or active garbage block */
   public isCellOccupiedByGarbage(x: number, y: number): boolean {
+    if (this.garbageBlocks.length === 0) return false;
     if (typeof x !== 'number' || typeof y !== 'number' || !Number.isFinite(x) || !Number.isFinite(y)) return false;
-    return this.garbageBlocks.some((b) => b && typeof b.occupies === 'function' && b.occupies(x, y));
+    if (x < 0 || x >= BOARD_WIDTH) return false;
+    const blocks = this.garbageBlocks;
+    const len = blocks.length;
+    for (let i = 0; i < len; i++) {
+      const b = blocks[i];
+      if (b && typeof b.occupies === 'function' && b.occupies(x, y)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /** Spawn incoming garbage sent from opponent attack */
@@ -336,6 +348,7 @@ export default class Board extends Phaser.Events.EventEmitter {
 
   /** Update garbage gravity when panels beneath clear or fall */
   private updateGarbage(): void {
+    this.garbageBlocks = this.garbageBlocks.filter((b) => b && b.state !== GarbageState.CLEARED);
     for (const block of this.garbageBlocks) {
       if (block.state !== GarbageState.RESTING) continue;
 
@@ -583,6 +596,7 @@ export default class Board extends Phaser.Events.EventEmitter {
 
   /** Returns true if any panels or garbage blocks are in mid-air or mid-animation */
   public hasBusyPanels(): boolean {
+    if (this.poppingPanels.size > 0) return true;
     for (let y = 0; y <= BOARD_VISIBLE_HEIGHT; y++) {
       for (let x = 0; x < BOARD_WIDTH; x++) {
         const p = this.panels[y][x];
@@ -621,19 +635,19 @@ export default class Board extends Phaser.Events.EventEmitter {
     // Tick down active character status effect timers
     if (this.reverseLiftTimer > 0) {
       this.reverseLiftTimer = Math.max(0, this.reverseLiftTimer - delta);
-      if (this.reverseLiftTimer === 0) this.isReverseLiftActive = false;
+      if (this.reverseLiftTimer <= 0) this.isReverseLiftActive = false;
     }
     if (this.liftFrozenTimer > 0) {
       this.liftFrozenTimer = Math.max(0, this.liftFrozenTimer - delta);
-      if (this.liftFrozenTimer === 0) this.isLiftFrozen = false;
+      if (this.liftFrozenTimer <= 0) this.isLiftFrozen = false;
     }
     if (this.grooveTimer > 0) {
       this.grooveTimer = Math.max(0, this.grooveTimer - delta);
-      if (this.grooveTimer === 0) this.isGrooveActive = false;
+      if (this.grooveTimer <= 0) this.isGrooveActive = false;
     }
     if (this.overchargeTimer > 0) {
       this.overchargeTimer = Math.max(0, this.overchargeTimer - delta);
-      if (this.overchargeTimer === 0) this.isOverchargeActive = false;
+      if (this.overchargeTimer <= 0) this.isOverchargeActive = false;
     }
 
     this.updateHoverAndFalling(delta);
@@ -649,7 +663,7 @@ export default class Board extends Phaser.Events.EventEmitter {
     for (let y = 0; y <= BOARD_VISIBLE_HEIGHT; y++) {
       for (let x = 0; x < BOARD_WIDTH; x++) {
         const panel = this.panels[y][x];
-        if (panel && panel.state === PanelState.IDLE) {
+        if (panel && panel.state === PanelState.IDLE && !panel.isDragged) {
           const expectedX = x * PANEL_SIZE;
           const expectedY = y * PANEL_SIZE;
           if (panel.x !== expectedX) panel.x = expectedX;
@@ -755,7 +769,7 @@ export default class Board extends Phaser.Events.EventEmitter {
         this.emit('stackRise', { offset: 0 });
         if (!this.isDanger) {
           this.isDanger = true;
-          this.dangerGraceTimer = DANGER_GRACE_TIME;
+          this.dangerGraceTimer = this.dangerGraceDuration;
           this.dangerBeepTimer = 0;
           this.emit('dangerStart');
         }
@@ -861,36 +875,40 @@ export default class Board extends Phaser.Events.EventEmitter {
   }
 
   private updateHoverAndFalling(delta: number): void {
+    // Pass 1: Decrement hover timers for all panels currently in HOVER
     for (let y = BOARD_VISIBLE_HEIGHT - 1; y >= 0; y--) {
       for (let x = 0; x < BOARD_WIDTH; x++) {
         const panel = this.panels[y][x];
-        if (!panel) continue;
+        if (!panel || panel.state !== PanelState.HOVER) continue;
 
-        if (panel.state === PanelState.HOVER) {
-          panel.hoverTimer -= delta;
-          if (panel.hoverTimer <= 0) {
-            if (this.canPanelFallInto(x, y + 1)) {
-              this.dropPanel(x, y);
-            } else {
-              // Space below is blocked! Safely return to IDLE so panel isn't trapped
-              panel.state = PanelState.IDLE;
-              panel.chainEligible = false;
-            }
-          }
-          continue;
-        }
-
-        if (panel.state === PanelState.IDLE) {
+        panel.hoverTimer -= delta;
+        if (panel.hoverTimer <= 0) {
           if (this.canPanelFallInto(x, y + 1)) {
-            panel.startHover(80);
-            // Propagate hover to contiguous idle panels directly above so the column drops together
-            for (let aboveY = y - 1; aboveY >= 0; aboveY--) {
-              const above = this.panels[aboveY][x];
-              if (above && above.state === PanelState.IDLE) {
-                above.startHover(80);
-              } else {
-                break;
-              }
+            this.dropPanel(x, y);
+          } else {
+            // Space below is blocked! Safely return to IDLE so panel isn't trapped
+            panel.state = PanelState.IDLE;
+            panel.chainEligible = false;
+          }
+        }
+      }
+    }
+
+    // Pass 2: Detect newly unsupported IDLE panels and initiate synchronized column hover
+    for (let y = BOARD_VISIBLE_HEIGHT - 1; y >= 0; y--) {
+      for (let x = 0; x < BOARD_WIDTH; x++) {
+        const panel = this.panels[y][x];
+        if (!panel || panel.state !== PanelState.IDLE) continue;
+
+        if (this.canPanelFallInto(x, y + 1)) {
+          panel.startHover(80);
+          // Propagate hover to contiguous idle panels directly above so the column drops together
+          for (let aboveY = y - 1; aboveY >= 0; aboveY--) {
+            const above = this.panels[aboveY][x];
+            if (above && above.state === PanelState.IDLE) {
+              above.startHover(80);
+            } else {
+              break;
             }
           }
         }
@@ -962,7 +980,12 @@ export default class Board extends Phaser.Events.EventEmitter {
             this.emit('panelPop', { x, y, color: panel.color });
 
             // Pop animation on the sprite
-            panel.pop();
+            this.poppingPanels.add(panel);
+            panel.pop().then(() => {
+              this.poppingPanels.delete(panel);
+            }).catch(() => {
+              this.poppingPanels.delete(panel);
+            });
 
             // Trigger hover on panels directly above this column
             for (let aboveY = y - 1; aboveY >= 0; aboveY--) {
@@ -1055,10 +1078,15 @@ export default class Board extends Phaser.Events.EventEmitter {
 
     if (matchedPanelsSet.size === 0) return;
 
-    const matchedList = Array.from(matchedPanelsSet);
+    this.processMatchGroup(Array.from(matchedPanelsSet));
+  }
+
+  public processMatchGroup(matchedList: Panel[], forceChain: boolean = false): void {
+    if (!matchedList || matchedList.length === 0) return;
+    const matchedPanelsSet = new Set<Panel>(matchedList);
     const comboSize = matchedList.length;
 
-    const isChainMatch = matchedList.some((p) => p.chainEligible);
+    const isChainMatch = forceChain || matchedList.some((p) => p.chainEligible);
 
     if (isChainMatch) {
       this.activeChain++;
@@ -1075,7 +1103,7 @@ export default class Board extends Phaser.Events.EventEmitter {
     const totalScore = baseScore + comboBonus + chainBonus;
 
     const rawStopTime = 1800 + Math.min(comboSize * 250, 2500) + (this.activeChain > 1 ? 1400 : 0);
-    this.stopTime = Math.round(rawStopTime * this.stopTimeMultiplier);
+    this.stopTime = Math.max(this.stopTime, Math.round(rawStopTime * this.stopTimeMultiplier));
 
     if (this.isDanger) {
       // Matching while in danger awards bonus grace time and pauses danger!
@@ -1112,7 +1140,7 @@ export default class Board extends Phaser.Events.EventEmitter {
 
     matchedList.forEach((panel) => {
       for (let y = panel.gridY - 1; y >= 0; y--) {
-        const above = this.panels[y][panel.gridX];
+        const above = this.panels[y]?.[panel.gridX];
         if (above && !matchedPanelsSet.has(above)) {
           above.chainEligible = true;
         }
@@ -1210,23 +1238,25 @@ export default class Board extends Phaser.Events.EventEmitter {
   private updateChainState(): void {
     if (!this.isChainActive) return;
 
-    let hasActiveChainElements = false;
-    for (let y = 0; y < BOARD_VISIBLE_HEIGHT; y++) {
-      for (let x = 0; x < BOARD_WIDTH; x++) {
-        const p = this.panels[y][x];
-        if (!p) continue;
-        if (
-          p.state === PanelState.FALLING ||
-          p.state === PanelState.HOVER ||
-          p.state === PanelState.SWAPPING ||
-          p.state === PanelState.FLASHING ||
-          p.state === PanelState.POPPING
-        ) {
-          hasActiveChainElements = true;
-          break;
+    let hasActiveChainElements = this.poppingPanels.size > 0;
+    if (!hasActiveChainElements) {
+      for (let y = 0; y < BOARD_VISIBLE_HEIGHT; y++) {
+        for (let x = 0; x < BOARD_WIDTH; x++) {
+          const p = this.panels[y][x];
+          if (!p) continue;
+          if (
+            p.state === PanelState.FALLING ||
+            p.state === PanelState.HOVER ||
+            p.state === PanelState.SWAPPING ||
+            p.state === PanelState.FLASHING ||
+            p.state === PanelState.POPPING
+          ) {
+            hasActiveChainElements = true;
+            break;
+          }
         }
+        if (hasActiveChainElements) break;
       }
-      if (hasActiveChainElements) break;
     }
 
     if (!hasActiveChainElements) {
@@ -1317,10 +1347,6 @@ export default class Board extends Phaser.Events.EventEmitter {
         s.height > 0
     );
 
-    // If any garbage block is currently mid-fall, do not disrupt its drop animation
-    const hasFalling = this.garbageBlocks.some((b) => b.state === GarbageState.FALLING);
-    if (hasFalling) return;
-
     const remaining: GarbageBlock[] = [];
     const pendingSnaps = validSnapshots.map((s) => ({ ...s }));
 
@@ -1332,11 +1358,20 @@ export default class Board extends Phaser.Events.EventEmitter {
       );
 
       if (matchIndex === -1) {
-        // Block was cleared or transformed away on the opponent's board!
-        block.destroy();
+        // If the block is currently mid-fall from a recent attack, do not discard it yet
+        // since the remote opponent's snapshot might not have processed or landed it yet
+        if (block.state === GarbageState.FALLING) {
+          remaining.push(block);
+        } else {
+          // Block was cleared or transformed away on the opponent's board!
+          block.destroy();
+        }
       } else {
         const snap = pendingSnaps[matchIndex];
-        if (block.height !== snap.height) {
+        if (block.state === GarbageState.FALLING) {
+          // Keep dropping to its target without interrupting animation
+          remaining.push(block);
+        } else if (block.height !== snap.height) {
           block.destroy();
           if (this.scene && this.container && this.container.active) {
             const updated = new GarbageBlock(this.scene, this.container, snap.gridX, snap.gridY, snap.width, snap.height);
@@ -1481,7 +1516,11 @@ export default class Board extends Phaser.Events.EventEmitter {
 
     switch (this.characterId) {
       case 'mocha':
-        if (opponentBoard) this.triggerMochaTransmute(opponentBoard);
+        if (opponentBoard) {
+          this.triggerMochaTransmute(opponentBoard);
+        } else {
+          this.triggerMochaSoloTransmute();
+        }
         break;
       case 'mizu':
         this.triggerMizuTidalFlow();
@@ -1496,16 +1535,39 @@ export default class Board extends Phaser.Events.EventEmitter {
         this.triggerPoppySubFloorBlast();
         break;
       case 'salty':
-        if (opponentBoard) this.triggerSaltyFlashFreeze(opponentBoard);
+        if (opponentBoard) {
+          this.triggerSaltyFlashFreeze(opponentBoard);
+        } else {
+          this.isLiftFrozen = true;
+          this.liftFrozenTimer = 6000;
+          SoundFx.playCannonBoom();
+        }
         break;
       case 'void_slime':
-        if (opponentBoard) this.triggerVoidSlimeAetherDrain(opponentBoard);
+        if (opponentBoard) {
+          this.triggerVoidSlimeAetherDrain(opponentBoard);
+        } else {
+          this.stopTime = Math.max(this.stopTime, 6000);
+          SoundFx.playSparkleIdol();
+        }
         break;
       case 'volt':
-        if (opponentBoard) this.triggerVoltOvercharge(opponentBoard);
+        if (opponentBoard) {
+          this.triggerVoltOvercharge(opponentBoard);
+        } else {
+          this.stopTime = Math.max(this.stopTime, 5000);
+          this.emit('match', { panels: [], comboSize: 4, chainLevel: 1, scoreGained: 500 });
+          SoundFx.playElectricZap();
+        }
         break;
       case 'kiri':
-        if (opponentBoard) this.triggerKiriGearLock(opponentBoard);
+        if (opponentBoard) {
+          this.triggerKiriGearLock(opponentBoard);
+        } else {
+          this.unlockAllPanels();
+          this.stopTime = Math.max(this.stopTime, 4000);
+          SoundFx.playWrenchClank();
+        }
         break;
       case 'nano_banana':
       default:
@@ -1550,6 +1612,69 @@ export default class Board extends Phaser.Events.EventEmitter {
     SoundFx.playPotionBubble();
   }
 
+  /** Mocha: Solo transmute clears/transforms lowest garbage block or matches highest idle panels */
+  public triggerMochaSoloTransmute(): void {
+    if (this.garbageBlocks.length > 0) {
+      const targetGarbage = this.garbageBlocks[0];
+      targetGarbage.transformBottomRow().then((positions) => {
+        if (positions.length > 0) {
+          this.emit('garbageCleared', { count: positions.length });
+          this.addPowerMeter(3 * positions.length);
+        }
+        positions.forEach((pos) => {
+          if (pos.gridY < 0 || pos.gridY >= BOARD_HEIGHT || pos.gridX < 0 || pos.gridX >= BOARD_WIDTH) return;
+          const existing = this.panels[pos.gridY][pos.gridX];
+          if (existing) {
+            existing.destroy();
+            this.panels[pos.gridY][pos.gridX] = null;
+          }
+          const color = randomInt(0, Math.max(1, this.colorCount - 1));
+          const panel = new Panel(this.scene, pos.gridX * PANEL_SIZE, pos.gridY * PANEL_SIZE, color);
+          panel.setGridPosition(pos.gridX, pos.gridY);
+          panel.chainEligible = true;
+          this.panels[pos.gridY][pos.gridX] = panel;
+          this.container.add(panel);
+          this.checkPanelGravity(pos.gridX, pos.gridY);
+        });
+        this.garbageBlocks = this.garbageBlocks.filter((b) => b.state !== GarbageState.CLEARED);
+        this.updateGarbage();
+        this.checkMatches();
+      });
+      SoundFx.playPotionBubble();
+      return;
+    }
+    const highestPanels: Panel[] = [];
+    for (let y = 0; y < BOARD_VISIBLE_HEIGHT; y++) {
+      for (let x = 0; x < BOARD_WIDTH; x++) {
+        const p = this.panels[y][x];
+        if (p && p.state === PanelState.IDLE && p.color >= 0) {
+          highestPanels.push(p);
+          if (highestPanels.length >= 3) break;
+        }
+      }
+      if (highestPanels.length >= 3) break;
+    }
+    if (highestPanels.length > 0) {
+      highestPanels.forEach((p) => { p.chainEligible = true; });
+      this.processMatchGroup(highestPanels, true);
+    } else {
+      this.stopTime = Math.max(this.stopTime, 4000);
+    }
+    SoundFx.playPotionBubble();
+  }
+
+  /** Unlocks all panels on the board */
+  public unlockAllPanels(): void {
+    for (let y = 0; y < BOARD_VISIBLE_HEIGHT; y++) {
+      for (let x = 0; x < BOARD_WIDTH; x++) {
+        const p = this.panels[y][x];
+        if (p && p.isLocked) {
+          p.setLocked(false);
+        }
+      }
+    }
+  }
+
   /** Mizu: Reverses rising blocks and makes stack scroll downward for 5 seconds */
   public triggerMizuTidalFlow(): void {
     this.isReverseLiftActive = true;
@@ -1579,10 +1704,12 @@ export default class Board extends Phaser.Events.EventEmitter {
       }
     }
 
-    targetPanels.forEach((panel, i) => {
-      panel.chainEligible = true;
-      panel.startMatch(260, i * 25);
-    });
+    if (targetPanels.length > 0) {
+      targetPanels.forEach((p) => {
+        p.chainEligible = true;
+      });
+      this.processMatchGroup(targetPanels, true);
+    }
     SoundFx.playFireWhoosh();
   }
 
@@ -1597,20 +1724,35 @@ export default class Board extends Phaser.Events.EventEmitter {
   /** Poppy: Explodes the bottom two rows to instantly drop stack height */
   public triggerPoppySubFloorBlast(): void {
     const bottomRows = [BOARD_VISIBLE_HEIGHT - 1, BOARD_VISIBLE_HEIGHT - 2];
+    let poppedCount = 0;
     for (const y of bottomRows) {
       for (let x = 0; x < BOARD_WIDTH; x++) {
         const p = this.panels[y][x];
         if (p) {
           p.pop();
           this.panels[y][x] = null;
+          poppedCount++;
         }
       }
     }
 
     for (let x = 0; x < BOARD_WIDTH; x++) {
       for (let y = BOARD_VISIBLE_HEIGHT - 3; y >= 0; y--) {
+        const p = this.panels[y][x];
+        if (p) {
+          p.chainEligible = true;
+        }
         this.checkPanelGravity(x, y);
       }
+    }
+    this.updateGarbage();
+    if (poppedCount > 0) {
+      this.emit('match', {
+        panels: [],
+        comboSize: poppedCount,
+        chainLevel: this.activeChain,
+        scoreGained: poppedCount * 30
+      });
     }
     SoundFx.playSparkleIdol();
   }
@@ -1619,7 +1761,6 @@ export default class Board extends Phaser.Events.EventEmitter {
   public triggerSaltyFlashFreeze(opponentBoard: Board): void {
     opponentBoard.isLiftFrozen = true;
     opponentBoard.liftFrozenTimer = 6000;
-    opponentBoard.stopTime = Math.max(opponentBoard.stopTime, 6000);
     SoundFx.playCannonBoom();
   }
 
@@ -1655,5 +1796,34 @@ export default class Board extends Phaser.Events.EventEmitter {
       idlePanels[i].setLocked(true);
     }
     SoundFx.playWrenchClank();
+  }
+
+  public destroy(): void {
+    this.removeAllListeners();
+    this.poppingPanels.clear();
+    if (this.maskGraphics) {
+      this.maskGraphics.destroy();
+      this.maskGraphics = undefined;
+    }
+    if (this.garbageBlocks) {
+      for (const b of this.garbageBlocks) {
+        b?.destroy();
+      }
+      this.garbageBlocks = [];
+    }
+    for (let r = 0; r < BOARD_HEIGHT; r++) {
+      if (this.panels[r]) {
+        for (let c = 0; c < BOARD_WIDTH; c++) {
+          const p = this.panels[r][c];
+          if (p) {
+            p.destroy();
+            this.panels[r][c] = null;
+          }
+        }
+      }
+    }
+    if (this.container) {
+      this.container.destroy();
+    }
   }
 }
