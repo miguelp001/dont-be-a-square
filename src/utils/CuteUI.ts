@@ -1,7 +1,10 @@
-import Phaser from 'phaser';
+import type Phaser from 'phaser';
 import { GAME_WIDTH, GAME_HEIGHT, CUTE_FONT } from './Constants';
 import { SoundFx } from './SoundFx';
 import { ParallaxBackground } from './ParallaxBackground';
+import { CHARACTER_BG_PARTICLES, selectMatchBackground, type MatchBackgroundOptions } from './Backgrounds';
+
+export { CHARACTER_BG_PARTICLES, selectMatchBackground, type MatchBackgroundOptions };
 
 export interface PillButtonOptions {
   textureKey?: string;
@@ -35,13 +38,23 @@ export class CuteUI {
     return Math.round(scale * 100) / 100;
   }
   /**
+   * Determine the custom thematic background key for a match:
+   * - In an online match, chosen at random (synced across room via match seed if present).
+   * - In endless mode, chosen at random across all character stages.
+   * - When facing an opponent (challenge mode, vs_cpu, etc.), custom background of that opponent.
+   */
+  public static selectMatchBackground(options: MatchBackgroundOptions): string {
+    return selectMatchBackground(options);
+  }
+
+  /**
    * Create a fairytale storybook forest landscape background with drifting breeze particles.
    * If theme is 'parallax' (default for menus) and parallax textures exist,
    * instantiates the 4-layer 3D interactive parallax background with mouse & gyroscope tilt!
    */
   public static createCuteBackground(
     scene: Phaser.Scene,
-    theme: 'parallax' | 'meadow' | 'autumn' = 'parallax'
+    theme: 'parallax' | 'meadow' | 'autumn' | string = 'parallax'
   ): Phaser.GameObjects.GameObject {
     if (theme === 'parallax' && ParallaxBackground.isAvailable(scene)) {
       const parallax = new ParallaxBackground(scene);
@@ -51,9 +64,23 @@ export class CuteUI {
     const width = scene.cameras?.main?.width || GAME_WIDTH;
     const height = scene.cameras?.main?.height || GAME_HEIGHT;
 
-    const textureKey = theme === 'autumn' ? 'forest_autumn_bg' : 'forest_meadow_bg';
+    // Resolve texture key
+    let textureKey = '';
+    const charKey = theme.startsWith('bg_') ? theme.slice(3) : theme;
 
-    if (scene.textures.exists(textureKey)) {
+    if (theme === 'autumn') {
+      textureKey = 'forest_autumn_bg';
+    } else if (theme === 'meadow') {
+      textureKey = 'forest_meadow_bg';
+    } else if (scene.textures.exists(`bg_${charKey}`)) {
+      textureKey = `bg_${charKey}`;
+    } else if (scene.textures.exists(theme)) {
+      textureKey = theme;
+    } else if (scene.textures.exists('forest_meadow_bg')) {
+      textureKey = 'forest_meadow_bg';
+    }
+
+    if (textureKey && scene.textures.exists(textureKey)) {
       const container = scene.add.container(0, 0);
       container.setDepth(-100);
 
@@ -69,15 +96,18 @@ export class CuteUI {
 
       container.add(bg);
 
-      // Storybook ambient drifting breeze (floating pastel petals / autumn leaves)
+      // Storybook ambient drifting breeze with character-themed particle colors
+      const particleColors = CHARACTER_BG_PARTICLES[charKey] || (
+        theme === 'autumn'
+          ? [0xfeca57, 0xff9f43, 0xff6b6b, 0xe55039]
+          : [0xff9ff3, 0xfeca57, 0x54a0ff, 0x1dd1a1]
+      );
+
       const particleCount = 8;
       for (let i = 0; i < particleCount; i++) {
         const px = Math.random() * width;
         const py = Math.random() * height;
-        const isAutumn = theme === 'autumn';
-        const pTint = isAutumn
-          ? [0xfeca57, 0xff9f43, 0xff6b6b, 0xe55039][Math.floor(Math.random() * 4)]
-          : [0xff9ff3, 0xfeca57, 0x54a0ff, 0x1dd1a1][Math.floor(Math.random() * 4)];
+        const pTint = particleColors[Math.floor(Math.random() * particleColors.length)];
 
         const p = scene.add.image(px, py, 'sparkle_star');
         p.setDisplaySize(7 + Math.random() * 6, 7 + Math.random() * 6);

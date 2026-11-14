@@ -51,8 +51,10 @@ export default class CharacterProfileScene extends Phaser.Scene {
     const height = this.cameras.main.height;
     const uiScale = CuteUI.getUIScale(this);
 
-    // 3D Parallax fairytale meadow background
-    CuteUI.createCuteBackground(this);
+    const char = this.availableCharacters[this.currentIndex];
+
+    // Custom character background with themed particle breeze
+    CuteUI.createCuteBackground(this, char?.id || 'kiri');
 
     // Header Title
     this.add

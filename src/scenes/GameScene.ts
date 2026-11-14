@@ -167,6 +167,7 @@ export default class GameScene extends Phaser.Scene {
   private opponentWantsRematch: boolean = false;
   private opponentDisconnected: boolean = false;
   private onlinePlayAgainBtnText?: Phaser.GameObjects.Text;
+  public matchBackgroundKey: string = '';
 
   private initialData: any = {};
 
@@ -197,6 +198,13 @@ export default class GameScene extends Phaser.Scene {
     } else {
       const otherChars = CHARACTERS.filter((c) => c.id !== this.characterId);
       this.opponentCharacterId = otherChars[Math.floor(Math.random() * otherChars.length)].id;
+    }
+
+    // Determine custom thematically appropriate background
+    this.matchBackgroundKey = this.getMatchBackgroundKey();
+    const bgKey = `bg_${this.matchBackgroundKey}`;
+    if (!this.textures.exists(bgKey)) {
+      this.load.image(bgKey, `assets/ui/backgrounds/bg_${this.matchBackgroundKey}.webp?v=bg_v1`);
     }
 
     // On-demand load character attack spritesheets and battle music if not already in cache
@@ -260,6 +268,21 @@ export default class GameScene extends Phaser.Scene {
     this.lastInputDevice = 'keyboard';
   }
 
+  /**
+   * Determine the custom thematic background key for the match:
+   * - In an online match, chosen at random (synced across room via match seed if present).
+   * - In endless mode, chosen at random across all character stages.
+   * - When facing a character (challenge mode, vs_cpu, etc.), custom background of that character.
+   */
+  public getMatchBackgroundKey(): string {
+    return CuteUI.selectMatchBackground({
+      gameMode: this.gameMode,
+      characterId: this.characterId,
+      opponentCharacterId: this.opponentCharacterId,
+      matchSeed: this.matchSeed
+    });
+  }
+
   create(): void {
     if (this.cache.audio.exists('battle_cpu')) {
       this.sound.stopAll();
@@ -269,8 +292,8 @@ export default class GameScene extends Phaser.Scene {
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
 
-    // Slowly drifting cute pastel pattern background
-    CuteUI.createCuteBackground(this, this.gameMode === 'challenge' ? 'autumn' : 'meadow');
+    // Custom thematically appropriate battle stage background with matching ambient particles
+    CuteUI.createCuteBackground(this, this.matchBackgroundKey || this.getMatchBackgroundKey());
 
     // Support multi-touch (e.g. 2-finger lift on mobile/tablet)
     this.input.addPointer(2);

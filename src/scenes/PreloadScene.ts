@@ -73,6 +73,7 @@ export default class PreloadScene extends Phaser.Scene {
     // Load character portrait assets (optimized WebP ~30KB each)
     CHARACTERS.forEach(char => {
       this.load.image(char.id, `assets/sprites/characters/${char.id}.webp?v=wbp_v3`);
+      this.load.image(`bg_${char.id}`, `assets/ui/backgrounds/bg_${char.id}.webp?v=bg_v1`);
     });
 
     // Core BGM for initial menus and battle
