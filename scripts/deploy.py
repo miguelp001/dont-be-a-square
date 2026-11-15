@@ -20,8 +20,8 @@ HOST = os.environ.get('SSH_HOST')
 USER = os.environ.get('SSH_USER')
 PASS = os.environ.get('SSH_PASSWORD')
 PORT = int(os.environ.get('SSH_PORT', 22))
-REMOTE_DIR = os.environ.get('SSH_TARGET', f"/home/{USER}/dbas.aredpanic.com" if USER else "dbas.aredpanic.com")
-SERVER_DIR = os.environ.get('SSH_SERVER_DIR', f"/home/{USER}/server" if USER else "server")
+REMOTE_DIR = os.environ.get('SSH_TARGET') or (f"/home/{USER}/dbas.aredpanic.com" if USER else "dbas.aredpanic.com")
+SERVER_DIR = os.environ.get('SSH_SERVER_DIR') or (f"/home/{USER}/server" if USER else "server")
 LOCAL_DIR = Path(__file__).resolve().parent.parent / 'dist'
 
 def upload_file_if_changed(sftp, local_file, remote_file, prefix=""):
