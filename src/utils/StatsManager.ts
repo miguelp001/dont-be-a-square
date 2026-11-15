@@ -201,8 +201,24 @@ function getSeededStarterStats(): GameStats {
 export class StatsManager {
   private static cachedStats: GameStats | null = null;
   private static fpsSamples: number[] = [];
+  private static saveTimeout: any = null;
+  private static hooksInstalled: boolean = false;
+
+  private static installHooks(): void {
+    if (this.hooksInstalled) return;
+    this.hooksInstalled = true;
+    if (typeof window !== 'undefined') {
+      window.addEventListener('beforeunload', () => StatsManager.save());
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') {
+          StatsManager.save();
+        }
+      });
+    }
+  }
 
   public static load(): GameStats {
+    this.installHooks();
     if (this.cachedStats) return this.cachedStats;
 
     try {
@@ -234,7 +250,23 @@ export class StatsManager {
     return this.cachedStats;
   }
 
+  public static scheduleSave(): void {
+    if (this.saveTimeout !== null) return;
+    if (typeof setTimeout !== 'undefined') {
+      this.saveTimeout = setTimeout(() => {
+        this.saveTimeout = null;
+        this.save();
+      }, 5000);
+    } else {
+      this.save();
+    }
+  }
+
   public static save(): void {
+    if (this.saveTimeout !== null) {
+      clearTimeout(this.saveTimeout);
+      this.saveTimeout = null;
+    }
     if (!this.cachedStats) return;
     try {
       if (typeof localStorage !== 'undefined') {
@@ -267,7 +299,7 @@ export class StatsManager {
       stats.characterPicks[characterId] = (stats.characterPicks[characterId] || 0) + 1;
     }
 
-    this.save();
+    this.scheduleSave();
   }
 
   public static recordMatchEnd(
@@ -309,18 +341,13 @@ export class StatsManager {
     if (inputType && stats.inputUsage[inputType] !== undefined) {
       stats.inputUsage[inputType]++;
     }
-    // Throttle saves on high-frequency swaps
-    if (stats.totalSwaps % 15 === 0) {
-      this.save();
-    }
+    this.scheduleSave();
   }
 
   public static recordFastLift(): void {
     const stats = this.load();
     stats.totalFastLifts++;
-    if (stats.totalFastLifts % 10 === 0) {
-      this.save();
-    }
+    this.scheduleSave();
   }
 
   public static recordMatchEvent(comboSize: number, chainLevel: number): void {
@@ -340,13 +367,13 @@ export class StatsManager {
       stats.maxChain = chainLevel;
     }
 
-    this.save();
+    this.scheduleSave();
   }
 
   public static recordGarbageCleared(count: number = 1): void {
     const stats = this.load();
     stats.totalGarbageCleared += count;
-    this.save();
+    this.scheduleSave();
   }
 
   public static recordFps(fps: number): void {
@@ -359,6 +386,6 @@ export class StatsManager {
     const avg = Math.round(sum / this.fpsSamples.length);
     const stats = this.load();
     stats.avgFps = avg;
-    this.save();
+    // Keep in-memory; persisted upon match end or periodic save
   }
 }

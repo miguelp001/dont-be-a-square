@@ -95,6 +95,7 @@ export default class Board extends Phaser.Events.EventEmitter {
   public isOverchargeActive: boolean = false; // Volt's Overcharge
   public overchargeTimer: number = 0;
   private poppingPanels: Set<Panel> = new Set<Panel>();
+  private matchedPanelsPool: Set<Panel> = new Set<Panel>();
   private maskGraphics?: Phaser.GameObjects.Graphics;
 
   constructor(scene: Phaser.Scene, offsetX: number = 64, offsetY: number = 64, scale: number = 1.0) {
@@ -348,7 +349,17 @@ export default class Board extends Phaser.Events.EventEmitter {
 
   /** Update garbage gravity when panels beneath clear or fall */
   private updateGarbage(): void {
-    this.garbageBlocks = this.garbageBlocks.filter((b) => b && b.state !== GarbageState.CLEARED);
+    let hasCleared = false;
+    for (let i = 0; i < this.garbageBlocks.length; i++) {
+      const b = this.garbageBlocks[i];
+      if (!b || b.state === GarbageState.CLEARED) {
+        hasCleared = true;
+        break;
+      }
+    }
+    if (hasCleared) {
+      this.garbageBlocks = this.garbageBlocks.filter((b) => b && b.state !== GarbageState.CLEARED);
+    }
     for (const block of this.garbageBlocks) {
       if (block.state !== GarbageState.RESTING) continue;
 
@@ -1006,7 +1017,8 @@ export default class Board extends Phaser.Events.EventEmitter {
 
   /** Scan the entire board for 3+ matches and trigger garbage transformations */
   private checkMatches(): void {
-    const matchedPanelsSet = new Set<Panel>();
+    this.matchedPanelsPool.clear();
+    const matchedPanelsSet = this.matchedPanelsPool;
 
     for (let y = 0; y < BOARD_VISIBLE_HEIGHT; y++) {
       let runStart = 0;
@@ -1801,6 +1813,7 @@ export default class Board extends Phaser.Events.EventEmitter {
   public destroy(): void {
     this.removeAllListeners();
     this.poppingPanels.clear();
+    this.matchedPanelsPool.clear();
     if (this.maskGraphics) {
       this.maskGraphics.destroy();
       this.maskGraphics = undefined;
@@ -1823,6 +1836,7 @@ export default class Board extends Phaser.Events.EventEmitter {
       }
     }
     if (this.container) {
+      this.container.clearMask(true);
       this.container.destroy();
     }
   }

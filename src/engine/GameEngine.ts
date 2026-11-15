@@ -497,7 +497,7 @@ export class GameEngine {
     for (let c = 0; c < COLS; c++) {
       for (let r = 0; r < ROWS; r++) {
         const tile = this.grid[c][r];
-        if (tile.state === TileState.IDLE && !matchedCoords.has(c * ROWS + r)) {
+        if (tile.state === TileState.IDLE && tile.chainEligible && !matchedCoords.has(c * ROWS + r)) {
           if (!this.hasClearingBelow(c, r)) {
             tile.chainEligible = false;
           }

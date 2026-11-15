@@ -304,8 +304,10 @@ export default class GameScene extends Phaser.Scene {
     // Custom thematically appropriate battle stage background with matching ambient particles
     CuteUI.createCuteBackground(this, this.matchBackgroundKey || this.getMatchBackgroundKey());
 
-    // Support multi-touch (e.g. 2-finger lift on mobile/tablet)
-    this.input.addPointer(2);
+    // Support multi-touch (e.g. 2-finger lift on mobile/tablet) without leaking duplicate pointers on scene restart
+    if (this.input.manager.pointersTotal < 3) {
+      this.input.addPointer(2);
+    }
 
     if (this.gameMode === 'endless') {
       this.setupEndlessMode();
@@ -1592,11 +1594,6 @@ export default class GameScene extends Phaser.Scene {
 
     window.addEventListener('keydown', this.keydownHandler);
     window.addEventListener('keyup', this.keyupHandler);
-
-    this.events.once('shutdown', () => {
-      if (this.keydownHandler) window.removeEventListener('keydown', this.keydownHandler);
-      if (this.keyupHandler) window.removeEventListener('keyup', this.keyupHandler);
-    });
   }
 
   /** Setup mouse & touch controls (Desktop click-to-swap, hover cursor, right-click/wheel lift, mobile gestures) */
@@ -1608,8 +1605,16 @@ export default class GameScene extends Phaser.Scene {
     this.input.mouse?.disableContextMenu();
     const onContextMenu = (e: MouseEvent) => e.preventDefault();
     window.addEventListener('contextmenu', onContextMenu);
-    this.events.once('shutdown', () => {
+    const cleanupScene = () => {
       window.removeEventListener('contextmenu', onContextMenu);
+      if (this.keydownHandler) {
+        window.removeEventListener('keydown', this.keydownHandler);
+        this.keydownHandler = undefined;
+      }
+      if (this.keyupHandler) {
+        window.removeEventListener('keyup', this.keyupHandler);
+        this.keyupHandler = undefined;
+      }
       if (this.touchController) {
         this.touchController.destroy();
         this.touchController = undefined;
@@ -1625,16 +1630,44 @@ export default class GameScene extends Phaser.Scene {
         this.cpuBoard.destroy();
         this.cpuBoard = undefined;
       }
+      if (this.playerCursor) {
+        this.playerCursor.destroy();
+      }
+      if (this.cpuCursor) {
+        this.cpuCursor.destroy();
+        this.cpuCursor = undefined;
+      }
+      if (this.playerHazardTween) {
+        this.playerHazardTween.stop();
+        this.playerHazardTween = undefined;
+      }
+      if (this.playerPowerGlowTween) {
+        this.playerPowerGlowTween.stop();
+        this.playerPowerGlowTween = undefined;
+      }
+      if (this.pauseModalContainer) {
+        this.pauseModalContainer.destroy();
+        this.pauseModalContainer = undefined;
+      }
+      if (this.gameOverModalContainer) {
+        this.gameOverModalContainer.destroy();
+        this.gameOverModalContainer = undefined;
+      }
       if (this.socketMgr) {
         this.socketMgr.removeGameListeners();
       }
       if (this.gameMode === 'vs_online' && this.socketMgr && this.roomId && !this.isRematchRequested) {
         this.socketMgr.leaveRoom(this.roomId);
       }
+      this.input.removeAllListeners();
+      this.input.gamepad?.removeAllListeners();
       SoundFx.stopAll();
       this.time.removeAllEvents();
       this.tweens.killAll();
-    });
+    };
+
+    this.events.once('shutdown', cleanupScene);
+    this.events.once('destroy', cleanupScene);
 
     // 1. Mobile & Desktop Pause Button (Top-Left on Mobile, Top-Right on Desktop)
     const pauseBtnX = this.isMobileLayout ? 24 : width - 24;

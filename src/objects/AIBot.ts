@@ -532,6 +532,22 @@ export default class AIBot {
     return score;
   }
 
+  private getSimulatedColor(
+    cx: number,
+    cy: number,
+    targetY: number,
+    swapX: number,
+    postLeftColor: number,
+    postRightColor: number
+  ): number {
+    if (cy === targetY) {
+      if (cx === swapX) return postLeftColor;
+      if (cx === swapX + 1) return postRightColor;
+    }
+    const p = this.board.getPanelAt(cx, cy);
+    return p ? p.color : -1;
+  }
+
   private countSimulatedMatches(
     targetX: number,
     targetY: number,
@@ -540,26 +556,17 @@ export default class AIBot {
     postLeftColor: number,
     postRightColor: number
   ): number {
-    const getColor = (cx: number, cy: number): number => {
-      if (cy === targetY) {
-        if (cx === swapX) return postLeftColor;
-        if (cx === swapX + 1) return postRightColor;
-      }
-      const p = this.board.getPanelAt(cx, cy);
-      return p ? p.color : -1;
-    };
-
     let horizontal = 1;
     let nx = targetX - 1;
     while (nx >= 0) {
-      if (getColor(nx, targetY) === color) {
+      if (this.getSimulatedColor(nx, targetY, targetY, swapX, postLeftColor, postRightColor) === color) {
         horizontal++;
         nx--;
       } else break;
     }
     nx = targetX + 1;
     while (nx < BOARD_WIDTH) {
-      if (getColor(nx, targetY) === color) {
+      if (this.getSimulatedColor(nx, targetY, targetY, swapX, postLeftColor, postRightColor) === color) {
         horizontal++;
         nx++;
       } else break;
@@ -568,14 +575,14 @@ export default class AIBot {
     let vertical = 1;
     let ny = targetY - 1;
     while (ny >= 0) {
-      if (getColor(targetX, ny) === color) {
+      if (this.getSimulatedColor(targetX, ny, targetY, swapX, postLeftColor, postRightColor) === color) {
         vertical++;
         ny--;
       } else break;
     }
     ny = targetY + 1;
     while (ny < BOARD_VISIBLE_HEIGHT) {
-      if (getColor(targetX, ny) === color) {
+      if (this.getSimulatedColor(targetX, ny, targetY, swapX, postLeftColor, postRightColor) === color) {
         vertical++;
         ny++;
       } else break;

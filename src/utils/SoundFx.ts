@@ -29,13 +29,18 @@ export class SoundFx {
   }
 
   public static trackNode(osc: OscillatorNode, gain?: GainNode): void {
+    if (!osc) return;
     this.activeOscillators.add(osc);
-    osc.onended = () => {
+    const origOnEnded = osc.onended;
+    osc.onended = (ev: Event) => {
       this.activeOscillators.delete(osc);
       try {
         osc.disconnect();
         if (gain) gain.disconnect();
       } catch {}
+      if (typeof origOnEnded === 'function') {
+        origOnEnded.call(osc, ev);
+      }
     };
   }
 
@@ -80,6 +85,7 @@ export class SoundFx {
 
     osc.connect(gain);
     gain.connect(ctx.destination);
+    this.trackNode(osc, gain);
     osc.start(now);
     osc.stop(now + 0.04);
   }
@@ -100,6 +106,7 @@ export class SoundFx {
     gainClick.gain.exponentialRampToValueAtTime(0.001, now + 0.018);
     oscClick.connect(gainClick);
     gainClick.connect(ctx.destination);
+    this.trackNode(oscClick, gainClick);
     oscClick.start(now);
     oscClick.stop(now + 0.018);
 
@@ -113,6 +120,7 @@ export class SoundFx {
     gainTone.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
     oscTone.connect(gainTone);
     gainTone.connect(ctx.destination);
+    this.trackNode(oscTone, gainTone);
     oscTone.start(now + 0.004);
     oscTone.stop(now + 0.05);
   }
@@ -139,6 +147,7 @@ export class SoundFx {
 
     osc.connect(gain);
     gain.connect(ctx.destination);
+    this.trackNode(osc, gain);
     osc.start(now);
     osc.stop(now + 0.05);
   }
@@ -161,6 +170,7 @@ export class SoundFx {
 
     osc.connect(gain);
     gain.connect(ctx.destination);
+    this.trackNode(osc, gain);
     osc.start(now);
     osc.stop(now + 0.06);
   }
@@ -185,6 +195,7 @@ export class SoundFx {
 
       osc.connect(gain);
       gain.connect(ctx.destination);
+      this.trackNode(osc, gain);
       osc.start(startTime);
       osc.stop(startTime + 0.12);
     });
@@ -211,6 +222,7 @@ export class SoundFx {
 
       osc.connect(gain);
       gain.connect(ctx.destination);
+      this.trackNode(osc, gain);
       osc.start(startTime);
       osc.stop(startTime + 0.14);
     });
@@ -233,6 +245,7 @@ export class SoundFx {
 
     osc.connect(gain);
     gain.connect(ctx.destination);
+    this.trackNode(osc, gain);
     osc.start(now);
     osc.stop(now + 0.14);
   }
@@ -272,6 +285,7 @@ export class SoundFx {
 
       osc.connect(gain);
       gain.connect(ctx.destination);
+      this.trackNode(osc, gain);
       osc.start(startTime);
       osc.stop(startTime + 0.25);
     });
@@ -294,6 +308,7 @@ export class SoundFx {
 
     osc.connect(gain);
     gain.connect(ctx.destination);
+    this.trackNode(osc, gain);
     osc.start(now);
     osc.stop(now + 0.03);
   }
@@ -315,6 +330,7 @@ export class SoundFx {
 
     osc.connect(gain);
     gain.connect(ctx.destination);
+    this.trackNode(osc, gain);
     osc.start(now);
     osc.stop(now + 0.16);
   }
@@ -339,6 +355,7 @@ export class SoundFx {
 
       osc.connect(gain);
       gain.connect(ctx.destination);
+      this.trackNode(osc, gain);
       osc.start(startTime);
       osc.stop(startTime + 0.18);
     });
@@ -362,6 +379,7 @@ export class SoundFx {
 
     osc.connect(gain);
     gain.connect(ctx.destination);
+    this.trackNode(osc, gain);
     osc.start(now);
     osc.stop(now + 0.18);
   }
@@ -387,6 +405,7 @@ export class SoundFx {
 
       osc.connect(gain);
       gain.connect(ctx.destination);
+      this.trackNode(osc, gain);
       osc.start(startTime);
       osc.stop(startTime + 0.2);
     });
@@ -421,6 +440,7 @@ export class SoundFx {
 
       osc.connect(gain);
       gain.connect(ctx.destination);
+      this.trackNode(osc, gain);
       osc.start(startTime);
       osc.stop(startTime + item.dur);
     });
@@ -479,6 +499,7 @@ export class SoundFx {
         noteGain.connect(masterGain);
       }
 
+      this.trackNode(osc, noteGain);
       osc.start(startTime);
       osc.stop(startTime + 0.65);
     });
@@ -509,6 +530,7 @@ export class SoundFx {
 
       osc.connect(noteGain);
       noteGain.connect(masterGain);
+      this.trackNode(osc, noteGain);
       osc.start(now);
       osc.stop(now + 0.4);
     });
@@ -535,6 +557,7 @@ export class SoundFx {
     pingGain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
     pingOsc.connect(pingGain);
     pingGain.connect(masterGain);
+    this.trackNode(pingOsc, pingGain);
     pingOsc.start(now);
     pingOsc.stop(now + 0.2);
 
@@ -548,6 +571,7 @@ export class SoundFx {
     waveGain.gain.exponentialRampToValueAtTime(0.001, now + 0.42);
     waveOsc.connect(waveGain);
     waveGain.connect(masterGain);
+    this.trackNode(waveOsc, waveGain);
     waveOsc.start(now + 0.05);
     waveOsc.stop(now + 0.45);
   }
@@ -578,6 +602,7 @@ export class SoundFx {
 
       osc.connect(gain);
       gain.connect(masterGain);
+      this.trackNode(osc, gain);
       osc.start(startTime);
       osc.stop(startTime + 0.1);
     });
@@ -591,6 +616,7 @@ export class SoundFx {
     chimeGain.gain.exponentialRampToValueAtTime(0.001, now + 0.48);
     chimeOsc.connect(chimeGain);
     chimeGain.connect(masterGain);
+    this.trackNode(chimeOsc, chimeGain);
     chimeOsc.start(now + 0.22);
     chimeOsc.stop(now + 0.5);
   }
@@ -616,6 +642,7 @@ export class SoundFx {
     roarGain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
     roarOsc.connect(roarGain);
     roarGain.connect(masterGain);
+    this.trackNode(roarOsc, roarGain);
     roarOsc.start(now);
     roarOsc.stop(now + 0.5);
 
@@ -630,6 +657,7 @@ export class SoundFx {
     whooshGain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
     whooshOsc.connect(whooshGain);
     whooshGain.connect(masterGain);
+    this.trackNode(whooshOsc, whooshGain);
     whooshOsc.start(now + 0.04);
     whooshOsc.stop(now + 0.5);
   }
@@ -659,6 +687,7 @@ export class SoundFx {
     zapGain.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
     zapOsc.connect(zapGain);
     zapGain.connect(masterGain);
+    this.trackNode(zapOsc, zapGain);
     zapOsc.start(now);
     zapOsc.stop(now + 0.4);
   }
@@ -684,6 +713,7 @@ export class SoundFx {
     boomGain.gain.exponentialRampToValueAtTime(0.001, now + 0.48);
     boomOsc.connect(boomGain);
     boomGain.connect(masterGain);
+    this.trackNode(boomOsc, boomGain);
     boomOsc.start(now);
     boomOsc.stop(now + 0.5);
 
@@ -699,6 +729,7 @@ export class SoundFx {
       coinGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.2);
       coinOsc.connect(coinGain);
       coinGain.connect(masterGain);
+      this.trackNode(coinOsc, coinGain);
       coinOsc.start(startTime);
       coinOsc.stop(startTime + 0.22);
     });
@@ -727,6 +758,7 @@ export class SoundFx {
       noteGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.25);
       osc.connect(noteGain);
       noteGain.connect(masterGain);
+      this.trackNode(osc, noteGain);
       osc.start(startTime);
       osc.stop(startTime + 0.28);
     });

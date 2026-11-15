@@ -511,7 +511,7 @@ export default class BootScene extends Phaser.Scene {
     generatePillButtonTexture('pill_sm_orange', 120, 34, 0xff9f43, 0xd35400);
     generatePillButtonTexture('pill_sm_cyan', 120, 34, 0x00d2d3, 0x01a3a4);
     generatePillButtonTexture('pill_sm_grey', 120, 34, 0x57606f, 0x2f3542);
-    graphics.clear();
+    graphics.destroy();
   }
 
   create(): void {
